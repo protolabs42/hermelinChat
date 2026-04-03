@@ -2005,15 +2005,17 @@ def create_app(config: HermelinConfig | None = None) -> FastAPI:
         except Exception:
             ui_theme = ""
 
-        skin_name: str | None = None
-        if ui_theme == "hermelin":
-            skin_name = "hermelin"
-        elif ui_theme == "matrix":
-            skin_name = "matrix"
-        elif ui_theme == "nous":
-            skin_name = "nous"
-        elif ui_theme == "samaritan":
-            skin_name = "samaritan"
+        _theme_to_skin: dict[str, str] = {
+            "hermelin": "hermelin",
+            "matrix": "matrix",
+            "nous": "nous",
+            "samaritan": "samaritan",
+            "catppuccin": "catppuccin",
+            "catppuccin-macchiato": "catppuccin-macchiato",
+            "catppuccin-frappe": "catppuccin-frappe",
+            "catppuccin-latte": "catppuccin-latte",
+        }
+        skin_name: str | None = _theme_to_skin.get(ui_theme)
 
         try:
             exe_name = Path(argv[0]).name.lower() if argv else ""
