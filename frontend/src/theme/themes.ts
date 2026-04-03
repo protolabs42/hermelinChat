@@ -274,8 +274,6 @@ export const THEMES: Record<string, Theme> = {
     id: 'catppuccin',
     label: 'Catppuccin (lavender)',
     AMBER: {
-      // Lavender accent ramp — Catppuccin Mocha lavender (#b4befe) as 400,
-      // lighter/darker shades derived to fit the 300-900 scale.
       300: '#d0d5ff',
       400: '#b4befe',
       500: '#9399e2',
@@ -285,19 +283,27 @@ export const THEMES: Record<string, Theme> = {
       900: '#232554',
     },
     SLATE: {
-      bg: '#1e1e2e',       // base
-      surface: '#181825',  // mantle
-      elevated: '#313244', // surface0
-      border: '#45475a',   // surface1
-      muted: '#6c7086',    // overlay0
-      text: '#bac2de',     // subtext1
-      textBright: '#cdd6f4', // text
-      accent: '#b4befe',   // lavender
-      danger: '#f38ba8',   // red
-      success: '#a6e3a1',  // green
-      info: '#89b4fa',     // blue
-      purple: '#cba6f7',   // mauve
-      cyan: '#94e2d5',     // teal
+      bg: '#1e1e2e',
+      surface: '#181825',
+      elevated: '#313244',
+      border: '#45475a',
+      muted: '#6c7086',
+      text: '#bac2de',
+      textBright: '#cdd6f4',
+      accent: '#b4befe',
+      danger: '#f38ba8',
+      success: '#a6e3a1',
+      info: '#89b4fa',
+      purple: '#cba6f7',
+      cyan: '#94e2d5',
+    },
+    icons: {
+      faviconHref: '/favicon.svg',
+      topbarSvgRaw: HERMELIN_NOT_FLIPPED_RAW,
+      alignmentSvgRaw: HERMELIN_NOT_FLIPPED_RAW,
+      alignmentTitle: 'aurora',
+      alignmentWhisperText: 'the sky remembers what the ground forgets',
+      alignmentFetchWhisper: false,
     },
     background: {
       kind: 'particles',
@@ -332,6 +338,14 @@ export const THEMES: Record<string, Theme> = {
       purple: '#c6a0f6',   // mauve
       cyan: '#8bd5ca',     // teal
     },
+    icons: {
+      faviconHref: '/favicon.svg',
+      topbarSvgRaw: HERMELIN_NOT_FLIPPED_RAW,
+      alignmentSvgRaw: HERMELIN_NOT_FLIPPED_RAW,
+      alignmentTitle: 'aurora',
+      alignmentWhisperText: 'the sky remembers what the ground forgets',
+      alignmentFetchWhisper: false,
+    },
     background: {
       kind: 'particles',
       overlay: { kind: 'grain', opacity: 0.02 },
@@ -365,6 +379,14 @@ export const THEMES: Record<string, Theme> = {
       purple: '#ca9ee6',   // mauve
       cyan: '#81c8be',     // teal
     },
+    icons: {
+      faviconHref: '/favicon.svg',
+      topbarSvgRaw: HERMELIN_NOT_FLIPPED_RAW,
+      alignmentSvgRaw: HERMELIN_NOT_FLIPPED_RAW,
+      alignmentTitle: 'aurora',
+      alignmentWhisperText: 'the sky remembers what the ground forgets',
+      alignmentFetchWhisper: false,
+    },
     background: {
       kind: 'particles',
       overlay: { kind: 'grain', opacity: 0.02 },
@@ -397,6 +419,14 @@ export const THEMES: Record<string, Theme> = {
       info: '#1e66f5',     // blue
       purple: '#8839ef',   // mauve
       cyan: '#179299',     // teal
+    },
+    icons: {
+      faviconHref: '/favicon.svg',
+      topbarSvgRaw: HERMELIN_NOT_FLIPPED_RAW,
+      alignmentSvgRaw: HERMELIN_NOT_FLIPPED_RAW,
+      alignmentTitle: 'aurora',
+      alignmentWhisperText: 'the sky remembers what the ground forgets',
+      alignmentFetchWhisper: false,
     },
     background: {
       kind: 'particles',
