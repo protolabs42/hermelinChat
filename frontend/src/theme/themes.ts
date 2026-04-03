@@ -269,6 +269,41 @@ export const THEMES: Record<string, Theme> = {
       overlay: { kind: 'grain', opacity: 0.02 },
     },
   },
+
+  catppuccin: {
+    id: 'catppuccin',
+    label: 'Catppuccin (lavender)',
+    AMBER: {
+      // Lavender accent ramp — Catppuccin Mocha lavender (#b4befe) as 400,
+      // lighter/darker shades derived to fit the 300-900 scale.
+      300: '#d0d5ff',
+      400: '#b4befe',
+      500: '#9399e2',
+      600: '#7278c4',
+      700: '#555aa0',
+      800: '#3b3f7a',
+      900: '#232554',
+    },
+    SLATE: {
+      bg: '#1e1e2e',       // base
+      surface: '#181825',  // mantle
+      elevated: '#313244', // surface0
+      border: '#45475a',   // surface1
+      muted: '#6c7086',    // overlay0
+      text: '#bac2de',     // subtext1
+      textBright: '#cdd6f4', // text
+      accent: '#b4befe',   // lavender
+      danger: '#f38ba8',   // red
+      success: '#a6e3a1',  // green
+      info: '#89b4fa',     // blue
+      purple: '#cba6f7',   // mauve
+      cyan: '#94e2d5',     // teal
+    },
+    background: {
+      kind: 'particles',
+      overlay: { kind: 'grain', opacity: 0.02 },
+    },
+  },
 }
 
 export const THEME_OPTIONS: Array<{ id: string; value: string; label: string }> = Object.values(
