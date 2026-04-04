@@ -24,8 +24,12 @@ pub fn parse_acp_line(line: &str) -> Option<AcpEvent> {
         // Other responses (e.g., session/prompt completion) signal end-of-stream
         return Some(AcpEvent::StreamEnd);
     }
-    if json.get("error").is_some() {
-        return Some(AcpEvent::StreamEnd);
+    if let Some(err) = json.get("error") {
+        let message = err.get("message").and_then(|m| m.as_str()).unwrap_or("Unknown error").to_string();
+        return Some(AcpEvent::ConnectionStatus {
+            status: "error".to_string(),
+            message: Some(message),
+        });
     }
 
     // JSON-RPC notifications/requests have "method".
@@ -304,12 +308,15 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_jsonrpc_error_as_stream_end() {
+    fn test_parse_jsonrpc_error_as_connection_status() {
         let line = r#"{"jsonrpc":"2.0","id":2,"error":{"code":-32600,"message":"Invalid Request"}}"#;
         let event = parse_acp_line(line).unwrap();
         match event {
-            AcpEvent::StreamEnd => {} // correct
-            other => panic!("expected StreamEnd, got {:?}", other),
+            AcpEvent::ConnectionStatus { status, message } => {
+                assert_eq!(status, "error");
+                assert_eq!(message, Some("Invalid Request".to_string()));
+            }
+            other => panic!("expected ConnectionStatus error, got {:?}", other),
         }
     }
 }

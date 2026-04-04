@@ -171,7 +171,19 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       }
 
       case 'ConnectionStatus': {
-        if (event.status === 'connected') {
+        if (event.status === 'error' && event.message) {
+          // Show error as a system message in chat
+          set((s) => ({
+            connectionStatus: s.connectionStatus, // don't change connection status for API errors
+            isStreaming: false,
+            messages: [...s.messages, {
+              id: genId(),
+              role: 'system' as const,
+              content: event.message || 'An error occurred',
+              timestamp: Date.now(),
+            }],
+          }))
+        } else if (event.status === 'connected') {
           set({ connectionStatus: event.status, sessionId: null, isStreaming: false })
         } else {
           set({ connectionStatus: event.status, isStreaming: false })
