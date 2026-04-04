@@ -1,25 +1,13 @@
-import { useState, useRef, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useChatStore } from '../stores/chat'
-import { useTheme, THEME_OPTIONS } from '../theme'
-
-type ApprovalMode = 'yolo' | 'smart' | 'manual'
-
-const MODES: ApprovalMode[] = ['yolo', 'smart', 'manual']
-
-const MODE_CSS: Record<ApprovalMode, string> = {
-  yolo: 'var(--color-success)',
-  smart: 'var(--color-accent-400)',
-  manual: 'var(--color-danger)',
-}
+import { useSettingsStore } from '../stores/settings'
+import { useSidebarStore } from '../stores/sidebar'
 
 export default function StatusBar() {
   const status = useChatStore((s) => s.connectionStatus)
   const sessionId = useChatStore((s) => s.sessionId)
-  const [approvalMode, setApprovalMode] = useState<ApprovalMode>('yolo')
-  const { themeId, setThemeId } = useTheme()
-  const [pickerOpen, setPickerOpen] = useState(false)
-  const pickerRef = useRef<HTMLDivElement>(null)
+  const toggleSettings = useSettingsStore((s) => s.toggle)
+  const toggleSidebar = useSidebarStore((s) => s.toggle)
 
   const color =
     status === 'connected' ? 'var(--color-success)' :
@@ -35,25 +23,6 @@ export default function StatusBar() {
     }
   }
 
-  const cycleApprovalMode = () => {
-    setApprovalMode((current) => {
-      const idx = MODES.indexOf(current)
-      return MODES[(idx + 1) % MODES.length]
-    })
-  }
-
-  // Close picker on outside click
-  useEffect(() => {
-    if (!pickerOpen) return
-    const handler = (e: MouseEvent) => {
-      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
-        setPickerOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [pickerOpen])
-
   return (
     <div style={{
       padding: '4px 16px',
@@ -64,6 +33,28 @@ export default function StatusBar() {
       fontSize: 10,
       color: 'var(--color-muted)',
     }}>
+      {/* Sidebar toggle (left) */}
+      <button
+        onClick={toggleSidebar}
+        title="Sessions (Ctrl+B)"
+        style={{
+          background: 'transparent',
+          border: 'none',
+          color: 'var(--color-muted)',
+          cursor: 'pointer',
+          padding: '2px 4px',
+          borderRadius: 4,
+          display: 'flex',
+          alignItems: 'center',
+        }}
+      >
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="1" y="3" width="14" height="1.5" rx="0.75" fill="currentColor" />
+          <rect x="1" y="7.25" width="14" height="1.5" rx="0.75" fill="currentColor" />
+          <rect x="1" y="11.5" width="14" height="1.5" rx="0.75" fill="currentColor" />
+        </svg>
+      </button>
+
       <span style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
       <span>{status}</span>
       {status === 'disconnected' && (
@@ -84,109 +75,34 @@ export default function StatusBar() {
         </button>
       )}
       <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-        {/* Theme picker */}
-        <div ref={pickerRef} style={{ position: 'relative' }}>
-          <button
-            onClick={() => setPickerOpen((p) => !p)}
-            title="Switch theme"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              cursor: 'pointer',
-              padding: '2px 6px',
-              borderRadius: 4,
-              fontSize: 10,
-              color: 'var(--color-accent)',
-              fontFamily: 'inherit',
-            }}
-          >
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.5" />
-              <circle cx="5.5" cy="6" r="1.2" fill="currentColor" />
-              <circle cx="10.5" cy="6" r="1.2" fill="currentColor" />
-              <circle cx="8" cy="10" r="1.2" fill="currentColor" />
-              <circle cx="5.5" cy="10" r="1.2" fill="currentColor" opacity="0.4" />
-              <circle cx="10.5" cy="10" r="1.2" fill="currentColor" opacity="0.4" />
-            </svg>
-          </button>
-          {pickerOpen && (
-            <div style={{
-              position: 'absolute',
-              top: '100%',
-              right: 0,
-              marginTop: 4,
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 6,
-              padding: 4,
-              zIndex: 100,
-              minWidth: 200,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-            }}>
-              {THEME_OPTIONS.map((opt) => (
-                <button
-                  key={opt.id}
-                  onClick={() => { setThemeId(opt.id); setPickerOpen(false) }}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    textAlign: 'left',
-                    background: opt.id === themeId ? 'var(--color-elevated)' : 'transparent',
-                    border: 'none',
-                    borderRadius: 4,
-                    padding: '5px 10px',
-                    fontSize: 11,
-                    color: opt.id === themeId ? 'var(--color-accent)' : 'var(--color-text)',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                  }}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        {sessionId ? <span>{sessionId.slice(0, 8)}...</span> : null}
 
-        {/* Approval mode toggle */}
+        {/* Settings gear */}
         <button
-          onClick={cycleApprovalMode}
-          title={`Approval mode: ${approvalMode}`}
+          onClick={toggleSettings}
+          title="Settings (Ctrl+,)"
           style={{
             background: 'transparent',
             border: 'none',
+            color: 'var(--color-muted)',
+            cursor: 'pointer',
+            padding: '2px 4px',
+            borderRadius: 4,
             display: 'flex',
             alignItems: 'center',
-            gap: 4,
-            cursor: 'pointer',
-            padding: '2px 6px',
-            borderRadius: 4,
-            fontSize: 10,
-            color: MODE_CSS[approvalMode],
-            fontFamily: 'inherit',
           }}
         >
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 16 16"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
-              d="M8 1L2 4v4.5c0 3.5 2.5 6.2 6 7.5 3.5-1.3 6-4 6-7.5V4L8 1z"
+              d="M6.5 1.5h3l.4 1.6.7.3 1.5-.8 2.1 2.1-.8 1.5.3.7 1.6.4v3l-1.6.4-.3.7.8 1.5-2.1 2.1-1.5-.8-.7.3-.4 1.6h-3l-.4-1.6-.7-.3-1.5.8-2.1-2.1.8-1.5-.3-.7L.7 9.5v-3l1.6-.4.3-.7-.8-1.5L3.9 1.8l1.5.8.7-.3.4-1.1z"
               stroke="currentColor"
-              strokeWidth="1.5"
+              strokeWidth="1.2"
               strokeLinejoin="round"
               fill="none"
             />
+            <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.2" fill="none" />
           </svg>
-          {approvalMode}
         </button>
-        {sessionId ? <span>{sessionId.slice(0, 8)}...</span> : null}
       </span>
     </div>
   )

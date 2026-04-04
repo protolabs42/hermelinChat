@@ -4,19 +4,25 @@ import { BackgroundRenderer } from './components/backgrounds/BackgroundRenderer'
 import StatusBar from './components/StatusBar'
 import ChatView from './components/ChatView'
 import MessageInput from './components/MessageInput'
+import SettingsPanel from './components/SettingsPanel'
 
 export default function App() {
   useAcpEvents()
 
   return (
     <ThemeProvider>
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--color-bg)' }}>
-        <StatusBar />
-        <ChatView />
-        <MessageInput />
+      <div style={{ display: 'flex', height: '100vh' }}>
+        {/* Main chat area */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--color-bg)', position: 'relative' }}>
+          <BackgroundRenderer />
+          <StatusBar />
+          <ChatView />
+          <MessageInput />
+        </div>
       </div>
-      {/* Particle overlay — renders on top with very low opacity, pointer-events: none */}
-      <BackgroundRenderer />
+
+      {/* Settings panel (right overlay) */}
+      <SettingsPanel />
     </ThemeProvider>
   )
 }
