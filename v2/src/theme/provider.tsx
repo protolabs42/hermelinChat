@@ -47,7 +47,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     root.style.setProperty('--color-accent-700', c.accent700)
     root.style.setProperty('--color-accent-800', c.accent800)
     root.style.setProperty('--color-accent-900', c.accent900)
-    // Body stays transparent — bg color is on the background layer in App.tsx
+    document.body.style.background = c.bg
     document.body.style.color = c.text
   }, [theme])
 

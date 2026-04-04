@@ -56,12 +56,8 @@ export default function StatusBar() {
 
   return (
     <div style={{
-      position: 'relative',
-      zIndex: 1,
       padding: '4px 16px',
       borderBottom: '1px solid var(--color-border)',
-      background: 'color-mix(in srgb, var(--color-surface) 85%, transparent)',
-      backdropFilter: 'blur(8px)',
       display: 'flex',
       alignItems: 'center',
       gap: 8,

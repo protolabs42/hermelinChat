@@ -10,20 +10,13 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <div style={{
-        position: 'relative',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100vh',
-        background: 'var(--color-bg)',
-      }}>
-        {/* Background effects — absolutely positioned behind everything */}
-        <BackgroundRenderer />
-        {/* Chat UI */}
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--color-bg)' }}>
         <StatusBar />
         <ChatView />
         <MessageInput />
       </div>
+      {/* Particle overlay — renders on top with very low opacity, pointer-events: none */}
+      <BackgroundRenderer />
     </ThemeProvider>
   )
 }

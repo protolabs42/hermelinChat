@@ -13,11 +13,10 @@ export function BackgroundRenderer() {
 
   return (
     <div style={{
-      position: 'absolute',
+      position: 'fixed',
       inset: 0,
-      zIndex: 0,
+      zIndex: 9999,
       pointerEvents: 'none',
-      overflow: 'hidden',
     }}>
       <ParticleField intensity={50} />
 
