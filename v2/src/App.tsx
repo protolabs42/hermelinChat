@@ -7,6 +7,7 @@ import ChatView from './components/ChatView'
 import MessageInput from './components/MessageInput'
 import SettingsPanel from './components/SettingsPanel'
 import SessionSidebar from './components/SessionSidebar'
+import { AlignmentMascot } from './components/AlignmentMascot'
 
 export default function App() {
   useAcpEvents()
@@ -29,6 +30,9 @@ export default function App() {
 
       {/* Settings panel (right overlay) */}
       <SettingsPanel />
+
+      {/* Easter egg mascot */}
+      <AlignmentMascot />
     </ThemeProvider>
   )
 }

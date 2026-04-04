@@ -2,12 +2,14 @@ import { invoke } from '@tauri-apps/api/core'
 import { useChatStore } from '../stores/chat'
 import { useSettingsStore } from '../stores/settings'
 import { useSidebarStore } from '../stores/sidebar'
+import { useTheme } from '../theme'
 
 export default function StatusBar() {
   const status = useChatStore((s) => s.connectionStatus)
   const sessionId = useChatStore((s) => s.sessionId)
   const toggleSettings = useSettingsStore((s) => s.toggle)
   const toggleSidebar = useSidebarStore((s) => s.toggle)
+  const { theme } = useTheme()
 
   const color =
     status === 'connected' ? 'var(--color-success)' :
@@ -54,6 +56,22 @@ export default function StatusBar() {
           <rect x="1" y="11.5" width="14" height="1.5" rx="0.75" fill="currentColor" />
         </svg>
       </button>
+
+      {/* Theme identity mark */}
+      <div
+        style={{
+          width: 18,
+          height: 18,
+          color: 'var(--color-accent)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: 0.7,
+          flexShrink: 0,
+        }}
+        title={theme.identity.mascotTitle}
+        dangerouslySetInnerHTML={{ __html: theme.identity.topbarSvg }}
+      />
 
       <span style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
       <span>{status}</span>

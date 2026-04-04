@@ -1,3 +1,18 @@
+import HERMELIN_SVG from '../assets/hermelin-not-flipped.svg?raw'
+import STOUT_SVG from '../assets/stout-mascot.svg?raw'
+import SKULL_SVG from '../assets/matrix-skull.svg?raw'
+import RABBIT_SVG from '../assets/white-rabbit.svg?raw'
+import NOUS_SVG from '../assets/nous-alignment.svg?raw'
+import NOUS_FLIPPED_SVG from '../assets/nous-alignment-flipped.svg?raw'
+import SAMARITAN_SVG from '../assets/samaritan-mark.svg?raw'
+
+export interface ThemeIdentity {
+  topbarSvg: string
+  mascotSvg: string
+  mascotTitle: string
+  whisperText: string
+}
+
 export interface ThemeColors {
   accent300: string; accent400: string; accent500: string; accent600: string
   accent700: string; accent800: string; accent900: string
@@ -27,6 +42,7 @@ export interface Theme {
   label: string
   colors: ThemeColors
   background?: ThemeBackground
+  identity: ThemeIdentity
 }
 
 export const DEFAULT_THEME_ID = 'catppuccin'
@@ -35,6 +51,12 @@ export const THEMES: Record<string, Theme> = {
   hermelin: {
     id: 'hermelin',
     label: 'Hermelin (amber)',
+    identity: {
+      topbarSvg: HERMELIN_SVG,
+      mascotSvg: STOUT_SVG,
+      mascotTitle: 'the stout knows\u2026',
+      whisperText: 'aligned to you\u2026',
+    },
     colors: {
       accent300: '#ffd480',
       accent400: '#f5b731',
@@ -66,6 +88,12 @@ export const THEMES: Record<string, Theme> = {
   matrix: {
     id: 'matrix',
     label: 'Matrix (rabbit)',
+    identity: {
+      topbarSvg: SKULL_SVG,
+      mascotSvg: RABBIT_SVG,
+      mascotTitle: 'follow the white rabbit\u2026',
+      whisperText: 'follow the white rabbit\u2026',
+    },
     colors: {
       accent300: '#b7ffd6',
       accent400: '#4dffa1',
@@ -108,6 +136,12 @@ export const THEMES: Record<string, Theme> = {
   nous: {
     id: 'nous',
     label: 'Nous (aqua)',
+    identity: {
+      topbarSvg: NOUS_FLIPPED_SVG,
+      mascotSvg: NOUS_SVG,
+      mascotTitle: 'nous research',
+      whisperText: 'aligned to nous\u2026',
+    },
     colors: {
       accent300: '#9ae1f2',
       accent400: '#5cc8e6',
@@ -139,6 +173,12 @@ export const THEMES: Record<string, Theme> = {
   samaritan: {
     id: 'samaritan',
     label: 'Samaritan (light)',
+    identity: {
+      topbarSvg: SAMARITAN_SVG,
+      mascotSvg: SAMARITAN_SVG,
+      mascotTitle: 'samaritan',
+      whisperText: 'the machine sees you\u2026',
+    },
     colors: {
       accent300: '#e06666',
       accent400: '#cc3333',
@@ -170,6 +210,12 @@ export const THEMES: Record<string, Theme> = {
   catppuccin: {
     id: 'catppuccin',
     label: 'Catppuccin (lavender)',
+    identity: {
+      topbarSvg: HERMELIN_SVG,
+      mascotSvg: HERMELIN_SVG,
+      mascotTitle: 'aurora',
+      whisperText: 'the sky remembers what the ground forgets',
+    },
     colors: {
       accent300: '#d0d5ff',
       accent400: '#b4befe',
@@ -201,6 +247,12 @@ export const THEMES: Record<string, Theme> = {
   'catppuccin-macchiato': {
     id: 'catppuccin-macchiato',
     label: 'Catppuccin Macchiato (lavender)',
+    identity: {
+      topbarSvg: HERMELIN_SVG,
+      mascotSvg: HERMELIN_SVG,
+      mascotTitle: 'aurora',
+      whisperText: 'the sky remembers what the ground forgets',
+    },
     colors: {
       accent300: '#ccd0ff',
       accent400: '#b7bdf8',
@@ -232,6 +284,12 @@ export const THEMES: Record<string, Theme> = {
   'catppuccin-frappe': {
     id: 'catppuccin-frappe',
     label: 'Catppuccin Frappe (lavender)',
+    identity: {
+      topbarSvg: HERMELIN_SVG,
+      mascotSvg: HERMELIN_SVG,
+      mascotTitle: 'aurora',
+      whisperText: 'the sky remembers what the ground forgets',
+    },
     colors: {
       accent300: '#c8ccff',
       accent400: '#babbf1',
@@ -263,6 +321,12 @@ export const THEMES: Record<string, Theme> = {
   'catppuccin-latte': {
     id: 'catppuccin-latte',
     label: 'Catppuccin Latte (lavender)',
+    identity: {
+      topbarSvg: HERMELIN_SVG,
+      mascotSvg: HERMELIN_SVG,
+      mascotTitle: 'aurora',
+      whisperText: 'the sky remembers what the ground forgets',
+    },
     colors: {
       accent300: '#6366a8',
       accent400: '#7287fd',
