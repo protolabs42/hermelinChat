@@ -12,9 +12,13 @@ export function BackgroundRenderer() {
   const overlayOpacity = bg.overlay?.opacity
 
   return (
-    <>
-      {/* For Phase 4 only ParticleField is ported; matrix-rain, nous-crt,
-          and samaritan backgrounds will fall back to particles for now. */}
+    <div style={{
+      position: 'absolute',
+      inset: 0,
+      zIndex: 0,
+      pointerEvents: 'none',
+      overflow: 'hidden',
+    }}>
       <ParticleField intensity={50} />
 
       {overlayKind === 'scanlines' ? (
@@ -22,6 +26,6 @@ export function BackgroundRenderer() {
       ) : overlayKind === 'grain' ? (
         <GrainOverlay opacity={overlayOpacity ?? 0.03} />
       ) : null}
-    </>
+    </div>
   )
 }

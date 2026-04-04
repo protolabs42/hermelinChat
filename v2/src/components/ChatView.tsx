@@ -13,7 +13,7 @@ export default function ChatView() {
 
   return (
     <>
-      <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
+      <div style={{ flex: 1, overflow: 'auto', padding: 16, position: 'relative', zIndex: 1 }}>
         {messages.length === 0 && (
           <div style={{
             display: 'flex',

@@ -10,15 +10,19 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100vh' }}>
-        <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', background: 'var(--color-bg)' }}>
-          <BackgroundRenderer />
-        </div>
-        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100vh' }}>
-          <StatusBar />
-          <ChatView />
-          <MessageInput />
-        </div>
+      <div style={{
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        background: 'var(--color-bg)',
+      }}>
+        {/* Background effects — absolutely positioned behind everything */}
+        <BackgroundRenderer />
+        {/* Chat UI */}
+        <StatusBar />
+        <ChatView />
+        <MessageInput />
       </div>
     </ThemeProvider>
   )

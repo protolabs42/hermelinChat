@@ -36,7 +36,11 @@ export default function MessageInput() {
 
   return (
     <div style={{
+      position: 'relative',
+      zIndex: 1,
       borderTop: '1px solid var(--color-border)',
+      background: 'color-mix(in srgb, var(--color-surface) 85%, transparent)',
+      backdropFilter: 'blur(8px)',
       padding: '12px 16px',
       display: 'flex',
       gap: 8,

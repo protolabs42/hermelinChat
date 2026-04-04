@@ -98,6 +98,7 @@ export function ParticleField({ intensity = 50 }: ParticleFieldProps) {
     <canvas
       ref={canvasRef}
       style={{
+        display: 'block',
         position: 'absolute',
         top: 0,
         left: 0,
@@ -105,7 +106,6 @@ export function ParticleField({ intensity = 50 }: ParticleFieldProps) {
         height: '100%',
         pointerEvents: 'none',
         opacity: canvasOpacity,
-        zIndex: 0,
       }}
     />
   )
