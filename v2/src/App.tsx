@@ -1,4 +1,5 @@
 import { useAcpEvents } from './hooks/useAcpEvents'
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { ThemeProvider } from './theme'
 import { BackgroundRenderer } from './components/backgrounds/BackgroundRenderer'
 import StatusBar from './components/StatusBar'
@@ -9,6 +10,7 @@ import SessionSidebar from './components/SessionSidebar'
 
 export default function App() {
   useAcpEvents()
+  useKeyboardShortcuts()
 
   return (
     <ThemeProvider>

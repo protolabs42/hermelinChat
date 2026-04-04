@@ -42,6 +42,7 @@ export default function MessageInput() {
       gap: 8,
     }}>
       <input
+        autoFocus
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
