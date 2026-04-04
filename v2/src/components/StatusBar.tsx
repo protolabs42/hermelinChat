@@ -1,9 +1,16 @@
+import { useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useChatStore } from '../stores/chat'
 import { useSettingsStore } from '../stores/settings'
 import { useSidebarStore } from '../stores/sidebar'
 import { useArtifactStore } from '../stores/artifacts'
 import { useTheme } from '../theme'
+
+interface VersionInfo {
+  current: string | null
+  latest: string | null
+  update_available: boolean
+}
 
 export default function StatusBar() {
   const status = useChatStore((s) => s.connectionStatus)
@@ -13,6 +20,15 @@ export default function StatusBar() {
   const artifactCount = useArtifactStore((s) => s.artifacts.length)
   const toggleArtifacts = useArtifactStore((s) => s.togglePanel)
   const { theme } = useTheme()
+
+  const [updateInfo, setUpdateInfo] = useState<VersionInfo | null>(null)
+
+  // Check for Hermes updates once on mount
+  useEffect(() => {
+    invoke<VersionInfo>('check_hermes_update').then((info) => {
+      if (info.update_available) setUpdateInfo(info)
+    }).catch(() => {})
+  }, [])
 
   const color =
     status === 'connected' ? 'var(--color-success)' :
@@ -157,6 +173,25 @@ export default function StatusBar() {
               {artifactCount}
             </span>
           </button>
+        )}
+
+        {/* Hermes update notice */}
+        {updateInfo?.update_available && (
+          <span
+            title={`Update available: ${updateInfo.current} → ${updateInfo.latest}`}
+            style={{
+              fontSize: 9,
+              padding: '1px 6px',
+              borderRadius: 99,
+              background: 'var(--color-accent)',
+              color: 'var(--color-bg)',
+              fontWeight: 700,
+              cursor: 'default',
+              letterSpacing: '0.02em',
+            }}
+          >
+            {updateInfo.latest} available
+          </span>
         )}
 
         {/* Settings gear */}

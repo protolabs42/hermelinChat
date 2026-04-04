@@ -79,6 +79,48 @@ pub fn list_artifacts() -> Vec<crate::artifacts::Artifact> {
     crate::artifacts::list_current_artifacts()
 }
 
+#[derive(serde::Serialize)]
+pub struct VersionInfo {
+    pub current: Option<String>,
+    pub latest: Option<String>,
+    pub update_available: bool,
+}
+
+#[tauri::command]
+pub fn check_hermes_update() -> VersionInfo {
+    let hermes_bin = std::env::var("HERMES_BIN").unwrap_or_else(|_| "hermes".to_string());
+
+    // Get current version: hermes --version → "hermes-agent 0.7.1"
+    let current = std::process::Command::new(&hermes_bin)
+        .arg("--version")
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .map(|s| s.trim().to_string())
+        .and_then(|s| s.split_whitespace().last().map(|v| v.to_string()));
+
+    // Check latest: hermes update --check (if available), or pip show
+    let latest = std::process::Command::new("pip")
+        .args(["index", "versions", "hermes-agent"])
+        .output()
+        .ok()
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .and_then(|s| {
+            // Output: "hermes-agent (0.7.1)\n  INSTALLED: 0.7.0\n  LATEST:    0.7.1"
+            s.lines()
+                .find(|l| l.contains("LATEST"))
+                .and_then(|l| l.split_whitespace().last())
+                .map(|v| v.to_string())
+        });
+
+    let update_available = match (&current, &latest) {
+        (Some(c), Some(l)) => l != c,
+        _ => false,
+    };
+
+    VersionInfo { current, latest, update_available }
+}
+
 #[tauri::command]
 pub fn set_window_title(app: tauri::AppHandle, title: String) -> Result<(), String> {
     use tauri::Manager;
