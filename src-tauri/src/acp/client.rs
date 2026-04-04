@@ -131,7 +131,7 @@ impl AcpClient {
             "method": "session/prompt",
             "params": {
                 "sessionId": session_id,
-                "content": [
+                "prompt": [
                     { "type": "text", "text": text }
                 ]
             }
