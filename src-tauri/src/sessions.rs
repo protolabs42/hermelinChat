@@ -189,6 +189,7 @@ fn get_session_messages_from_db(db_path: &std::path::Path, session_id: &str, lim
 
 /// Return all known state.db paths (local + WSL if on Windows).
 fn all_state_db_paths() -> Vec<PathBuf> {
+    #[allow(unused_mut)]
     let mut paths = vec![hermes_state_db_path()];
 
     // On Windows, also check WSL state.db via \\wsl.localhost\<distro>\home\<user>\.hermes\
