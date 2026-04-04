@@ -60,3 +60,8 @@ pub fn acp_status(state: State<'_, AcpState>) -> String {
 pub fn list_sessions(limit: Option<usize>) -> Result<Vec<crate::sessions::SessionSummary>, String> {
     crate::sessions::list_sessions(limit.unwrap_or(30))
 }
+
+#[tauri::command]
+pub fn get_session_messages(session_id: String, limit: Option<usize>) -> Result<Vec<crate::sessions::SessionMessage>, String> {
+    crate::sessions::get_session_messages(&session_id, limit.unwrap_or(200))
+}

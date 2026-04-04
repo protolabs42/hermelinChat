@@ -1,5 +1,6 @@
+import { invoke } from '@tauri-apps/api/core'
 import { useSidebarStore, type SessionSummary } from '../stores/sidebar'
-import { useChatStore } from '../stores/chat'
+import { useChatStore, type ChatMessage } from '../stores/chat'
 
 function relativeTime(epoch: number | null): string {
   if (!epoch) return ''
@@ -122,9 +123,39 @@ export default function SessionSidebar() {
 function SessionRow({ session, isActive }: { session: SessionSummary; isActive: boolean }) {
   return (
     <button
-      onClick={() => {
-        // For now, just log the session ID -- actual session loading is Phase 5+
-        console.log('Session selected:', session.id)
+      onClick={async () => {
+        try {
+          // Load messages from state.db
+          const msgs = await invoke<Array<{
+            id: number
+            role: string
+            content: string | null
+            timestamp: number | null
+          }>>('get_session_messages', { sessionId: session.id })
+
+          // Convert to ChatMessage format
+          const chatMessages: ChatMessage[] = msgs
+            .filter((m) => m.content)
+            .map((m) => ({
+              id: `hist-${m.id}`,
+              role: m.role as 'user' | 'assistant',
+              content: m.content || '',
+              timestamp: m.timestamp ? m.timestamp * 1000 : Date.now(),
+            }))
+
+          // Set session state
+          useChatStore.setState({
+            messages: chatMessages,
+            sessionId: session.id,
+            isStreaming: false,
+            pendingPrompt: null,
+          })
+
+          // Close sidebar
+          useSidebarStore.getState().close()
+        } catch (e) {
+          console.error('Failed to load session:', e)
+        }
       }}
       style={{
         display: 'block',

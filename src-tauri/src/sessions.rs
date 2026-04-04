@@ -71,6 +71,52 @@ pub fn list_sessions(limit: usize) -> Result<Vec<SessionSummary>, String> {
         .map_err(|e| format!("collect error: {}", e))
 }
 
+#[derive(Debug, Serialize)]
+pub struct SessionMessage {
+    pub id: i64,
+    pub role: String,
+    pub content: Option<String>,
+    pub timestamp: Option<f64>,
+}
+
+pub fn get_session_messages(session_id: &str, limit: usize) -> Result<Vec<SessionMessage>, String> {
+    let db_path = hermes_state_db_path();
+    if !db_path.exists() {
+        return Ok(vec![]);
+    }
+
+    let conn = rusqlite::Connection::open_with_flags(
+        &db_path,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )
+    .map_err(|e| format!("failed to open state.db: {}", e))?;
+
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, role, content, timestamp
+             FROM messages
+             WHERE session_id = ?1 AND role IN ('user', 'assistant')
+             AND content IS NOT NULL AND content != ''
+             ORDER BY timestamp ASC
+             LIMIT ?2",
+        )
+        .map_err(|e| format!("query error: {}", e))?;
+
+    let rows = stmt
+        .query_map(rusqlite::params![session_id, limit], |row| {
+            Ok(SessionMessage {
+                id: row.get(0)?,
+                role: row.get(1)?,
+                content: row.get(2)?,
+                timestamp: row.get(3)?,
+            })
+        })
+        .map_err(|e| format!("row error: {}", e))?;
+
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| format!("collect error: {}", e))
+}
+
 fn hermes_state_db_path() -> PathBuf {
     if let Ok(home) = std::env::var("HERMES_HOME") {
         return PathBuf::from(home).join("state.db");

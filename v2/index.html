@@ -13,6 +13,17 @@
         overflow: hidden;
       }
       #root { height: 100vh; display: flex; flex-direction: column; }
+
+      /* Themed scrollbars */
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb {
+        background: var(--color-border, #45475a);
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--color-muted, #6c7086);
+      }
     </style>
   </head>
   <body>
