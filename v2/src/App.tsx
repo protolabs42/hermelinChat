@@ -1,5 +1,6 @@
 import { useAcpEvents } from './hooks/useAcpEvents'
 import { ThemeProvider } from './theme'
+import { BackgroundRenderer } from './components/backgrounds/BackgroundRenderer'
 import StatusBar from './components/StatusBar'
 import ChatView from './components/ChatView'
 import MessageInput from './components/MessageInput'
@@ -9,10 +10,15 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-        <StatusBar />
-        <ChatView />
-        <MessageInput />
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100vh' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
+          <BackgroundRenderer />
+        </div>
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100vh' }}>
+          <StatusBar />
+          <ChatView />
+          <MessageInput />
+        </div>
       </div>
     </ThemeProvider>
   )
