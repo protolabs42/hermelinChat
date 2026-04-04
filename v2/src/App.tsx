@@ -11,7 +11,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100vh' }}>
-        <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none', background: 'var(--color-bg)' }}>
           <BackgroundRenderer />
         </div>
         <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100vh' }}>
