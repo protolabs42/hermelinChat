@@ -65,3 +65,8 @@ pub fn list_sessions(limit: Option<usize>) -> Result<Vec<crate::sessions::Sessio
 pub fn get_session_messages(session_id: String, limit: Option<usize>) -> Result<Vec<crate::sessions::SessionMessage>, String> {
     crate::sessions::get_session_messages(&session_id, limit.unwrap_or(200))
 }
+
+#[tauri::command]
+pub fn list_artifacts() -> Vec<crate::artifacts::Artifact> {
+    crate::artifacts::list_current_artifacts()
+}

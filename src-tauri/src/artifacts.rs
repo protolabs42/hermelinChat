@@ -165,6 +165,18 @@ fn read_artifact(path: &Path) -> Option<Artifact> {
     Some(artifact)
 }
 
+/// List all current artifacts (called by frontend on mount).
+pub fn list_current_artifacts() -> Vec<Artifact> {
+    let dir = artifacts_dir();
+    let mut known: HashMap<String, Artifact> = HashMap::new();
+    scan_artifacts(&dir, &mut known);
+    let mut list: Vec<Artifact> = known.into_values().collect();
+    list.sort_by(|a, b| {
+        b.timestamp.unwrap_or(0.0).partial_cmp(&a.timestamp.unwrap_or(0.0)).unwrap_or(std::cmp::Ordering::Equal)
+    });
+    list
+}
+
 fn artifacts_dir() -> PathBuf {
     if let Ok(dir) = std::env::var("HERMELIN_ARTIFACT_DIR") {
         return PathBuf::from(dir);

@@ -16,13 +16,20 @@ export function useAcpEvents() {
       useArtifactStore.getState().handleEvent(event.payload as any)
     })
 
-    // Query current status on mount (the connected event may have
-    // fired before this listener was registered)
+    // Query current status on mount (events may have fired before listeners registered)
     invoke<string>('acp_status').then((status) => {
       useChatStore.setState({ connectionStatus: status })
-    }).catch(() => {
-      // ignore — will get status from events
-    })
+    }).catch(() => {})
+
+    // Load existing artifacts on mount
+    invoke<Array<Record<string, unknown>>>('list_artifacts').then((artifacts) => {
+      if (artifacts.length > 0) {
+        useArtifactStore.getState().handleEvent({
+          kind: 'List',
+          artifacts: artifacts as never[],
+        })
+      }
+    }).catch(() => {})
 
     return () => {
       unlistenAcp.then((fn) => fn())

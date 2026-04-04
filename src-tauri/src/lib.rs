@@ -34,6 +34,7 @@ pub fn run() {
             commands::acp_status,
             commands::list_sessions,
             commands::get_session_messages,
+            commands::list_artifacts,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
