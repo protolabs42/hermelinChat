@@ -10,6 +10,15 @@ export interface ChatMessage {
   toolTitle?: string
   toolKind?: string
   toolStatus?: string
+  diffPath?: string
+  diffOld?: string | null
+  diffNew?: string
+}
+
+export interface UsageInfo {
+  used: number
+  size: number
+  costUsd: number | null
 }
 
 export interface ChatStore {
@@ -18,6 +27,7 @@ export interface ChatStore {
   isStreaming: boolean
   connectionStatus: string
   pendingPrompt: string | null
+  usage: UsageInfo | null
 
   addUserMessage: (text: string) => void
   handleAcpEvent: (event: AcpEvent) => void
@@ -35,6 +45,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   isStreaming: false,
   connectionStatus: 'connecting',
   pendingPrompt: null,
+  usage: null,
 
   addUserMessage: (text: string) => {
     set((s) => ({
@@ -96,13 +107,44 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       case 'ToolCallUpdate': {
         set((s) => {
-          const msgs = s.messages.map((m) =>
-            m.toolId === event.id
-              ? { ...m, toolStatus: event.status }
-              : m
-          )
+          const msgs = s.messages.map((m) => {
+            if (m.toolId !== event.id) return m
+            const outputText = event.content
+              ?.filter((c: { type: string }) => c.type === 'text')
+              .map((c: { text?: string }) => c.text || '')
+              .join('\n') || ''
+            return {
+              ...m,
+              toolStatus: event.status,
+              content: m.content ? m.content + outputText : outputText,
+            }
+          })
           return { messages: msgs }
         })
+        break
+      }
+
+      case 'DiffProposed': {
+        set((s) => ({
+          messages: [...s.messages, {
+            id: genId(),
+            role: 'tool' as const,
+            content: '',
+            timestamp: Date.now(),
+            toolId: event.tool_call_id,
+            toolTitle: `patch: ${event.path}`,
+            toolKind: 'diff',
+            toolStatus: 'completed',
+            diffPath: event.path,
+            diffOld: event.old_text,
+            diffNew: event.new_text,
+          }],
+        }))
+        break
+      }
+
+      case 'UsageUpdate': {
+        set({ usage: { used: event.used, size: event.size, costUsd: event.cost_usd } })
         break
       }
 
@@ -142,6 +184,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   reset: () => {
     _nextId = 0
-    set({ messages: [], sessionId: null, isStreaming: false, pendingPrompt: null })
+    set({ messages: [], sessionId: null, isStreaming: false, pendingPrompt: null, usage: null })
   },
 }))
