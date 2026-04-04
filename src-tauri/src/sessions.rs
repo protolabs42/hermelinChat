@@ -8,65 +8,18 @@ pub struct SessionSummary {
     pub model: Option<String>,
     pub started_at: Option<f64>,
     pub message_count: i64,
-    pub source: Option<String>,
 }
 
 pub fn list_sessions(limit: usize) -> Result<Vec<SessionSummary>, String> {
-    let mut all_sessions: Vec<SessionSummary> = Vec::new();
-
-    // Read from all available state.db files
-    for db_path in all_state_db_paths() {
-        if let Ok(mut sessions) = list_sessions_from_db(&db_path, limit) {
-            // Tag with source
-            let source = if db_path.to_string_lossy().contains("wsl.localhost")
-                || db_path.to_string_lossy().contains("/home/")
-            {
-                "wsl"
-            } else {
-                "local"
-            };
-            for s in &mut sessions {
-                s.source = Some(source.to_string());
-            }
-            all_sessions.append(&mut sessions);
-        }
-    }
-
-    // Sort by started_at descending, dedup by id
-    all_sessions.sort_by(|a, b| {
-        b.started_at.unwrap_or(0.0).partial_cmp(&a.started_at.unwrap_or(0.0))
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
-
-    // Dedup — keep the first (most recent) if same session ID appears in both
-    let mut seen = std::collections::HashSet::new();
-    all_sessions.retain(|s| seen.insert(s.id.clone()));
-
-    all_sessions.truncate(limit);
-    Ok(all_sessions)
-}
-
-fn list_sessions_from_db(db_path: &std::path::Path, limit: usize) -> Result<Vec<SessionSummary>, String> {
+    let db_path = hermes_state_db_path();
     if !db_path.exists() {
         return Ok(vec![]);
     }
 
-    // For UNC/network paths (WSL), use immutable mode to bypass WAL locking issues
-    let is_unc = db_path.to_string_lossy().starts_with("\\\\");
-    let conn = if is_unc {
-        let uri = format!("file:{}?immutable=1", db_path.to_string_lossy().replace('\\', "/"));
-        rusqlite::Connection::open_with_flags(
-            &uri,
-            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY
-                | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX
-                | rusqlite::OpenFlags::SQLITE_OPEN_URI,
-        )
-    } else {
-        rusqlite::Connection::open_with_flags(
-            db_path,
-            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
-        )
-    }
+    let conn = rusqlite::Connection::open_with_flags(
+        &db_path,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )
     .map_err(|e| format!("failed to open state.db: {}", e))?;
 
     let mut stmt = conn
@@ -110,7 +63,6 @@ fn list_sessions_from_db(db_path: &std::path::Path, limit: usize) -> Result<Vec<
                 model,
                 started_at,
                 message_count,
-                source: None,
             })
         })
         .map_err(|e| format!("row error: {}", e))?;
@@ -128,37 +80,15 @@ pub struct SessionMessage {
 }
 
 pub fn get_session_messages(session_id: &str, limit: usize) -> Result<Vec<SessionMessage>, String> {
-    // Search all databases for this session's messages
-    for db_path in all_state_db_paths() {
-        if let Ok(msgs) = get_session_messages_from_db(&db_path, session_id, limit) {
-            if !msgs.is_empty() {
-                return Ok(msgs);
-            }
-        }
-    }
-    Ok(vec![])
-}
-
-fn get_session_messages_from_db(db_path: &std::path::Path, session_id: &str, limit: usize) -> Result<Vec<SessionMessage>, String> {
+    let db_path = hermes_state_db_path();
     if !db_path.exists() {
         return Ok(vec![]);
     }
 
-    let is_unc = db_path.to_string_lossy().starts_with("\\\\");
-    let conn = if is_unc {
-        let uri = format!("file:{}?immutable=1", db_path.to_string_lossy().replace('\\', "/"));
-        rusqlite::Connection::open_with_flags(
-            &uri,
-            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY
-                | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX
-                | rusqlite::OpenFlags::SQLITE_OPEN_URI,
-        )
-    } else {
-        rusqlite::Connection::open_with_flags(
-            db_path,
-            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
-        )
-    }
+    let conn = rusqlite::Connection::open_with_flags(
+        &db_path,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )
     .map_err(|e| format!("failed to open state.db: {}", e))?;
 
     let mut stmt = conn
@@ -185,32 +115,6 @@ fn get_session_messages_from_db(db_path: &std::path::Path, session_id: &str, lim
 
     rows.collect::<Result<Vec<_>, _>>()
         .map_err(|e| format!("collect error: {}", e))
-}
-
-/// Return all known state.db paths (local + WSL if on Windows).
-fn all_state_db_paths() -> Vec<PathBuf> {
-    #[allow(unused_mut)]
-    let mut paths = vec![hermes_state_db_path()];
-
-    // On Windows, also check WSL state.db via \\wsl.localhost\<distro>\home\<user>\.hermes\
-    #[cfg(windows)]
-    {
-        for distro in &["Ubuntu-24.04", "Ubuntu-22.04", "Ubuntu", "Debian"] {
-            let wsl_home = PathBuf::from(format!("\\\\wsl.localhost\\{}\\home", distro));
-            if wsl_home.exists() {
-                if let Ok(entries) = std::fs::read_dir(&wsl_home) {
-                    for entry in entries.flatten() {
-                        let db = entry.path().join(".hermes").join("state.db");
-                        if db.exists() && !paths.contains(&db) {
-                            paths.push(db);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    paths
 }
 
 fn hermes_state_db_path() -> PathBuf {
