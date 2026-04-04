@@ -131,7 +131,7 @@ function TableRenderer({ data }: { data: unknown }) {
 
 function LogsRenderer({ data }: { data: unknown }) {
   if (!data) return <EmptyRenderer title="Logs" detail="No log data" />
-  const d = data as { lines?: Array<{ text?: string; level?: string; timestamp?: string }> }
+  const d = data as { lines?: Array<Record<string, unknown>> }
   const lines = d.lines || (Array.isArray(data) ? data : [])
 
   const levelColor = (level?: string): string => {
@@ -151,20 +151,27 @@ function LogsRenderer({ data }: { data: unknown }) {
       lineHeight: 1.6,
       overflow: 'auto',
     }}>
-      {(lines as Array<{ text?: string; level?: string; timestamp?: string } | string>).map((line, i) => {
-        const entry = typeof line === 'string' ? { text: line } : line
+      {(lines as Array<Record<string, unknown> | string>).map((line, i) => {
+        const entry = typeof line === 'string' ? { msg: line } : line
+        const ts = String(entry.ts || entry.timestamp || '')
+        const level = String(entry.level || '')
+        const msg = String(entry.msg || entry.text || entry.message || line)
+        const source = String(entry.source || '')
         return (
-          <div key={i} style={{ color: levelColor(entry.level), display: 'flex', gap: 8 }}>
-            {entry.timestamp && (
-              <span style={{ color: 'var(--color-muted)', flexShrink: 0 }}>{entry.timestamp}</span>
+          <div key={i} style={{ color: levelColor(level), display: 'flex', gap: 8 }}>
+            {ts && (
+              <span style={{ color: 'var(--color-muted)', flexShrink: 0 }}>{ts}</span>
             )}
-            {entry.level && (
+            {level && (
               <span style={{ flexShrink: 0, width: 40, textTransform: 'uppercase', fontWeight: 600 }}>
-                {entry.level}
+                {level}
               </span>
             )}
+            {source && (
+              <span style={{ color: 'var(--color-muted)', flexShrink: 0 }}>[{source}]</span>
+            )}
             <span style={{ flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-              {entry.text || String(line)}
+              {msg}
             </span>
           </div>
         )
@@ -174,25 +181,37 @@ function LogsRenderer({ data }: { data: unknown }) {
 }
 
 function MarkdownRenderer({ data }: { data: unknown }) {
+  const d = data as Record<string, unknown> | null
   const text = typeof data === 'string' ? data
-    : (data && typeof data === 'object' && 'text' in (data as Record<string, unknown>))
-      ? String((data as Record<string, unknown>).text)
-      : JSON.stringify(data, null, 2)
+    : d?.content ? String(d.content)
+    : d?.text ? String(d.text)
+    : JSON.stringify(data, null, 2)
+
+  // Simple markdown → HTML: headings, bold, italic, code blocks, lists, links
+  const html = text
+    .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre style="background:var(--color-elevated);padding:10px 12px;border-radius:6px;overflow-x:auto;margin:8px 0;font-size:11px"><code>$2</code></pre>')
+    .replace(/`([^`]+)`/g, '<code style="background:var(--color-elevated);padding:1px 4px;border-radius:3px;font-size:11px">$1</code>')
+    .replace(/^### (.+)$/gm, '<h3 style="font-size:13px;color:var(--color-text-bright);margin:12px 0 4px">$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2 style="font-size:14px;color:var(--color-text-bright);margin:16px 0 6px">$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1 style="font-size:16px;color:var(--color-accent);margin:0 0 8px">$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--color-text-bright)">$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^- (.+)$/gm, '<div style="padding-left:16px">• $1</div>')
+    .replace(/^(\d+)\. (.+)$/gm, '<div style="padding-left:16px">$1. $2</div>')
+    .replace(/\n\n/g, '<br/><br/>')
 
   return (
-    <pre style={{
-      padding: 16,
-      fontFamily: "'JetBrains Mono', monospace",
-      fontSize: 12,
-      lineHeight: 1.6,
-      color: 'var(--color-text)',
-      whiteSpace: 'pre-wrap',
-      wordBreak: 'break-word',
-      margin: 0,
-      overflow: 'auto',
-    }}>
-      {text}
-    </pre>
+    <div
+      style={{
+        padding: 16,
+        fontFamily: "'JetBrains Mono', monospace",
+        fontSize: 12,
+        lineHeight: 1.7,
+        color: 'var(--color-text)',
+        overflow: 'auto',
+      }}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
   )
 }
 
