@@ -140,6 +140,26 @@ impl AcpClient {
         Ok(id)
     }
 
+    /// Send a session/load JSON-RPC request to restore an existing session.
+    pub fn load_session(&self, session_id: &str) -> Result<u64, String> {
+        let id = self.next_request_id();
+        let cwd = std::env::current_dir()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|_| ".".to_string());
+        let msg = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "method": "session/load",
+            "params": {
+                "sessionId": session_id,
+                "cwd": cwd,
+                "mcpServers": []
+            }
+        });
+        self.send(&msg.to_string())?;
+        Ok(id)
+    }
+
     /// Send a session/cancel JSON-RPC notification.
     pub fn cancel(&self, session_id: &str) -> Result<(), String> {
         let msg = serde_json::json!({

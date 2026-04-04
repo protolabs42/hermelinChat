@@ -14,6 +14,14 @@ pub fn acp_new_session(state: State<'_, AcpState>) -> Result<String, String> {
 }
 
 #[tauri::command]
+pub fn acp_load_session(state: State<'_, AcpState>, session_id: String) -> Result<String, String> {
+    let guard = state.0.lock().map_err(|e| e.to_string())?;
+    let client = guard.as_ref().ok_or("ACP client not initialized")?;
+    client.load_session(&session_id)?;
+    Ok("session/load sent".to_string())
+}
+
+#[tauri::command]
 pub fn acp_send_prompt(
     state: State<'_, AcpState>,
     session_id: String,

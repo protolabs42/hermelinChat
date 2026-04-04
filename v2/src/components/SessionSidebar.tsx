@@ -151,6 +151,9 @@ function SessionRow({ session, isActive }: { session: SessionSummary; isActive: 
             pendingPrompt: null,
           })
 
+          // Tell ACP adapter to restore this session context
+          await invoke('acp_load_session', { sessionId: session.id })
+
           // Update window title
           invoke('set_window_title', {
             title: `hermelinChat \u2014 ${session.title}`,

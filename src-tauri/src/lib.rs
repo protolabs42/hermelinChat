@@ -28,6 +28,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::acp_new_session,
+            commands::acp_load_session,
             commands::acp_send_prompt,
             commands::acp_cancel,
             commands::acp_reconnect,
