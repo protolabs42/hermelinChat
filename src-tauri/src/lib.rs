@@ -25,6 +25,7 @@ pub fn run() {
             commands::acp_new_session,
             commands::acp_send_prompt,
             commands::acp_cancel,
+            commands::acp_reconnect,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

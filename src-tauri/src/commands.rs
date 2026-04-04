@@ -35,3 +35,17 @@ pub fn acp_cancel(
     client.cancel(&session_id)?;
     Ok("cancel sent".to_string())
 }
+
+#[tauri::command]
+pub fn acp_reconnect(app: tauri::AppHandle, state: State<'_, AcpState>) -> Result<String, String> {
+    let mut guard = state.0.lock().map_err(|e| e.to_string())?;
+
+    if let Some(client) = guard.take() {
+        client.shutdown();
+    }
+
+    let client = crate::acp::client::AcpClient::spawn(&app)?;
+    *guard = Some(client);
+
+    Ok("reconnected".to_string())
+}
