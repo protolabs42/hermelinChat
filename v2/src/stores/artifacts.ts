@@ -29,6 +29,15 @@ type ArtifactEvent =
   | { kind: 'Remove'; id: string }
   | { kind: 'List'; artifacts: Artifact[] }
 
+// Rust serde sends "type" (JSON key) but we use "artifact_type" in TS.
+// Normalize incoming artifacts to map "type" → "artifact_type".
+function normalizeArtifact(raw: Record<string, unknown>): Artifact {
+  return {
+    ...raw,
+    artifact_type: String(raw.artifact_type || raw.type || 'unknown'),
+  } as Artifact
+}
+
 export const useArtifactStore = create<ArtifactStore>((set) => ({
   artifacts: [],
   activeId: null,
@@ -42,10 +51,11 @@ export const useArtifactStore = create<ArtifactStore>((set) => ({
   handleEvent: (event) => {
     switch (event.kind) {
       case 'Update': {
+        const artifact = normalizeArtifact(event.artifact as unknown as Record<string, unknown>)
         set((s) => {
-          const filtered = s.artifacts.filter((a) => a.id !== event.artifact.id)
-          const next = [event.artifact, ...filtered]
-          const activeId = s.activeId || event.artifact.id
+          const filtered = s.artifacts.filter((a) => a.id !== artifact.id)
+          const next = [artifact, ...filtered]
+          const activeId = s.activeId || artifact.id
           return { artifacts: next, activeId, panelOpen: true }
         })
         break
@@ -59,9 +69,10 @@ export const useArtifactStore = create<ArtifactStore>((set) => ({
         break
       }
       case 'List': {
+        const artifacts = event.artifacts.map((a) => normalizeArtifact(a as unknown as Record<string, unknown>))
         set((s) => {
-          const activeId = s.activeId || event.artifacts[0]?.id || null
-          return { artifacts: event.artifacts, activeId }
+          const activeId = s.activeId || artifacts[0]?.id || null
+          return { artifacts, activeId }
         })
         break
       }
