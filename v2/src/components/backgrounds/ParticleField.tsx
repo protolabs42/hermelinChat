@@ -22,7 +22,7 @@ export function ParticleField({ intensity = 50 }: ParticleFieldProps) {
 
   const pct = clampNum(intensity, 0, 100)
   const factor = pct / 50
-  const canvasOpacity = clampNum(0.8 * factor, 0, 1)
+  const canvasOpacity = clampNum(0.6 * factor, 0, 1)
 
   const accentHex = theme.colors.accent400
   const accentRgb = hexToRgb(accentHex) || { r: 180, g: 190, b: 254 }
@@ -47,7 +47,7 @@ export function ParticleField({ intensity = 50 }: ParticleFieldProps) {
         vx: (Math.random() - 0.5) * 0.4,
         vy: (Math.random() - 0.5) * 0.4,
         r: Math.random() * 2 + 0.8,
-        o: Math.min(0.5, (Math.random() * 0.3 + 0.1) * factor),
+        o: Math.min(0.35, (Math.random() * 0.2 + 0.05) * factor),
       }))
     }
 
