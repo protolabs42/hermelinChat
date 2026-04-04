@@ -9,9 +9,64 @@ import NOUS_MARK_URL from '../assets/nous-alignment-flipped.svg'
 import SAMARITAN_MARK_RAW from '../assets/samaritan-mark.svg?raw'
 import SAMARITAN_FAVICON_URL from '../assets/samaritan-favicon.svg'
 
+export interface SlateColors {
+  bg: string
+  surface: string
+  elevated: string
+  border: string
+  muted: string
+  text: string
+  textBright: string
+  accent: string
+  danger: string
+  success: string
+  info: string
+  purple: string
+  cyan: string
+  [key: string]: string
+}
+
+export interface ThemeIcons {
+  faviconHref: string
+  favicons?: Array<{ rel: string; type?: string; sizes?: string; href: string }>
+  topbarSvgRaw: string
+  topbarSize?: number
+  alignmentSvgRaw: string
+  alignmentTitle: string
+  alignmentWhisperText: string
+  alignmentFetchWhisper: boolean
+}
+
+export interface ThemeBackground {
+  kind: string
+  overlay?: { kind: string; opacity: number }
+  matrixRain?: {
+    colWidth: number
+    fontSize: number
+    fadeAlpha: number
+    opacity: number
+    frameMs: number
+    speedBase: number
+    speedJitter: number
+    redChance: number
+    resetChance: number
+  }
+}
+
+export interface Theme {
+  id: string
+  label: string
+  AMBER: Record<string, string>
+  SLATE: SlateColors
+  background?: ThemeBackground
+  icons?: ThemeIcons
+  mascot?: Record<string, unknown>
+  whisper?: Record<string, unknown>
+}
+
 export const DEFAULT_THEME_ID = 'hermelin'
 
-export const THEMES = {
+export const THEMES: Record<string, Theme> = {
   hermelin: {
     id: 'hermelin',
     label: 'Hermelin (amber)',
@@ -214,11 +269,177 @@ export const THEMES = {
       overlay: { kind: 'grain', opacity: 0.02 },
     },
   },
+
+  catppuccin: {
+    id: 'catppuccin',
+    label: 'Catppuccin (lavender)',
+    AMBER: {
+      300: '#d0d5ff',
+      400: '#b4befe',
+      500: '#9399e2',
+      600: '#7278c4',
+      700: '#555aa0',
+      800: '#3b3f7a',
+      900: '#232554',
+    },
+    SLATE: {
+      bg: '#1e1e2e',
+      surface: '#181825',
+      elevated: '#313244',
+      border: '#45475a',
+      muted: '#6c7086',
+      text: '#bac2de',
+      textBright: '#cdd6f4',
+      accent: '#b4befe',
+      danger: '#f38ba8',
+      success: '#a6e3a1',
+      info: '#89b4fa',
+      purple: '#cba6f7',
+      cyan: '#94e2d5',
+    },
+    icons: {
+      faviconHref: '/favicon.svg',
+      topbarSvgRaw: HERMELIN_NOT_FLIPPED_RAW,
+      alignmentSvgRaw: HERMELIN_NOT_FLIPPED_RAW,
+      alignmentTitle: 'aurora',
+      alignmentWhisperText: 'the sky remembers what the ground forgets',
+      alignmentFetchWhisper: false,
+    },
+    background: {
+      kind: 'particles',
+      overlay: { kind: 'grain', opacity: 0.02 },
+    },
+  },
+
+  'catppuccin-macchiato': {
+    id: 'catppuccin-macchiato',
+    label: 'Catppuccin Macchiato (lavender)',
+    AMBER: {
+      300: '#ccd0ff',
+      400: '#b7bdf8',
+      500: '#939adc',
+      600: '#7278be',
+      700: '#555a9c',
+      800: '#3b3f78',
+      900: '#232552',
+    },
+    SLATE: {
+      bg: '#24273a',       // base
+      surface: '#1e2030',  // mantle
+      elevated: '#363a4f', // surface0
+      border: '#494d64',   // surface1
+      muted: '#6e738d',    // overlay0
+      text: '#b8c0e0',     // subtext1
+      textBright: '#cad3f5', // text
+      accent: '#b7bdf8',   // lavender
+      danger: '#ed8796',   // red
+      success: '#a6da95',  // green
+      info: '#8aadf4',     // blue
+      purple: '#c6a0f6',   // mauve
+      cyan: '#8bd5ca',     // teal
+    },
+    icons: {
+      faviconHref: '/favicon.svg',
+      topbarSvgRaw: HERMELIN_NOT_FLIPPED_RAW,
+      alignmentSvgRaw: HERMELIN_NOT_FLIPPED_RAW,
+      alignmentTitle: 'aurora',
+      alignmentWhisperText: 'the sky remembers what the ground forgets',
+      alignmentFetchWhisper: false,
+    },
+    background: {
+      kind: 'particles',
+      overlay: { kind: 'grain', opacity: 0.02 },
+    },
+  },
+
+  'catppuccin-frappe': {
+    id: 'catppuccin-frappe',
+    label: 'Catppuccin Frappé (lavender)',
+    AMBER: {
+      300: '#c8ccff',
+      400: '#babbf1',
+      500: '#9698d6',
+      600: '#7476b8',
+      700: '#575996',
+      800: '#3d3e72',
+      900: '#24254e',
+    },
+    SLATE: {
+      bg: '#303446',       // base
+      surface: '#292c3c',  // mantle
+      elevated: '#414559', // surface0
+      border: '#51576d',   // surface1
+      muted: '#737994',    // overlay0
+      text: '#b5bfe2',     // subtext1
+      textBright: '#c6d0f5', // text
+      accent: '#babbf1',   // lavender
+      danger: '#e78284',   // red
+      success: '#a6d189',  // green
+      info: '#8caaee',     // blue
+      purple: '#ca9ee6',   // mauve
+      cyan: '#81c8be',     // teal
+    },
+    icons: {
+      faviconHref: '/favicon.svg',
+      topbarSvgRaw: HERMELIN_NOT_FLIPPED_RAW,
+      alignmentSvgRaw: HERMELIN_NOT_FLIPPED_RAW,
+      alignmentTitle: 'aurora',
+      alignmentWhisperText: 'the sky remembers what the ground forgets',
+      alignmentFetchWhisper: false,
+    },
+    background: {
+      kind: 'particles',
+      overlay: { kind: 'grain', opacity: 0.02 },
+    },
+  },
+
+  'catppuccin-latte': {
+    id: 'catppuccin-latte',
+    label: 'Catppuccin Latte (lavender)',
+    AMBER: {
+      300: '#6366a8',
+      400: '#7287fd',
+      500: '#5b6cd0',
+      600: '#4854a8',
+      700: '#363f82',
+      800: '#262c5e',
+      900: '#181c3c',
+    },
+    SLATE: {
+      bg: '#eff1f5',       // base
+      surface: '#e6e9ef',  // mantle
+      elevated: '#ccd0da', // surface0
+      border: '#bcc0cc',   // surface1
+      muted: '#8c8fa1',    // overlay0
+      text: '#5c5f77',     // subtext1
+      textBright: '#4c4f69', // text
+      accent: '#7287fd',   // lavender
+      danger: '#d20f39',   // red
+      success: '#40a02b',  // green
+      info: '#1e66f5',     // blue
+      purple: '#8839ef',   // mauve
+      cyan: '#179299',     // teal
+    },
+    icons: {
+      faviconHref: '/favicon.svg',
+      topbarSvgRaw: HERMELIN_NOT_FLIPPED_RAW,
+      alignmentSvgRaw: HERMELIN_NOT_FLIPPED_RAW,
+      alignmentTitle: 'aurora',
+      alignmentWhisperText: 'the sky remembers what the ground forgets',
+      alignmentFetchWhisper: false,
+    },
+    background: {
+      kind: 'particles',
+      overlay: { kind: 'grain', opacity: 0.01 },
+    },
+  },
 }
 
-export const THEME_OPTIONS = Object.values(THEMES).map((t) => ({ id: t.id, label: t.label }))
+export const THEME_OPTIONS: Array<{ id: string; value: string; label: string }> = Object.values(
+  THEMES,
+).map((t) => ({ id: t.id, value: t.id, label: t.label }))
 
-export function normalizeThemeId(raw) {
+export function normalizeThemeId(raw: unknown): string {
   const id = String(raw || '').trim()
   if (id && Object.prototype.hasOwnProperty.call(THEMES, id)) return id
   return DEFAULT_THEME_ID
