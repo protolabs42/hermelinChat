@@ -22,7 +22,7 @@ export function ParticleField({ intensity = 50 }: ParticleFieldProps) {
 
   const pct = clampNum(intensity, 0, 100)
   const factor = pct / 50
-  const canvasOpacity = clampNum(0.5 * factor, 0, 1)
+  const canvasOpacity = clampNum(0.8 * factor, 0, 1)
 
   const accentHex = theme.colors.accent400
   const accentRgb = hexToRgb(accentHex) || { r: 180, g: 190, b: 254 }
@@ -37,17 +37,17 @@ export function ParticleField({ intensity = 50 }: ParticleFieldProps) {
     let particles: { x: number; y: number; vx: number; vy: number; r: number; o: number }[] = []
 
     const init = () => {
-      canvas.width = canvas.parentElement?.offsetWidth || 800
-      canvas.height = canvas.parentElement?.offsetHeight || 600
+      canvas.width = window.innerWidth
+      canvas.height = window.innerHeight
 
-      const count = Math.max(0, Math.round(60 * factor))
+      const count = Math.max(20, Math.round(80 * factor))
       particles = Array.from({ length: count }, () => ({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
-        vx: (Math.random() - 0.5) * 0.3,
-        vy: (Math.random() - 0.5) * 0.3,
-        r: Math.random() * 1.5 + 0.5,
-        o: Math.min(0.22, (Math.random() * 0.15 + 0.03) * factor),
+        vx: (Math.random() - 0.5) * 0.4,
+        vy: (Math.random() - 0.5) * 0.4,
+        r: Math.random() * 2 + 0.8,
+        o: Math.min(0.5, (Math.random() * 0.3 + 0.1) * factor),
       }))
     }
 
