@@ -33,7 +33,13 @@ pub fn parse_acp_line(line: &str) -> Option<AcpEvent> {
     let method = json.get("method")?.as_str()?;
 
     match method {
-        "session/update" => parse_session_update(json.get("params")?),
+        "session/update" => {
+            let params = json.get("params")?;
+            // ACP nests the update inside params.update:
+            // { "params": { "sessionId": "...", "update": { "sessionUpdate": "...", ... } } }
+            let update = params.get("update").unwrap_or(params);
+            parse_session_update(update)
+        }
         "session/request_permission" => parse_permission_request(&json),
         _ => None,
     }
@@ -198,7 +204,8 @@ mod tests {
 
     #[test]
     fn test_parse_agent_message_chunk() {
-        let line = r#"{"method":"session/update","params":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"Hello world"}}}"#;
+        // Real ACP format: params.update.sessionUpdate
+        let line = r#"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s1","update":{"content":{"text":"Hello world","type":"text"},"sessionUpdate":"agent_message_chunk"}}}"#;
         let event = parse_acp_line(line).unwrap();
         match event {
             AcpEvent::AgentMessage { text } => assert_eq!(text, "Hello world"),
@@ -208,23 +215,23 @@ mod tests {
 
     #[test]
     fn test_parse_thinking_chunk() {
-        let line = r#"{"method":"session/update","params":{"sessionUpdate":"agent_thought_chunk","content":{"type":"text","text":"Let me think..."}}}"#;
+        let line = r#"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s1","update":{"content":{"text":"pondering...","type":"text"},"sessionUpdate":"agent_thought_chunk"}}}"#;
         let event = parse_acp_line(line).unwrap();
         match event {
-            AcpEvent::AgentThinking { text } => assert_eq!(text, "Let me think..."),
+            AcpEvent::AgentThinking { text } => assert_eq!(text, "pondering..."),
             other => panic!("expected AgentThinking, got {:?}", other),
         }
     }
 
     #[test]
     fn test_parse_tool_call() {
-        let line = r#"{"method":"session/update","params":{"sessionUpdate":"tool_call","toolCallId":"tc-123","title":"read_file: main.rs","kind":"read","content":[{"type":"content","content":{"type":"text","text":"file content"}}]}}"#;
+        let line = r#"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s1","update":{"content":[{"content":{"text":"$ ls","type":"text"},"type":"content"}],"kind":"execute","title":"terminal: ls","toolCallId":"tc-123","sessionUpdate":"tool_call"}}}"#;
         let event = parse_acp_line(line).unwrap();
         match event {
             AcpEvent::ToolCallStarted { id, title, tool_kind } => {
                 assert_eq!(id, "tc-123");
-                assert_eq!(title, "read_file: main.rs");
-                assert_eq!(tool_kind, "read");
+                assert_eq!(title, "terminal: ls");
+                assert_eq!(tool_kind, "execute");
             }
             other => panic!("expected ToolCallStarted, got {:?}", other),
         }
@@ -232,7 +239,7 @@ mod tests {
 
     #[test]
     fn test_parse_tool_call_with_diff() {
-        let line = r#"{"method":"session/update","params":{"sessionUpdate":"tool_call","toolCallId":"tc-456","title":"write: main.py","kind":"edit","content":[{"type":"diff","path":"/src/main.py","newText":"def hello():\n    pass","oldText":"def old():\n    pass"}]}}"#;
+        let line = r#"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s1","update":{"content":[{"type":"diff","path":"/src/main.py","newText":"def hello():\n    pass","oldText":"def old():\n    pass"}],"kind":"edit","title":"write: main.py","toolCallId":"tc-456","sessionUpdate":"tool_call"}}}"#;
         let event = parse_acp_line(line).unwrap();
         match event {
             AcpEvent::DiffProposed { tool_call_id, path, old_text, new_text } => {
@@ -247,7 +254,7 @@ mod tests {
 
     #[test]
     fn test_parse_usage_update() {
-        let line = r#"{"method":"session/update","params":{"sessionUpdate":"usage_update","used":1250,"size":8192,"cost":{"amount":0.0015,"currency":"USD"}}}"#;
+        let line = r#"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s1","update":{"sessionUpdate":"usage_update","used":1250,"size":8192,"cost":{"amount":0.0015,"currency":"USD"}}}}"#;
         let event = parse_acp_line(line).unwrap();
         match event {
             AcpEvent::UsageUpdate { used, size, cost_usd } => {
