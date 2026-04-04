@@ -51,10 +51,22 @@ fn list_sessions_from_db(db_path: &std::path::Path, limit: usize) -> Result<Vec<
         return Ok(vec![]);
     }
 
-    let conn = rusqlite::Connection::open_with_flags(
-        &db_path,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
-    )
+    // For UNC/network paths (WSL), use immutable mode to bypass WAL locking issues
+    let is_unc = db_path.to_string_lossy().starts_with("\\\\");
+    let conn = if is_unc {
+        let uri = format!("file:{}?immutable=1", db_path.to_string_lossy().replace('\\', "/"));
+        rusqlite::Connection::open_with_flags(
+            &uri,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY
+                | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX
+                | rusqlite::OpenFlags::SQLITE_OPEN_URI,
+        )
+    } else {
+        rusqlite::Connection::open_with_flags(
+            db_path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )
+    }
     .map_err(|e| format!("failed to open state.db: {}", e))?;
 
     let mut stmt = conn
@@ -132,10 +144,21 @@ fn get_session_messages_from_db(db_path: &std::path::Path, session_id: &str, lim
         return Ok(vec![]);
     }
 
-    let conn = rusqlite::Connection::open_with_flags(
-        db_path,
-        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
-    )
+    let is_unc = db_path.to_string_lossy().starts_with("\\\\");
+    let conn = if is_unc {
+        let uri = format!("file:{}?immutable=1", db_path.to_string_lossy().replace('\\', "/"));
+        rusqlite::Connection::open_with_flags(
+            &uri,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY
+                | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX
+                | rusqlite::OpenFlags::SQLITE_OPEN_URI,
+        )
+    } else {
+        rusqlite::Connection::open_with_flags(
+            db_path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )
+    }
     .map_err(|e| format!("failed to open state.db: {}", e))?;
 
     let mut stmt = conn
