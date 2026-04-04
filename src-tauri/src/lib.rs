@@ -1,5 +1,6 @@
 mod acp;
 mod commands;
+mod sessions;
 
 use commands::AcpState;
 use std::sync::Mutex;
@@ -27,6 +28,7 @@ pub fn run() {
             commands::acp_cancel,
             commands::acp_reconnect,
             commands::acp_status,
+            commands::list_sessions,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

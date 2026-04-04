@@ -55,3 +55,8 @@ pub fn acp_status(state: State<'_, AcpState>) -> String {
     let guard = state.0.lock().unwrap_or_else(|e| e.into_inner());
     if guard.is_some() { "connected".to_string() } else { "disconnected".to_string() }
 }
+
+#[tauri::command]
+pub fn list_sessions(limit: Option<usize>) -> Result<Vec<crate::sessions::SessionSummary>, String> {
+    crate::sessions::list_sessions(limit.unwrap_or(30))
+}
