@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useSettingsStore } from '../stores/settings'
 import { useSidebarStore } from '../stores/sidebar'
+import { useArtifactStore } from '../stores/artifacts'
 
 export function useKeyboardShortcuts() {
   useEffect(() => {
@@ -15,10 +16,16 @@ export function useKeyboardShortcuts() {
         e.preventDefault()
         useSidebarStore.getState().toggle()
       }
+      // Ctrl+Shift+A or Cmd+Shift+A -- toggle artifact panel
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'A') {
+        e.preventDefault()
+        useArtifactStore.getState().togglePanel()
+      }
       // Escape -- close any open panel
       if (e.key === 'Escape') {
         useSettingsStore.getState().close()
         useSidebarStore.getState().close()
+        useArtifactStore.getState().closePanel()
       }
     }
     window.addEventListener('keydown', handler)

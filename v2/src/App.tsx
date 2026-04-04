@@ -7,11 +7,15 @@ import ChatView from './components/ChatView'
 import MessageInput from './components/MessageInput'
 import SettingsPanel from './components/SettingsPanel'
 import SessionSidebar from './components/SessionSidebar'
+import ArtifactPanel from './components/ArtifactPanel'
 import { AlignmentMascot } from './components/AlignmentMascot'
+import { useArtifactStore } from './stores/artifacts'
 
 export default function App() {
   useAcpEvents()
   useKeyboardShortcuts()
+
+  const panelOpen = useArtifactStore((s) => s.panelOpen)
 
   return (
     <ThemeProvider>
@@ -26,6 +30,9 @@ export default function App() {
           <ChatView />
           <MessageInput />
         </div>
+
+        {/* Artifact panel (right, conditional) */}
+        {panelOpen && <ArtifactPanel />}
       </div>
 
       {/* Settings panel (right overlay) */}

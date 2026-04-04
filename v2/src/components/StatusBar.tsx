@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { useChatStore } from '../stores/chat'
 import { useSettingsStore } from '../stores/settings'
 import { useSidebarStore } from '../stores/sidebar'
+import { useArtifactStore } from '../stores/artifacts'
 import { useTheme } from '../theme'
 
 export default function StatusBar() {
@@ -9,6 +10,8 @@ export default function StatusBar() {
   const sessionId = useChatStore((s) => s.sessionId)
   const toggleSettings = useSettingsStore((s) => s.toggle)
   const toggleSidebar = useSidebarStore((s) => s.toggle)
+  const artifactCount = useArtifactStore((s) => s.artifacts.length)
+  const toggleArtifacts = useArtifactStore((s) => s.togglePanel)
   const { theme } = useTheme()
 
   const color =
@@ -94,6 +97,44 @@ export default function StatusBar() {
       )}
       <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
         {sessionId ? <span>{sessionId.slice(0, 8)}...</span> : null}
+
+        {/* Artifact panel toggle */}
+        {artifactCount > 0 && (
+          <button
+            onClick={toggleArtifacts}
+            title={`Artifacts (${artifactCount}) — Ctrl+Shift+A`}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--color-muted)',
+              cursor: 'pointer',
+              padding: '2px 4px',
+              borderRadius: 4,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 3,
+              position: 'relative',
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <line x1="9" y1="3" x2="9" y2="21" />
+            </svg>
+            <span style={{
+              fontSize: 8,
+              background: 'var(--color-accent)',
+              color: 'var(--color-bg)',
+              borderRadius: 999,
+              padding: '0 4px',
+              fontWeight: 700,
+              lineHeight: '14px',
+              minWidth: 14,
+              textAlign: 'center',
+            }}>
+              {artifactCount}
+            </span>
+          </button>
+        )}
 
         {/* Settings gear */}
         <button
