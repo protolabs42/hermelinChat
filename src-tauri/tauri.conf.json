@@ -1,0 +1,28 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "identifier": "com.hermelinchat.app",
+  "productName": "hermelinChat",
+  "version": "0.1.0",
+  "build": {
+    "frontendDist": "../v2/dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "cd v2 && npm run dev",
+    "beforeBuildCommand": "cd v2 && npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "hermelinChat",
+        "width": 900,
+        "height": 700,
+        "minWidth": 600,
+        "minHeight": 400
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "plugins": {}
+}

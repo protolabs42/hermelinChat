@@ -31,3 +31,7 @@ hermelin/static/
 /matrix_effect.js
 /hermelin-face.svg
 .superpowers/
+
+# Tauri / Rust
+target/
+v2/dist/
