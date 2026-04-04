@@ -25,7 +25,7 @@ export default function MessageBubble({ message }: Props) {
     <div style={{ marginBottom: 12 }}>
       <div style={{
         fontSize: 10,
-        color: isUser ? '#b4befe' : '#a6e3a1',
+        color: isUser ? 'var(--color-accent)' : 'var(--color-success)',
         fontWeight: 700,
         marginBottom: 4,
       }}>

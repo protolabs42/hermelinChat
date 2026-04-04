@@ -13,7 +13,7 @@ export default function ToolCallBlock({ message }: Props) {
   const isFailed = status === 'failed' || status === 'error'
 
   const statusIcon = isRunning ? '\u25b6' : isFailed ? '\u2717' : '\u2713'
-  const iconColor = isFailed ? '#f38ba8' : '#a6e3a1'
+  const iconColor = isFailed ? 'var(--color-danger)' : 'var(--color-success)'
 
   // Calculate duration placeholder (tool messages don't have end timestamps inherently,
   // but the toolStatus change marks completion)
@@ -25,7 +25,7 @@ export default function ToolCallBlock({ message }: Props) {
         onClick={() => hasOutput && setExpanded((p) => !p)}
         style={{
           padding: '6px 12px',
-          background: '#181825',
+          background: 'var(--color-surface)',
           borderRadius: 6,
           display: 'flex',
           alignItems: 'center',
@@ -36,9 +36,9 @@ export default function ToolCallBlock({ message }: Props) {
         }}
       >
         <span style={{ color: iconColor, fontSize: 10 }}>{statusIcon}</span>
-        <span style={{ color: '#a6e3a1', fontWeight: 600 }}>{message.toolTitle}</span>
+        <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>{message.toolTitle}</span>
         {hasOutput && (
-          <span style={{ color: '#6c7086', fontSize: 9, marginLeft: 'auto' }}>
+          <span style={{ color: 'var(--color-muted)', fontSize: 9, marginLeft: 'auto' }}>
             {expanded ? '\u25bc' : '\u25b6'}
           </span>
         )}
@@ -48,12 +48,12 @@ export default function ToolCallBlock({ message }: Props) {
           marginTop: 4,
           marginLeft: 12,
           padding: '8px 12px',
-          background: '#11111b',
+          background: 'var(--color-bg)',
           borderRadius: 4,
-          border: '1px solid #313244',
+          border: '1px solid var(--color-elevated)',
           fontFamily: 'monospace',
           fontSize: 11,
-          color: '#bac2de',
+          color: 'var(--color-text)',
           lineHeight: 1.5,
           whiteSpace: 'pre-wrap',
           wordBreak: 'break-word',

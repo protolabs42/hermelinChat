@@ -15,13 +15,13 @@ export default function UsageBar() {
   return (
     <div style={{
       padding: '3px 16px',
-      borderTop: '1px solid #313244',
+      borderTop: '1px solid var(--color-elevated)',
       display: 'flex',
       justifyContent: 'flex-end',
       alignItems: 'center',
       gap: 12,
       fontSize: 9,
-      color: '#6c7086',
+      color: 'var(--color-muted)',
       fontFamily: 'monospace',
     }}>
       <span>tokens: {formatTokens(usage.used)} / {formatTokens(usage.size)}</span>

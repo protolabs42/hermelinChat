@@ -20,7 +20,7 @@ export default function ChatView() {
             alignItems: 'center',
             justifyContent: 'center',
             height: '100%',
-            color: '#6c7086',
+            color: 'var(--color-muted)',
             fontSize: 13,
           }}>
             Start a conversation with Aurora

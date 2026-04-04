@@ -48,10 +48,10 @@ export default function ThinkingBlock({ message }: Props) {
           userSelect: 'none',
         }}
       >
-        <span style={{ fontSize: 9, color: '#6c7086', transition: 'transform 0.15s' }}>
+        <span style={{ fontSize: 9, color: 'var(--color-muted)', transition: 'transform 0.15s' }}>
           {isExpanded ? '\u25bc' : '\u25b6'}
         </span>
-        <span style={{ fontSize: 10, color: '#6c7086', fontStyle: 'italic' }}>
+        <span style={{ fontSize: 10, color: 'var(--color-muted)', fontStyle: 'italic' }}>
           {isActive ? 'Thinking...' : 'Thinking'}
           {durationStr && (
             <span style={{ marginLeft: 4, fontStyle: 'normal' }}>({durationStr})</span>
@@ -60,14 +60,14 @@ export default function ThinkingBlock({ message }: Props) {
       </div>
       {isExpanded && (
         <div style={{
-          borderLeft: '2px solid #45475a',
+          borderLeft: '2px solid var(--color-border)',
           paddingLeft: 12,
           marginLeft: 4,
           marginTop: 2,
         }}>
           <div style={{
             fontSize: 11,
-            color: '#6c7086',
+            color: 'var(--color-muted)',
             lineHeight: 1.6,
             whiteSpace: 'pre-wrap',
             fontStyle: 'italic',

@@ -36,7 +36,7 @@ export default function MessageInput() {
 
   return (
     <div style={{
-      borderTop: '1px solid #45475a',
+      borderTop: '1px solid var(--color-border)',
       padding: '12px 16px',
       display: 'flex',
       gap: 8,
@@ -49,11 +49,11 @@ export default function MessageInput() {
         disabled={isStreaming}
         style={{
           flex: 1,
-          background: '#313244',
-          border: '1px solid #45475a',
+          background: 'var(--color-elevated)',
+          border: '1px solid var(--color-border)',
           borderRadius: 8,
           padding: '8px 12px',
-          color: '#cdd6f4',
+          color: 'var(--color-text-bright)',
           fontSize: 13,
           fontFamily: 'inherit',
           outline: 'none',
@@ -64,8 +64,8 @@ export default function MessageInput() {
         onClick={handleSend}
         disabled={isStreaming || !input.trim()}
         style={{
-          background: isStreaming ? '#45475a' : '#b4befe',
-          color: '#1e1e2e',
+          background: isStreaming ? 'var(--color-border)' : 'var(--color-accent)',
+          color: 'var(--color-bg)',
           border: 'none',
           borderRadius: 8,
           padding: '8px 16px',

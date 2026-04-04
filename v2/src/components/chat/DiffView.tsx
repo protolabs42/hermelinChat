@@ -76,20 +76,20 @@ export default function DiffView({ message }: Props) {
         alignItems: 'center',
         gap: 8,
         padding: '6px 12px',
-        background: '#181825',
+        background: 'var(--color-surface)',
         borderRadius: '6px 6px 0 0',
-        borderBottom: '1px solid #313244',
+        borderBottom: '1px solid var(--color-elevated)',
       }}>
-        <span style={{ fontSize: 11, color: '#cba6f7', fontFamily: 'monospace', fontWeight: 600 }}>
+        <span style={{ fontSize: 11, color: 'var(--color-purple)', fontFamily: 'monospace', fontWeight: 600 }}>
           {message.diffPath}
         </span>
-        <span style={{ fontSize: 10, color: '#a6e3a1', marginLeft: 'auto' }}>+{addCount}</span>
-        <span style={{ fontSize: 10, color: '#f38ba8' }}>-{removeCount}</span>
+        <span style={{ fontSize: 10, color: 'var(--color-success)', marginLeft: 'auto' }}>+{addCount}</span>
+        <span style={{ fontSize: 10, color: 'var(--color-danger)' }}>-{removeCount}</span>
       </div>
 
       {/* Diff body */}
       <div style={{
-        background: '#11111b',
+        background: 'var(--color-bg)',
         padding: '8px 0',
         borderRadius: '0 0 6px 6px',
         fontFamily: 'monospace',
@@ -100,7 +100,7 @@ export default function DiffView({ message }: Props) {
       }}>
         {diffLines.map((line, i) => {
           const prefix = line.type === 'add' ? '+' : line.type === 'remove' ? '-' : ' '
-          const color = line.type === 'add' ? '#a6e3a1' : line.type === 'remove' ? '#f38ba8' : '#6c7086'
+          const color = line.type === 'add' ? 'var(--color-success)' : line.type === 'remove' ? 'var(--color-danger)' : 'var(--color-muted)'
           const bg = line.type === 'add'
             ? 'rgba(166, 227, 161, 0.08)'
             : line.type === 'remove'
@@ -121,9 +121,9 @@ export default function DiffView({ message }: Props) {
           onClick={handleAccept}
           style={{
             background: 'transparent',
-            border: '1px solid #a6e3a1',
+            border: '1px solid var(--color-success)',
             borderRadius: 4,
-            color: '#a6e3a1',
+            color: 'var(--color-success)',
             fontSize: 10,
             padding: '3px 10px',
             cursor: 'pointer',
@@ -136,9 +136,9 @@ export default function DiffView({ message }: Props) {
           onClick={handleReject}
           style={{
             background: 'transparent',
-            border: '1px solid #f38ba8',
+            border: '1px solid var(--color-danger)',
             borderRadius: 4,
-            color: '#f38ba8',
+            color: 'var(--color-danger)',
             fontSize: 10,
             padding: '3px 10px',
             cursor: 'pointer',
