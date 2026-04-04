@@ -70,3 +70,12 @@ pub fn get_session_messages(session_id: String, limit: Option<usize>) -> Result<
 pub fn list_artifacts() -> Vec<crate::artifacts::Artifact> {
     crate::artifacts::list_current_artifacts()
 }
+
+#[tauri::command]
+pub fn set_window_title(app: tauri::AppHandle, title: String) -> Result<(), String> {
+    use tauri::Manager;
+    if let Some(window) = app.get_webview_window("main") {
+        window.set_title(&title).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}

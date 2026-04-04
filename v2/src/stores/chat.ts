@@ -151,6 +151,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       case 'SessionInfo': {
         const pending = get().pendingPrompt
         set({ sessionId: event.session_id, pendingPrompt: null })
+        // Update window title with session ID
+        import('@tauri-apps/api/core').then(({ invoke: inv }) => {
+          inv('set_window_title', { title: `hermelinChat \u2014 ${event.session_id.slice(0, 12)}` })
+            .catch(() => {})
+        })
         if (pending) {
           import('@tauri-apps/api/core').then(({ invoke }) => {
             invoke('acp_send_prompt', { sessionId: event.session_id, text: pending })

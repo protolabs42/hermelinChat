@@ -151,6 +151,11 @@ function SessionRow({ session, isActive }: { session: SessionSummary; isActive: 
             pendingPrompt: null,
           })
 
+          // Update window title
+          invoke('set_window_title', {
+            title: `hermelinChat \u2014 ${session.title}`,
+          }).catch(() => {})
+
           // Close sidebar
           useSidebarStore.getState().close()
         } catch (e) {
