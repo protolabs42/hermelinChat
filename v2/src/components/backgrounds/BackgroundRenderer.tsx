@@ -1,5 +1,8 @@
 import { useTheme } from '../../theme'
 import { ParticleField } from './ParticleField'
+import { MatrixRainField } from './MatrixRainField'
+import { NousCRTField } from './NousCRTField'
+import { SamaritanField } from './SamaritanField'
 import { GrainOverlay } from './GrainOverlay'
 import { ScanlinesOverlay } from './ScanlinesOverlay'
 
@@ -18,7 +21,15 @@ export function BackgroundRenderer() {
       zIndex: 9999,
       pointerEvents: 'none',
     }}>
-      <ParticleField intensity={50} />
+      {bg.kind === 'matrix-rain' ? (
+        <MatrixRainField intensity={50} config={theme.background?.matrixRain} />
+      ) : bg.kind === 'nous-crt' ? (
+        <NousCRTField intensity={50} />
+      ) : bg.kind === 'samaritan' ? (
+        <SamaritanField intensity={50} />
+      ) : (
+        <ParticleField intensity={50} />
+      )}
 
       {overlayKind === 'scanlines' ? (
         <ScanlinesOverlay opacity={overlayOpacity ?? 0.06} />
