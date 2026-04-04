@@ -166,24 +166,17 @@ fn get_session_messages_from_db(db_path: &std::path::Path, session_id: &str, lim
 
 /// Return all known state.db paths (local + WSL if on Windows).
 fn all_state_db_paths() -> Vec<PathBuf> {
-    let local = hermes_state_db_path();
-    eprintln!("state.db local path: {} (exists: {})", local.display(), local.exists());
-    let mut paths = vec![local];
+    let mut paths = vec![hermes_state_db_path()];
 
-    // On Windows, also check WSL state.db
+    // On Windows, also check WSL state.db via \\wsl.localhost\<distro>\home\<user>\.hermes\
     #[cfg(windows)]
     {
         for distro in &["Ubuntu-24.04", "Ubuntu-22.04", "Ubuntu", "Debian"] {
-            let wsl_home = PathBuf::from(format!(
-                "\\\\wsl.localhost\\{}\\home",
-                distro
-            ));
-            eprintln!("checking WSL distro '{}': {} (exists: {})", distro, wsl_home.display(), wsl_home.exists());
+            let wsl_home = PathBuf::from(format!("\\\\wsl.localhost\\{}\\home", distro));
             if wsl_home.exists() {
                 if let Ok(entries) = std::fs::read_dir(&wsl_home) {
                     for entry in entries.flatten() {
                         let db = entry.path().join(".hermes").join("state.db");
-                        eprintln!("  WSL user '{}': state.db exists: {}", entry.file_name().to_string_lossy(), db.exists());
                         if db.exists() && !paths.contains(&db) {
                             paths.push(db);
                         }
@@ -193,7 +186,6 @@ fn all_state_db_paths() -> Vec<PathBuf> {
         }
     }
 
-    eprintln!("total state.db paths: {}", paths.len());
     paths
 }
 
