@@ -12,9 +12,19 @@ pub fn parse_acp_line(line: &str) -> Option<AcpEvent> {
 
     let json: Value = serde_json::from_str(line).ok()?;
 
-    // JSON-RPC responses (to our session/prompt requests) signal end-of-stream.
-    // Responses have "result" or "error" but no "method".
-    if json.get("result").is_some() || json.get("error").is_some() {
+    // JSON-RPC responses have "result" or "error" but no "method".
+    if let Some(result) = json.get("result") {
+        // session/new response: { "result": { "sessionId": "..." } }
+        if let Some(sid) = result.get("sessionId").and_then(|s| s.as_str()) {
+            return Some(AcpEvent::SessionInfo {
+                session_id: sid.to_string(),
+                model: None,
+            });
+        }
+        // Other responses (e.g., session/prompt completion) signal end-of-stream
+        return Some(AcpEvent::StreamEnd);
+    }
+    if json.get("error").is_some() {
         return Some(AcpEvent::StreamEnd);
     }
 
@@ -267,8 +277,18 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_jsonrpc_response_as_stream_end() {
-        let line = r#"{"jsonrpc":"2.0","id":2,"result":{"sessionId":"abc-123"}}"#;
+    fn test_parse_new_session_response() {
+        let line = r#"{"jsonrpc":"2.0","id":1,"result":{"sessionId":"abc-123"}}"#;
+        let event = parse_acp_line(line).unwrap();
+        match event {
+            AcpEvent::SessionInfo { session_id, .. } => assert_eq!(session_id, "abc-123"),
+            other => panic!("expected SessionInfo, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_parse_prompt_response_as_stream_end() {
+        let line = r#"{"jsonrpc":"2.0","id":2,"result":{"stopReason":"end_turn"}}"#;
         let event = parse_acp_line(line).unwrap();
         match event {
             AcpEvent::StreamEnd => {} // correct
