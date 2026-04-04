@@ -196,6 +196,15 @@ function SessionRow({ session, isActive }: { session: SessionSummary; isActive: 
       }}>
         <span>{relativeTime(session.started_at)}</span>
         <span>{session.message_count} msgs</span>
+        {session.source === 'wsl' && (
+          <span style={{
+            fontSize: 8,
+            padding: '0 4px',
+            borderRadius: 3,
+            border: '1px solid var(--color-border)',
+            color: 'var(--color-muted)',
+          }}>WSL</span>
+        )}
       </div>
     </button>
   )
