@@ -1,4 +1,5 @@
 mod acp;
+mod artifacts;
 mod commands;
 mod sessions;
 
@@ -20,6 +21,9 @@ pub fn run() {
                     eprintln!("failed to spawn hermes acp: {}", e);
                 }
             }
+
+            artifacts::start_watcher(&app.handle());
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

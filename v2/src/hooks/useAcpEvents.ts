@@ -3,11 +3,17 @@ import { listen } from '@tauri-apps/api/event'
 import { invoke } from '@tauri-apps/api/core'
 import type { AcpEvent } from '../types/acp'
 import { useChatStore } from '../stores/chat'
+import { useArtifactStore } from '../stores/artifacts'
 
 export function useAcpEvents() {
   useEffect(() => {
-    const unlisten = listen<AcpEvent>('acp:event', (event) => {
+    const unlistenAcp = listen<AcpEvent>('acp:event', (event) => {
       useChatStore.getState().handleAcpEvent(event.payload)
+    })
+
+    const unlistenArtifact = listen('artifact:event', (event) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      useArtifactStore.getState().handleEvent(event.payload as any)
     })
 
     // Query current status on mount (the connected event may have
@@ -19,7 +25,8 @@ export function useAcpEvents() {
     })
 
     return () => {
-      unlisten.then((fn) => fn())
+      unlistenAcp.then((fn) => fn())
+      unlistenArtifact.then((fn) => fn())
     }
   }, [])
 }
