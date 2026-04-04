@@ -105,11 +105,17 @@ impl AcpClient {
     /// so the caller can correlate the response (which contains the session ID).
     pub fn new_session(&self) -> Result<u64, String> {
         let id = self.next_request_id();
+        // ACP session/new requires a cwd parameter
+        let cwd = std::env::current_dir()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|_| ".".to_string());
         let msg = serde_json::json!({
             "jsonrpc": "2.0",
             "id": id,
             "method": "session/new",
-            "params": {}
+            "params": {
+                "cwd": cwd
+            }
         });
         self.send(&msg.to_string())?;
         Ok(id)
