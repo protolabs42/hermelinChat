@@ -60,6 +60,29 @@ export default function StatusBar() {
         </svg>
       </button>
 
+      {/* New session button */}
+      <button
+        onClick={() => {
+          useChatStore.getState().reset()
+          invoke('set_window_title', { title: 'hermelinChat' }).catch(() => {})
+        }}
+        title="New chat (Ctrl+N)"
+        style={{
+          background: 'transparent',
+          border: 'none',
+          color: 'var(--color-muted)',
+          cursor: 'pointer',
+          padding: '2px 4px',
+          borderRadius: 4,
+          display: 'flex',
+          alignItems: 'center',
+          fontSize: 16,
+          lineHeight: 1,
+        }}
+      >
+        +
+      </button>
+
       {/* Theme identity mark */}
       <div
         style={{

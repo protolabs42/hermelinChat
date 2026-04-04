@@ -1,11 +1,19 @@
 import { useEffect } from 'react'
+import { invoke } from '@tauri-apps/api/core'
 import { useSettingsStore } from '../stores/settings'
 import { useSidebarStore } from '../stores/sidebar'
 import { useArtifactStore } from '../stores/artifacts'
+import { useChatStore } from '../stores/chat'
 
 export function useKeyboardShortcuts() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // Ctrl+N or Cmd+N -- new session
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault()
+        useChatStore.getState().reset()
+        invoke('set_window_title', { title: 'hermelinChat' }).catch(() => {})
+      }
       // Ctrl+, or Cmd+, -- open settings
       if ((e.ctrlKey || e.metaKey) && e.key === ',') {
         e.preventDefault()
