@@ -1,20 +1,22 @@
 @import "tailwindcss";
 
 @theme {
-  /* Map our existing CSS custom properties to Tailwind theme */
-  --color-bg: var(--color-bg);
-  --color-surface: var(--color-surface);
-  --color-elevated: var(--color-elevated);
-  --color-border: var(--color-border);
-  --color-muted: var(--color-muted);
-  --color-text: var(--color-text);
-  --color-text-bright: var(--color-text-bright);
-  --color-accent: var(--color-accent);
-  --color-danger: var(--color-danger);
-  --color-success: var(--color-success);
-  --color-info: var(--color-info);
-  --color-purple: var(--color-purple);
-  --color-cyan: var(--color-cyan);
+  /* Catppuccin Mocha defaults — overridden at runtime by ThemeProvider */
+  --color-bg: #1e1e2e;
+  --color-surface: #181825;
+  --color-elevated: #313244;
+  --color-border: #45475a;
+  --color-muted: #6c7086;
+  --color-text: #bac2de;
+  --color-text-bright: #cdd6f4;
+  --color-accent: #b4befe;
+  --color-accent-400: #b4befe;
+  --color-accent-900: #2a2b4a;
+  --color-danger: #f38ba8;
+  --color-success: #a6e3a1;
+  --color-info: #89b4fa;
+  --color-purple: #cba6f7;
+  --color-cyan: #8bd5ca;
 
   --font-mono: 'FiraCode Nerd Font Mono', 'Fira Code', 'JetBrains Mono', monospace;
   --font-size-base: 13px;
