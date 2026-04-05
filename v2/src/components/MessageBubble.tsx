@@ -22,7 +22,7 @@ export default function MessageBubble({ message }: Props) {
 
   if (message.role === 'system') {
     return (
-      <div className="mb-4 px-4 py-3 border-l-2 border-(--color-danger) bg-(--color-surface) rounded-lg text-[11px] text-(--color-danger) leading-relaxed">
+      <div className="mb-5 px-5 py-4 border-l-2 border-(--color-danger) bg-(--color-surface) rounded-lg text-(--color-danger) leading-relaxed">
         {message.content}
       </div>
     )
@@ -31,19 +31,12 @@ export default function MessageBubble({ message }: Props) {
   const isUser = message.role === 'user'
 
   return (
-    <div
-      className={`mb-4 px-4 py-3 rounded-lg ${
-        isUser
-          ? 'border-l-2 border-l-(--color-accent)'
-          : 'bg-(--color-surface)'
-      }`}
-      style={isUser ? { background: 'color-mix(in srgb, var(--color-accent) 5%, var(--color-bg))' } : undefined}
-    >
-      <div className={`text-[9px] font-bold uppercase tracking-wide mb-2 ${isUser ? 'text-(--color-accent)' : 'text-(--color-success)'}`}>
+    <div className={`mb-5 px-5 py-4 rounded-lg ${isUser ? 'bg-(--color-elevated)' : 'bg-(--color-surface)'}`}>
+      <div className={`text-[10px] font-semibold uppercase tracking-wider mb-2 ${isUser ? 'text-(--color-accent)' : 'text-(--color-success)'}`}>
         {isUser ? 'YOU' : 'AURORA'}
       </div>
       {isUser ? (
-        <div className="leading-relaxed whitespace-pre-wrap">
+        <div className="leading-[1.7] whitespace-pre-wrap">
           {message.content}
         </div>
       ) : (

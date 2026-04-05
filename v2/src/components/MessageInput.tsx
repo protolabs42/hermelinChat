@@ -17,7 +17,7 @@ export default function MessageInput() {
     const el = textareaRef.current
     if (!el) return
     el.style.height = 'auto'
-    const maxHeight = LINE_HEIGHT * MAX_ROWS + 16 // padding
+    const maxHeight = LINE_HEIGHT * MAX_ROWS + 16
     el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`
   }, [])
 
@@ -28,10 +28,8 @@ export default function MessageInput() {
   const handleSend = async () => {
     const text = input.trim()
     if (!text) return
-
     setInput('')
     addUserMessage(text)
-
     try {
       if (!sessionId) {
         useChatStore.getState().setPendingPrompt(text)
@@ -61,51 +59,49 @@ export default function MessageInput() {
   }
 
   return (
-    <div className="px-6 py-4">
-      <div className="max-w-5xl mx-auto glass-surface rounded-lg border border-(--color-border) shadow-[0_-4px_24px_rgba(0,0,0,0.15)]">
-        <div className="flex gap-2 items-start p-2">
-          <div className="flex-1 relative">
-            <textarea
-              ref={textareaRef}
-              autoFocus
-              rows={1}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Message Aurora..."
-              disabled={isStreaming}
-              className="w-full bg-transparent border-none rounded-lg px-4 py-3 text-(--color-text-bright) font-mono outline-none resize-none overflow-auto"
-              style={{
-                opacity: isStreaming ? 0.5 : 1,
-                lineHeight: `${LINE_HEIGHT}px`,
-              }}
-            />
-            {input.length > CHAR_COUNT_THRESHOLD && (
-              <span className="absolute right-2 bottom-1.5 text-[9px] text-(--color-muted) opacity-60 pointer-events-none">
-                {input.length}
-              </span>
-            )}
-          </div>
-          {isStreaming ? (
-            <button
-              onClick={handleCancel}
-              className="bg-(--color-danger) text-(--color-bg) border border-transparent rounded-lg px-4 h-[34px] font-bold text-xs cursor-pointer font-mono shrink-0 self-end mb-1 mr-1 hover:opacity-90 transition-opacity duration-100"
-            >
-              Stop
-            </button>
-          ) : (
-            <button
-              onClick={handleSend}
-              disabled={!input.trim()}
-              className={`text-(--color-bg) border border-transparent rounded-lg px-4 h-[34px] font-bold text-xs font-mono shrink-0 self-end mb-1 mr-1 transition-all duration-100 ${
-                input.trim() ? 'bg-(--color-accent) cursor-pointer hover:opacity-90' : 'bg-(--color-border) cursor-not-allowed opacity-60'
-              }`}
-            >
-              Send
-            </button>
-          )}
-        </div>
+    <div className="border-t border-(--color-border) px-8 py-4 bg-(--color-surface) flex gap-3 items-start">
+      <div className="flex-1 relative">
+        <textarea
+          ref={textareaRef}
+          autoFocus
+          rows={1}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Message Aurora..."
+          disabled={isStreaming}
+          className="w-full bg-(--color-elevated) border border-(--color-border) rounded-lg px-4 py-3 text-(--color-text-bright) font-mono outline-none resize-none overflow-auto"
+          style={{
+            opacity: isStreaming ? 0.5 : 1,
+            lineHeight: `${LINE_HEIGHT}px`,
+          }}
+        />
+        {input.length > CHAR_COUNT_THRESHOLD && (
+          <span className="absolute right-3 bottom-2 text-[9px] text-(--color-muted) opacity-60 pointer-events-none">
+            {input.length}
+          </span>
+        )}
       </div>
+      {isStreaming ? (
+        <button
+          onClick={handleCancel}
+          className="bg-(--color-danger) text-(--color-bg) border-none rounded-lg px-5 py-3 font-bold text-xs cursor-pointer font-mono shrink-0 hover:opacity-90 transition-opacity duration-100"
+          style={{ lineHeight: `${LINE_HEIGHT}px` }}
+        >
+          Stop
+        </button>
+      ) : (
+        <button
+          onClick={handleSend}
+          disabled={!input.trim()}
+          className={`text-(--color-bg) border-none rounded-lg px-5 py-3 font-bold text-xs font-mono shrink-0 transition-all duration-100 ${
+            input.trim() ? 'bg-(--color-accent) cursor-pointer hover:opacity-90' : 'bg-(--color-border) cursor-not-allowed opacity-50'
+          }`}
+          style={{ lineHeight: `${LINE_HEIGHT}px` }}
+        >
+          Send
+        </button>
+      )}
     </div>
   )
 }

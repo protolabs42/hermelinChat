@@ -23,7 +23,6 @@ export default function StatusBar() {
 
   const [updateInfo, setUpdateInfo] = useState<VersionInfo | null>(null)
 
-  // Check for Hermes updates once on mount
   useEffect(() => {
     invoke<VersionInfo>('check_hermes_update').then((info) => {
       if (info.update_available) setUpdateInfo(info)
@@ -45,18 +44,15 @@ export default function StatusBar() {
   }
 
   return (
-    <div
-      className="px-4 py-2 border-b glass-surface flex items-center text-[10px] text-(--color-muted)"
-      style={{ borderBottomColor: 'color-mix(in srgb, var(--color-border) 60%, transparent)' }}
-    >
-      {/* Left group: sidebar toggle, new chat, theme mark */}
-      <div className="flex items-center gap-1.5">
+    <div className="px-5 py-2.5 border-b border-(--color-border) bg-(--color-surface) flex items-center gap-3 text-xs text-(--color-muted)">
+      {/* Left: sidebar, new chat, mark */}
+      <div className="flex items-center gap-2">
         <button
           onClick={toggleSidebar}
           title="Sessions (Ctrl+B)"
-          className="w-7 h-7 bg-transparent border-none text-(--color-muted) cursor-pointer rounded flex items-center justify-center hover:bg-(--color-elevated) transition-colors duration-100"
+          className="w-8 h-8 bg-transparent border-none text-(--color-muted) cursor-pointer rounded-lg flex items-center justify-center hover:bg-(--color-elevated) transition-colors duration-100"
         >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <rect x="1" y="3" width="14" height="1.5" rx="0.75" fill="currentColor" />
             <rect x="1" y="7.25" width="14" height="1.5" rx="0.75" fill="currentColor" />
             <rect x="1" y="11.5" width="14" height="1.5" rx="0.75" fill="currentColor" />
@@ -69,51 +65,50 @@ export default function StatusBar() {
             invoke('set_window_title', { title: 'Aurora Chat' }).catch(() => {})
           }}
           title="New chat (Ctrl+N)"
-          className="w-7 h-7 bg-transparent border-none text-(--color-muted) cursor-pointer rounded flex items-center justify-center text-[16px] leading-none hover:bg-(--color-elevated) transition-colors duration-100"
+          className="w-8 h-8 bg-transparent border-none text-(--color-muted) cursor-pointer rounded-lg flex items-center justify-center text-lg leading-none hover:bg-(--color-elevated) transition-colors duration-100"
         >
           +
         </button>
 
         <div
-          className="w-[18px] h-[18px] text-(--color-accent) flex items-center justify-center opacity-70 shrink-0"
+          className="w-5 h-5 text-(--color-accent) flex items-center justify-center opacity-70 shrink-0"
           title={theme.identity.mascotTitle}
           dangerouslySetInnerHTML={{ __html: theme.identity.topbarSvg }}
         />
       </div>
 
-      {/* Center: connection status */}
+      {/* Center: connection */}
       <div className="flex-1 flex items-center justify-center gap-2">
-        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
-        {status === 'connected' && sessionId ? (
-          <span className="text-[10px] text-(--color-muted) truncate max-w-[160px]">
-            {sessionId.slice(0, 8)}...
+        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+        <span>{status}</span>
+        {status === 'connected' && sessionId && (
+          <span className="text-(--color-muted) opacity-50 truncate max-w-[200px]">
+            {sessionId.slice(0, 12)}
           </span>
-        ) : (
-          <span>{status}</span>
         )}
         {status === 'disconnected' && (
           <button
             onClick={handleReconnect}
-            className="bg-transparent border border-(--color-border) rounded text-(--color-text) text-[10px] px-2 py-0.5 cursor-pointer font-mono hover:bg-(--color-elevated) transition-colors duration-100"
+            className="bg-transparent border border-(--color-border) rounded-lg text-(--color-text) text-xs px-3 py-1 cursor-pointer font-mono hover:bg-(--color-elevated) transition-colors duration-100"
           >
             Reconnect
           </button>
         )}
       </div>
 
-      {/* Right group: artifacts, update, settings */}
-      <div className="flex items-center gap-1.5">
+      {/* Right: artifacts, update, settings */}
+      <div className="flex items-center gap-2">
         {artifactCount > 0 && (
           <button
             onClick={toggleArtifacts}
             title={`Artifacts (${artifactCount}) — Ctrl+Shift+A`}
-            className="h-7 bg-transparent border-none text-(--color-muted) cursor-pointer px-1.5 rounded flex items-center gap-[3px] relative hover:bg-(--color-elevated) transition-colors duration-100"
+            className="h-8 bg-transparent border-none text-(--color-muted) cursor-pointer px-2 rounded-lg flex items-center gap-1 hover:bg-(--color-elevated) transition-colors duration-100"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2" />
               <line x1="9" y1="3" x2="9" y2="21" />
             </svg>
-            <span className="text-[8px] bg-(--color-accent) text-(--color-bg) rounded-full px-1 font-bold leading-[14px] min-w-[14px] text-center">
+            <span className="text-[9px] bg-(--color-accent) text-(--color-bg) rounded-full px-1.5 font-bold min-w-[16px] h-4 flex items-center justify-center">
               {artifactCount}
             </span>
           </button>
@@ -121,8 +116,8 @@ export default function StatusBar() {
 
         {updateInfo?.update_available && (
           <span
-            title={`Update available: ${updateInfo.current} → ${updateInfo.latest}`}
-            className="text-[9px] px-1.5 py-px rounded-full bg-(--color-accent) text-(--color-bg) font-bold cursor-default tracking-[0.02em]"
+            title={`Update: ${updateInfo.current} → ${updateInfo.latest}`}
+            className="text-[10px] px-2 py-0.5 rounded-full bg-(--color-accent) text-(--color-bg) font-bold cursor-default"
           >
             {updateInfo.latest} available
           </span>
@@ -131,9 +126,9 @@ export default function StatusBar() {
         <button
           onClick={toggleSettings}
           title="Settings (Ctrl+,)"
-          className="w-7 h-7 bg-transparent border-none text-(--color-muted) cursor-pointer rounded flex items-center justify-center hover:bg-(--color-elevated) transition-colors duration-100"
+          className="w-8 h-8 bg-transparent border-none text-(--color-muted) cursor-pointer rounded-lg flex items-center justify-center hover:bg-(--color-elevated) transition-colors duration-100"
         >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path
               d="M6.5 1.5h3l.4 1.6.7.3 1.5-.8 2.1 2.1-.8 1.5.3.7 1.6.4v3l-1.6.4-.3.7.8 1.5-2.1 2.1-1.5-.8-.7.3-.4 1.6h-3l-.4-1.6-.7-.3-1.5.8-2.1-2.1.8-1.5-.3-.7L.7 9.5v-3l1.6-.4.3-.7-.8-1.5L3.9 1.8l1.5.8.7-.3.4-1.1z"
               stroke="currentColor"

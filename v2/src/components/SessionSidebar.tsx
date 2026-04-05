@@ -21,35 +21,33 @@ export default function SessionSidebar() {
 
   return (
     <div
-      className={`h-screen glass-surface flex flex-col overflow-hidden transition-[width,min-width] duration-200 ease-out ${isOpen ? 'animate-slide-left' : ''}`}
+      className={`h-screen bg-(--color-surface) flex flex-col overflow-hidden transition-[width,min-width] duration-200 ease-out ${isOpen ? 'animate-slide-left' : ''}`}
       style={{
-        width: isOpen ? 260 : 0,
-        minWidth: isOpen ? 260 : 0,
+        width: isOpen ? 280 : 0,
+        minWidth: isOpen ? 280 : 0,
         borderRight: isOpen ? '1px solid var(--color-border)' : 'none',
       }}
     >
       {/* Header */}
-      <div className="px-4 pt-4 pb-3 flex items-center justify-between border-b border-(--color-border) shrink-0">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-(--color-text-bright)">
+      <div className="px-5 py-4 flex items-center justify-between border-b border-(--color-border) shrink-0">
+        <span className="text-xs font-semibold text-(--color-text-bright)">
           Sessions
         </span>
         <div className="flex gap-1">
-          {/* New session button */}
           <button
             onClick={() => {
               useChatStore.getState().reset()
               close()
             }}
             title="New session"
-            className="w-7 h-7 bg-transparent border-none text-(--color-muted) cursor-pointer text-[16px] leading-none rounded flex items-center justify-center hover:bg-(--color-elevated) transition-colors duration-100"
+            className="w-8 h-8 bg-transparent border-none text-(--color-muted) cursor-pointer text-lg leading-none rounded-lg flex items-center justify-center hover:bg-(--color-elevated) transition-colors duration-100"
           >
             +
           </button>
-          {/* Close button */}
           <button
             onClick={close}
             title="Close sidebar"
-            className="w-7 h-7 bg-transparent border-none text-(--color-muted) cursor-pointer text-sm leading-none rounded flex items-center justify-center hover:bg-(--color-elevated) transition-colors duration-100"
+            className="w-8 h-8 bg-transparent border-none text-(--color-muted) cursor-pointer text-sm leading-none rounded-lg flex items-center justify-center hover:bg-(--color-elevated) transition-colors duration-100"
           >
             &#x2715;
           </button>
@@ -57,21 +55,19 @@ export default function SessionSidebar() {
       </div>
 
       {/* Session list */}
-      <div className="flex-1 overflow-y-auto py-1.5">
+      <div className="flex-1 overflow-y-auto py-2 px-2">
         {sessions.length === 0 && (
-          <div className="px-4 py-6 text-center text-[11px] text-(--color-muted)">
+          <div className="px-4 py-8 text-center text-sm text-(--color-muted)">
             No sessions found
           </div>
         )}
-        <div className="flex flex-col gap-0.5 px-1.5">
-          {sessions.map((session) => (
-            <SessionRow
-              key={session.id}
-              session={session}
-              isActive={session.id === currentSessionId}
-            />
-          ))}
-        </div>
+        {sessions.map((session) => (
+          <SessionRow
+            key={session.id}
+            session={session}
+            isActive={session.id === currentSessionId}
+          />
+        ))}
       </div>
     </div>
   )
@@ -82,7 +78,6 @@ function SessionRow({ session, isActive }: { session: SessionSummary; isActive: 
     <button
       onClick={async () => {
         try {
-          // Load messages from state.db
           const msgs = await invoke<Array<{
             id: number
             role: string
@@ -90,7 +85,6 @@ function SessionRow({ session, isActive }: { session: SessionSummary; isActive: 
             timestamp: number | null
           }>>('get_session_messages', { sessionId: session.id })
 
-          // Convert to ChatMessage format
           const chatMessages: ChatMessage[] = msgs
             .filter((m) => m.content)
             .map((m) => ({
@@ -100,7 +94,6 @@ function SessionRow({ session, isActive }: { session: SessionSummary; isActive: 
               timestamp: m.timestamp ? m.timestamp * 1000 : Date.now(),
             }))
 
-          // Set session state
           useChatStore.setState({
             messages: chatMessages,
             sessionId: session.id,
@@ -108,33 +101,27 @@ function SessionRow({ session, isActive }: { session: SessionSummary; isActive: 
             pendingPrompt: null,
           })
 
-          // Tell ACP adapter to restore this session context
           await invoke('acp_load_session', { sessionId: session.id })
 
-          // Update window title
           invoke('set_window_title', {
             title: `Aurora Chat \u2014 ${session.title}`,
           }).catch(() => {})
 
-          // Close sidebar
           useSidebarStore.getState().close()
         } catch (e) {
           console.error('Failed to load session:', e)
         }
       }}
-      className={`block w-full text-left border-none px-2.5 py-2.5 cursor-pointer font-mono transition-colors duration-100 rounded-lg hover:bg-(--color-elevated) ${
-        isActive
-          ? 'border-l-2 border-l-(--color-accent)'
-          : 'bg-transparent border-l-2 border-l-transparent'
+      className={`block w-full text-left border-none px-4 py-3 cursor-pointer font-mono rounded-lg mb-1 transition-colors duration-100 hover:bg-(--color-elevated) ${
+        isActive ? 'bg-(--color-elevated) border-l-2 border-l-(--color-accent)' : 'bg-transparent border-l-2 border-l-transparent'
       }`}
-      style={isActive ? { background: 'color-mix(in srgb, var(--color-accent) 8%, var(--color-bg))' } : undefined}
     >
-      <div className={`text-[11px] overflow-hidden text-ellipsis whitespace-nowrap mb-0.5 ${
-        isActive ? 'text-(--color-text-bright)' : 'text-(--color-text)'
+      <div className={`text-sm overflow-hidden text-ellipsis whitespace-nowrap mb-1 ${
+        isActive ? 'text-(--color-text-bright) font-medium' : 'text-(--color-text)'
       }`}>
         {session.title}
       </div>
-      <div className="flex gap-2 text-[9px] text-(--color-muted)">
+      <div className="flex gap-3 text-[10px] text-(--color-muted)">
         <span>{relativeTime(session.started_at)}</span>
         <span>{session.message_count} msgs</span>
       </div>
