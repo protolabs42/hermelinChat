@@ -9,9 +9,9 @@ export function AlignmentMascot() {
     <div className="fixed bottom-4 right-4 z-[10000] pointer-events-auto flex flex-col items-end gap-1.5">
       {/* Whisper tooltip */}
       <div
-        className="text-[10px] italic text-(--color-muted) tracking-[0.04em] pointer-events-none whitespace-nowrap select-none pr-0.5 transition-all duration-400"
+        className="glass-surface rounded-lg px-3 py-2 text-[10px] italic text-(--color-muted) tracking-[0.04em] pointer-events-none select-none max-w-[200px] shadow-[0_4px_12px_rgba(0,0,0,0.2)] transition-all duration-400"
         style={{
-          opacity: hovered ? 0.8 : 0,
+          opacity: hovered ? 0.9 : 0,
           transform: hovered ? 'translateY(0)' : 'translateY(4px)',
         }}
       >

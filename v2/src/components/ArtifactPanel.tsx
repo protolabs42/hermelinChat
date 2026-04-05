@@ -395,7 +395,7 @@ export default function ArtifactPanel() {
 
   return (
     <div
-      className="shrink-0 border-l border-(--color-border) bg-(--color-surface) relative z-20 flex flex-col overflow-hidden min-w-0 animate-slide-right"
+      className="shrink-0 border-l border-(--color-border) glass-surface relative z-20 flex flex-col overflow-hidden min-w-0 animate-slide-right"
       style={{ width }}
     >
       {/* Resize handle (left edge) */}
@@ -408,7 +408,7 @@ export default function ArtifactPanel() {
       </div>
 
       {/* Header */}
-      <div className="px-3 py-2.5 border-b border-(--color-border) flex items-center gap-2.5 bg-(--color-surface) relative z-40">
+      <div className="px-3 py-3 border-b border-(--color-border) flex items-center gap-2.5 glass-surface relative z-40">
         {artifacts.length > 0 ? (
           <button
             ref={triggerRef}
@@ -462,7 +462,7 @@ export default function ArtifactPanel() {
         <button
           onClick={(e) => { e.stopPropagation(); closePanel() }}
           title="Close panel"
-          className="cursor-pointer flex items-center justify-center p-1 border-0 bg-transparent text-(--color-muted) shrink-0 hover:text-(--color-text)"
+          className="cursor-pointer flex items-center justify-center w-7 h-7 rounded border-0 bg-transparent text-(--color-muted) shrink-0 hover:text-(--color-text) hover:bg-(--color-elevated) transition-colors duration-100"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <line x1="18" y1="6" x2="6" y2="18" />
@@ -474,7 +474,7 @@ export default function ArtifactPanel() {
         {dropdownOpen && artifacts.length > 0 && (
           <div
             ref={menuRef}
-            className="absolute top-[calc(100%+6px)] left-2.5 right-2.5 border border-(--color-border) bg-(--color-elevated) rounded-[10px] shadow-[0_12px_28px_rgba(0,0,0,0.45)] p-1.5 z-[70] max-h-80 overflow-y-auto animate-dropdown"
+            className="absolute top-[calc(100%+6px)] left-2.5 right-2.5 border border-(--color-border) bg-(--color-elevated) rounded-xl shadow-[0_12px_32px_rgba(0,0,0,0.5)] p-1.5 z-[70] max-h-80 overflow-y-auto animate-dropdown"
           >
             {artifacts.map((artifact) => {
               const active = activeArtifact?.id === artifact.id
@@ -484,7 +484,7 @@ export default function ArtifactPanel() {
                   onClick={() => { setActiveId(artifact.id); setDropdownOpen(false) }}
                   className="artifact-row w-full flex items-center gap-2 px-2.5 py-2 border-0 rounded-lg cursor-pointer font-mono text-left"
                   style={{
-                    background: active ? 'var(--color-accent-alpha, rgba(128,128,128,0.12))' : 'transparent',
+                    background: active ? 'color-mix(in srgb, var(--color-accent) 10%, transparent)' : 'transparent',
                     color: active ? 'var(--color-accent)' : 'var(--color-text)',
                     borderLeft: active ? '2px solid var(--color-accent)' : '2px solid transparent',
                   }}
@@ -524,7 +524,7 @@ export default function ArtifactPanel() {
 
       {/* Footer */}
       {activeArtifact && (
-        <div className="px-3 py-1 border-t border-(--color-border) text-[9px] text-(--color-muted) opacity-50 flex justify-between gap-3 font-mono">
+        <div className="px-3 py-2 border-t border-(--color-border) text-[9px] text-(--color-muted) opacity-50 flex justify-between gap-3 font-mono">
           <span>
             {activeArtifact.timestamp ? `updated ${formatTimeAgo(activeArtifact.timestamp)}` : ''}
           </span>

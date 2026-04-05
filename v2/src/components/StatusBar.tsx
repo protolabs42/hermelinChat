@@ -45,58 +45,66 @@ export default function StatusBar() {
   }
 
   return (
-    <div className="px-4 py-1 border-b border-(--color-border) flex items-center gap-2 text-[10px] text-(--color-muted)">
-      {/* Sidebar toggle (left) */}
-      <button
-        onClick={toggleSidebar}
-        title="Sessions (Ctrl+B)"
-        className="bg-transparent border-none text-(--color-muted) cursor-pointer px-1 py-0.5 rounded-[4px] flex items-center hover:bg-(--color-elevated)"
-      >
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="1" y="3" width="14" height="1.5" rx="0.75" fill="currentColor" />
-          <rect x="1" y="7.25" width="14" height="1.5" rx="0.75" fill="currentColor" />
-          <rect x="1" y="11.5" width="14" height="1.5" rx="0.75" fill="currentColor" />
-        </svg>
-      </button>
-
-      {/* New session button */}
-      <button
-        onClick={() => {
-          useChatStore.getState().reset()
-          invoke('set_window_title', { title: 'Aurora Chat' }).catch(() => {})
-        }}
-        title="New chat (Ctrl+N)"
-        className="bg-transparent border-none text-(--color-muted) cursor-pointer px-1 py-0.5 rounded-[4px] flex items-center text-[16px] leading-none hover:bg-(--color-elevated)"
-      >
-        +
-      </button>
-
-      {/* Theme identity mark */}
-      <div
-        className="w-[18px] h-[18px] text-(--color-accent) flex items-center justify-center opacity-70 shrink-0"
-        title={theme.identity.mascotTitle}
-        dangerouslySetInnerHTML={{ __html: theme.identity.topbarSvg }}
-      />
-
-      <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
-      <span>{status}</span>
-      {status === 'disconnected' && (
+    <div className="px-4 py-2 border-b border-[color-mix(in_srgb,var(--color-border)_60%,transparent)] glass-surface flex items-center text-[10px] text-(--color-muted)">
+      {/* Left group: sidebar toggle, new chat, theme mark */}
+      <div className="flex items-center gap-1.5">
         <button
-          onClick={handleReconnect}
-          className="bg-transparent border border-(--color-border) rounded-[4px] text-(--color-text) text-[10px] px-2 py-0.5 cursor-pointer font-mono hover:bg-(--color-elevated)"
+          onClick={toggleSidebar}
+          title="Sessions (Ctrl+B)"
+          className="w-7 h-7 bg-transparent border-none text-(--color-muted) cursor-pointer rounded flex items-center justify-center hover:bg-(--color-elevated) transition-colors duration-100"
         >
-          Reconnect
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="1" y="3" width="14" height="1.5" rx="0.75" fill="currentColor" />
+            <rect x="1" y="7.25" width="14" height="1.5" rx="0.75" fill="currentColor" />
+            <rect x="1" y="11.5" width="14" height="1.5" rx="0.75" fill="currentColor" />
+          </svg>
         </button>
-      )}
-      <span className="ml-auto flex items-center gap-2">
-        {sessionId ? <span>{sessionId.slice(0, 8)}...</span> : null}
 
-        {/* Artifact panel toggle */}
+        <button
+          onClick={() => {
+            useChatStore.getState().reset()
+            invoke('set_window_title', { title: 'Aurora Chat' }).catch(() => {})
+          }}
+          title="New chat (Ctrl+N)"
+          className="w-7 h-7 bg-transparent border-none text-(--color-muted) cursor-pointer rounded flex items-center justify-center text-[16px] leading-none hover:bg-(--color-elevated) transition-colors duration-100"
+        >
+          +
+        </button>
+
+        <div
+          className="w-[18px] h-[18px] text-(--color-accent) flex items-center justify-center opacity-70 shrink-0"
+          title={theme.identity.mascotTitle}
+          dangerouslySetInnerHTML={{ __html: theme.identity.topbarSvg }}
+        />
+      </div>
+
+      {/* Center: connection status */}
+      <div className="flex-1 flex items-center justify-center gap-2">
+        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
+        {status === 'connected' && sessionId ? (
+          <span className="text-[10px] text-(--color-muted) truncate max-w-[160px]">
+            {sessionId.slice(0, 8)}...
+          </span>
+        ) : (
+          <span>{status}</span>
+        )}
+        {status === 'disconnected' && (
+          <button
+            onClick={handleReconnect}
+            className="bg-transparent border border-(--color-border) rounded text-(--color-text) text-[10px] px-2 py-0.5 cursor-pointer font-mono hover:bg-(--color-elevated) transition-colors duration-100"
+          >
+            Reconnect
+          </button>
+        )}
+      </div>
+
+      {/* Right group: artifacts, update, settings */}
+      <div className="flex items-center gap-1.5">
         {artifactCount > 0 && (
           <button
             onClick={toggleArtifacts}
             title={`Artifacts (${artifactCount}) — Ctrl+Shift+A`}
-            className="bg-transparent border-none text-(--color-muted) cursor-pointer px-1 py-0.5 rounded-[4px] flex items-center gap-[3px] relative hover:bg-(--color-elevated)"
+            className="h-7 bg-transparent border-none text-(--color-muted) cursor-pointer px-1.5 rounded flex items-center gap-[3px] relative hover:bg-(--color-elevated) transition-colors duration-100"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -108,7 +116,6 @@ export default function StatusBar() {
           </button>
         )}
 
-        {/* Hermes update notice */}
         {updateInfo?.update_available && (
           <span
             title={`Update available: ${updateInfo.current} → ${updateInfo.latest}`}
@@ -118,11 +125,10 @@ export default function StatusBar() {
           </span>
         )}
 
-        {/* Settings gear */}
         <button
           onClick={toggleSettings}
           title="Settings (Ctrl+,)"
-          className="bg-transparent border-none text-(--color-muted) cursor-pointer px-1 py-0.5 rounded-[4px] flex items-center hover:bg-(--color-elevated)"
+          className="w-7 h-7 bg-transparent border-none text-(--color-muted) cursor-pointer rounded flex items-center justify-center hover:bg-(--color-elevated) transition-colors duration-100"
         >
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path
@@ -135,7 +141,7 @@ export default function StatusBar() {
             <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.2" fill="none" />
           </svg>
         </button>
-      </span>
+      </div>
     </div>
   )
 }

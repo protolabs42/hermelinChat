@@ -39,16 +39,20 @@ export default function ChatView() {
       <div
         ref={scrollContainerRef}
         onScroll={checkScroll}
-        className="flex-1 overflow-auto p-4 relative"
+        className="flex-1 overflow-auto px-6 py-5 relative"
       >
         {messages.length === 0 && (
-          <div className="flex items-center justify-center h-full text-(--color-muted) text-[13px]">
-            Start a conversation with Aurora
+          <div className="flex flex-col items-center justify-center h-full gap-3">
+            <span className="text-(--color-accent) text-[24px] opacity-40">&#9672;</span>
+            <span className="text-(--color-muted) text-[15px] font-semibold">Start a conversation</span>
+            <span className="text-(--color-muted) text-[11px] opacity-60">Message Aurora to begin</span>
           </div>
         )}
-        {messages.map((msg) => (
-          <MessageBubble key={msg.id} message={msg} />
-        ))}
+        <div className="max-w-3xl mx-auto">
+          {messages.map((msg) => (
+            <MessageBubble key={msg.id} message={msg} />
+          ))}
+        </div>
         <div ref={bottomRef} />
       </div>
 

@@ -61,49 +61,51 @@ export default function MessageInput() {
   }
 
   return (
-    <div className="border-t border-(--color-border) px-4 py-3 flex gap-2 items-start">
-      <div className="flex-1 relative">
-        <textarea
-          ref={textareaRef}
-          autoFocus
-          rows={1}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Message Aurora..."
-          disabled={isStreaming}
-          className="w-full bg-(--color-elevated) border border-(--color-border) rounded-lg px-3 py-2 text-(--color-text-bright) text-[13px] font-mono outline-none resize-none overflow-auto"
-          style={{
-            opacity: isStreaming ? 0.5 : 1,
-            lineHeight: `${LINE_HEIGHT}px`,
-          }}
-        />
-        {input.length > CHAR_COUNT_THRESHOLD && (
-          <span className="absolute right-2 bottom-1.5 text-[9px] text-(--color-muted) opacity-60 pointer-events-none">
-            {input.length}
-          </span>
-        )}
+    <div className="px-6 py-4">
+      <div className="max-w-3xl mx-auto glass-surface rounded-lg border border-(--color-border) shadow-[0_-4px_24px_rgba(0,0,0,0.15)]">
+        <div className="flex gap-2 items-start p-2">
+          <div className="flex-1 relative">
+            <textarea
+              ref={textareaRef}
+              autoFocus
+              rows={1}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Message Aurora..."
+              disabled={isStreaming}
+              className="w-full bg-transparent border-none rounded-lg px-4 py-3 text-(--color-text-bright) text-[13px] font-mono outline-none resize-none overflow-auto"
+              style={{
+                opacity: isStreaming ? 0.5 : 1,
+                lineHeight: `${LINE_HEIGHT}px`,
+              }}
+            />
+            {input.length > CHAR_COUNT_THRESHOLD && (
+              <span className="absolute right-2 bottom-1.5 text-[9px] text-(--color-muted) opacity-60 pointer-events-none">
+                {input.length}
+              </span>
+            )}
+          </div>
+          {isStreaming ? (
+            <button
+              onClick={handleCancel}
+              className="bg-(--color-danger) text-(--color-bg) border border-transparent rounded-lg px-4 h-[34px] font-bold text-xs cursor-pointer font-mono shrink-0 self-end mb-1 mr-1"
+            >
+              Stop
+            </button>
+          ) : (
+            <button
+              onClick={handleSend}
+              disabled={!input.trim()}
+              className={`text-(--color-bg) border border-transparent rounded-lg px-4 h-[34px] font-bold text-xs font-mono shrink-0 self-end mb-1 mr-1 ${
+                input.trim() ? 'bg-(--color-accent) cursor-pointer' : 'bg-(--color-border) cursor-not-allowed'
+              }`}
+            >
+              Send
+            </button>
+          )}
+        </div>
       </div>
-      {isStreaming ? (
-        <button
-          onClick={handleCancel}
-          className="bg-(--color-danger) text-(--color-bg) border border-transparent rounded-lg px-4 py-[7px] font-bold text-xs cursor-pointer font-mono shrink-0"
-          style={{ lineHeight: `${LINE_HEIGHT}px` }}
-        >
-          Stop
-        </button>
-      ) : (
-        <button
-          onClick={handleSend}
-          disabled={!input.trim()}
-          className={`text-(--color-bg) border border-transparent rounded-lg px-4 py-[7px] font-bold text-xs font-mono shrink-0 ${
-            input.trim() ? 'bg-(--color-accent) cursor-pointer' : 'bg-(--color-border) cursor-not-allowed'
-          }`}
-          style={{ lineHeight: `${LINE_HEIGHT}px` }}
-        >
-          Send
-        </button>
-      )}
     </div>
   )
 }

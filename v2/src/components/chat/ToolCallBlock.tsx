@@ -23,7 +23,7 @@ export default function ToolCallBlock({ message }: Props) {
     <div className="mb-2">
       <div
         onClick={() => hasOutput && setExpanded((p) => !p)}
-        className={`px-3 py-1.5 bg-(--color-surface) rounded-[6px] flex items-center gap-2 text-[10px] select-none ${hasOutput ? 'cursor-pointer' : 'cursor-default'}`}
+        className={`px-4 py-2.5 bg-(--color-surface) rounded-lg flex items-center gap-2 text-[10px] select-none ${hasOutput ? 'cursor-pointer' : 'cursor-default'}`}
       >
         <span className="text-[10px]" style={{ color: iconColor }}>{statusIcon}</span>
         <span className="text-(--color-success) font-semibold">{message.toolTitle}</span>
@@ -34,7 +34,7 @@ export default function ToolCallBlock({ message }: Props) {
         )}
       </div>
       {expanded && hasOutput && (
-        <div className="mt-1 ml-3 px-3 py-2 bg-(--color-bg) rounded-[4px] border border-(--color-elevated) font-mono text-[11px] text-(--color-text) leading-normal whitespace-pre-wrap break-words max-h-[300px] overflow-auto">
+        <div className="mt-1 ml-3 px-4 py-3 bg-(--color-elevated) rounded-lg font-mono text-[11px] text-(--color-text) leading-normal whitespace-pre-wrap break-words max-h-[300px] overflow-auto">
           {message.content}
         </div>
       )}

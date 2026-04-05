@@ -21,7 +21,7 @@ export default function SessionSidebar() {
 
   return (
     <div
-      className={`h-screen bg-(--color-surface) flex flex-col overflow-hidden transition-[width,min-width] duration-200 ease-out ${isOpen ? 'animate-slide-left' : ''}`}
+      className={`h-screen glass-surface flex flex-col overflow-hidden transition-[width,min-width] duration-200 ease-out ${isOpen ? 'animate-slide-left' : ''}`}
       style={{
         width: isOpen ? 260 : 0,
         minWidth: isOpen ? 260 : 0,
@@ -29,8 +29,8 @@ export default function SessionSidebar() {
       }}
     >
       {/* Header */}
-      <div className="px-3 pt-3 pb-2.5 flex items-center justify-between border-b border-(--color-border) shrink-0">
-        <span className="text-xs font-semibold text-(--color-text-bright)">
+      <div className="px-4 pt-4 pb-3 flex items-center justify-between border-b border-(--color-border) shrink-0">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-(--color-text-bright)">
           Sessions
         </span>
         <div className="flex gap-1">
@@ -41,7 +41,7 @@ export default function SessionSidebar() {
               close()
             }}
             title="New session"
-            className="bg-transparent border-none text-(--color-muted) cursor-pointer text-[16px] leading-none px-1.5 py-0.5 rounded-[4px] hover:bg-(--color-elevated)"
+            className="w-7 h-7 bg-transparent border-none text-(--color-muted) cursor-pointer text-[16px] leading-none rounded flex items-center justify-center hover:bg-(--color-elevated) transition-colors duration-100"
           >
             +
           </button>
@@ -49,7 +49,7 @@ export default function SessionSidebar() {
           <button
             onClick={close}
             title="Close sidebar"
-            className="bg-transparent border-none text-(--color-muted) cursor-pointer text-sm leading-none px-1.5 py-0.5 rounded-[4px] hover:bg-(--color-elevated)"
+            className="w-7 h-7 bg-transparent border-none text-(--color-muted) cursor-pointer text-sm leading-none rounded flex items-center justify-center hover:bg-(--color-elevated) transition-colors duration-100"
           >
             &#x2715;
           </button>
@@ -59,17 +59,19 @@ export default function SessionSidebar() {
       {/* Session list */}
       <div className="flex-1 overflow-y-auto py-1.5">
         {sessions.length === 0 && (
-          <div className="px-3 py-6 text-center text-[11px] text-(--color-muted)">
+          <div className="px-4 py-6 text-center text-[11px] text-(--color-muted)">
             No sessions found
           </div>
         )}
-        {sessions.map((session) => (
-          <SessionRow
-            key={session.id}
-            session={session}
-            isActive={session.id === currentSessionId}
-          />
-        ))}
+        <div className="flex flex-col gap-0.5 px-1.5">
+          {sessions.map((session) => (
+            <SessionRow
+              key={session.id}
+              session={session}
+              isActive={session.id === currentSessionId}
+            />
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -120,8 +122,10 @@ function SessionRow({ session, isActive }: { session: SessionSummary; isActive: 
           console.error('Failed to load session:', e)
         }
       }}
-      className={`block w-full text-left border-none px-3 py-2 cursor-pointer font-mono transition-colors duration-100 hover:bg-(--color-elevated) ${
-        isActive ? 'bg-(--color-elevated) border-l-2 border-l-(--color-accent)' : 'bg-transparent border-l-2 border-l-transparent'
+      className={`block w-full text-left border-none px-2.5 py-2.5 cursor-pointer font-mono transition-colors duration-100 rounded-lg hover:bg-(--color-elevated) ${
+        isActive
+          ? 'bg-[color-mix(in_srgb,var(--color-accent)_8%,var(--color-bg))] border-l-2 border-l-(--color-accent)'
+          : 'bg-transparent border-l-2 border-l-transparent'
       }`}
     >
       <div className={`text-[11px] overflow-hidden text-ellipsis whitespace-nowrap mb-0.5 ${

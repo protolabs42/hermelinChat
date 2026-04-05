@@ -69,9 +69,9 @@ export default function DiffView({ message }: Props) {
   }
 
   return (
-    <div className="mb-3">
+    <div className="mb-4">
       {/* File header */}
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-(--color-surface) rounded-t-[6px] border-b border-(--color-elevated)">
+      <div className="flex items-center gap-2 px-4 py-2 bg-(--color-surface) rounded-t-lg border-b border-(--color-elevated)">
         <span className="text-[11px] text-(--color-purple) font-mono font-semibold">
           {message.diffPath}
         </span>
@@ -80,18 +80,18 @@ export default function DiffView({ message }: Props) {
       </div>
 
       {/* Diff body */}
-      <div className="bg-(--color-bg) py-2 rounded-b-[6px] font-mono text-[11px] leading-relaxed overflow-auto max-h-[400px]">
+      <div className="bg-(--color-elevated) py-2 rounded-b-lg font-mono text-[11px] leading-relaxed overflow-auto max-h-[400px]">
         {diffLines.map((line, i) => {
           const prefix = line.type === 'add' ? '+' : line.type === 'remove' ? '-' : ' '
           const color = line.type === 'add' ? 'var(--color-success)' : line.type === 'remove' ? 'var(--color-danger)' : 'var(--color-muted)'
           const bg = line.type === 'add'
-            ? 'rgba(166, 227, 161, 0.08)'
+            ? 'color-mix(in srgb, var(--color-success) 6%, transparent)'
             : line.type === 'remove'
-              ? 'rgba(243, 139, 168, 0.08)'
+              ? 'color-mix(in srgb, var(--color-danger) 6%, transparent)'
               : 'transparent'
 
           return (
-            <div key={i} style={{ padding: '0 12px', color, background: bg, whiteSpace: 'pre' }}>
+            <div key={i} style={{ padding: '0 16px', color, background: bg, whiteSpace: 'pre' }}>
               {prefix} {line.text}
             </div>
           )
@@ -99,16 +99,16 @@ export default function DiffView({ message }: Props) {
       </div>
 
       {/* Accept / Reject buttons */}
-      <div className="flex gap-2 mt-1.5">
+      <div className="flex gap-2 mt-2">
         <button
           onClick={handleAccept}
-          className="bg-transparent border border-(--color-success) rounded-[4px] text-(--color-success) text-[10px] px-2.5 py-[3px] cursor-pointer font-mono hover:bg-(--color-success)/10"
+          className="bg-(--color-success) text-(--color-bg) border-none rounded-md text-[10px] px-3 py-1.5 cursor-pointer font-mono font-semibold h-7 hover:opacity-90 transition-opacity duration-100"
         >
           Accept
         </button>
         <button
           onClick={handleReject}
-          className="bg-transparent border border-(--color-danger) rounded-[4px] text-(--color-danger) text-[10px] px-2.5 py-[3px] cursor-pointer font-mono hover:bg-(--color-danger)/10"
+          className="bg-(--color-danger) text-(--color-bg) border-none rounded-md text-[10px] px-3 py-1.5 cursor-pointer font-mono font-semibold h-7 hover:opacity-90 transition-opacity duration-100"
         >
           Reject
         </button>

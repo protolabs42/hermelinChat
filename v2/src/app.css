@@ -112,6 +112,24 @@ body {
   animation: settings-overlay-in 200ms ease-out;
 }
 
+/* Glass panel utilities */
+@utility glass {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+@utility glass-surface {
+  background: color-mix(in srgb, var(--color-surface) 80%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+@utility glass-bg {
+  background: color-mix(in srgb, var(--color-bg) 90%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
 /* Artifact panel hover styles */
 .artifact-trigger:hover { background: var(--color-elevated) !important; }
 .artifact-row:hover { background: var(--color-border-alpha, rgba(128,128,128,0.15)) !important; }
