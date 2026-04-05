@@ -1,6 +1,43 @@
 import { create } from 'zustand'
 import type { AcpEvent } from '../types/acp'
 
+// Streaming text buffer — batches rapid chunks into fewer React updates
+let _textBuffer = ''
+let _textRole: 'assistant' | 'thinking' = 'assistant'
+let _flushTimer: ReturnType<typeof setTimeout> | null = null
+const FLUSH_INTERVAL = 50 // ms
+
+function flushTextBuffer(set: (fn: (s: ChatStore) => Partial<ChatStore>) => void, _get?: () => ChatStore) {
+  if (!_textBuffer) return
+  const text = _textBuffer
+  const role = _textRole
+  _textBuffer = ''
+  _flushTimer = null
+
+  set((s) => {
+    const msgs = s.messages.slice()
+    const last = msgs[msgs.length - 1]
+    if (last && last.role === role) {
+      msgs[msgs.length - 1] = { ...last, content: last.content + text }
+    } else {
+      msgs.push({ id: genId(), role, content: text, timestamp: Date.now() })
+    }
+    return { messages: msgs }
+  })
+}
+
+function bufferText(text: string, role: 'assistant' | 'thinking', set: (fn: (s: ChatStore) => Partial<ChatStore>) => void, _get?: () => ChatStore) {
+  // If role changed, flush the old buffer first
+  if (_textBuffer && _textRole !== role) {
+    flushTextBuffer(set)
+  }
+  _textRole = role
+  _textBuffer += text
+  if (!_flushTimer) {
+    _flushTimer = setTimeout(() => flushTextBuffer(set), FLUSH_INTERVAL)
+  }
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant' | 'thinking' | 'tool' | 'system'
@@ -62,30 +99,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   handleAcpEvent: (event: AcpEvent) => {
     switch (event.kind) {
       case 'AgentMessage': {
-        set((s) => {
-          const msgs = [...s.messages]
-          const last = msgs[msgs.length - 1]
-          if (last && last.role === 'assistant') {
-            msgs[msgs.length - 1] = { ...last, content: last.content + event.text }
-          } else {
-            msgs.push({ id: genId(), role: 'assistant', content: event.text, timestamp: Date.now() })
-          }
-          return { messages: msgs }
-        })
+        bufferText(event.text, 'assistant', set)
         break
       }
 
       case 'AgentThinking': {
-        set((s) => {
-          const msgs = [...s.messages]
-          const last = msgs[msgs.length - 1]
-          if (last && last.role === 'thinking') {
-            msgs[msgs.length - 1] = { ...last, content: last.content + event.text }
-          } else {
-            msgs.push({ id: genId(), role: 'thinking', content: event.text, timestamp: Date.now() })
-          }
-          return { messages: msgs }
-        })
+        bufferText(event.text, 'thinking', set)
         break
       }
 
@@ -166,6 +185,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       }
 
       case 'StreamEnd': {
+        // Flush any buffered text before marking stream complete
+        flushTextBuffer(set)
         set({ isStreaming: false })
         break
       }
