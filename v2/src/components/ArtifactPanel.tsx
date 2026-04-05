@@ -258,7 +258,7 @@ function MapRenderer({ data }: { data: unknown }) {
 
 function EmptyRenderer({ title, detail }: { title: string; detail: string }) {
   return (
-    <div className="h-full flex flex-col items-center justify-center gap-2 p-7 text-center text-(--color-muted) font-mono">
+    <div className="h-full flex flex-col items-center justify-center gap-2 p-8 text-center text-(--color-muted) font-mono">
       <div className="text-xs text-(--color-text-bright) opacity-90">{title}</div>
       <div className="text-[11px] opacity-70">{detail}</div>
     </div>

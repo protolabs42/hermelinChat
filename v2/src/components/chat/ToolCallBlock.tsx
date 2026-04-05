@@ -20,7 +20,7 @@ export default function ToolCallBlock({ message }: Props) {
   const hasOutput = message.content && message.content.length > 0
 
   return (
-    <div className="mb-2">
+    <div className="mb-4">
       <div
         onClick={() => hasOutput && setExpanded((p) => !p)}
         className={`px-4 py-2.5 bg-(--color-surface) rounded-lg flex items-center gap-2 text-[10px] select-none ${hasOutput ? 'cursor-pointer' : 'cursor-default'}`}

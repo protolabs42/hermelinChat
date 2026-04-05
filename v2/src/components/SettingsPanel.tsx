@@ -70,9 +70,9 @@ export default function SettingsPanel() {
                     }}
                   >
                     {/* Accent strip at bottom */}
-                    <div className="absolute bottom-0 left-0 right-0 h-1.5" style={{ background: t.colors.accent }} />
+                    <div className="absolute bottom-0 left-0 right-0 h-1" style={{ background: t.colors.accent }} />
                     {/* Surface hint */}
-                    <div className="absolute top-1.5 left-1.5 right-1.5 h-2.5 rounded-sm" style={{ background: t.colors.surface }} />
+                    <div className="absolute top-2 left-2 right-2 h-2 rounded-sm" style={{ background: t.colors.surface }} />
                   </div>
                   <span className={`text-[9px] max-w-[80px] overflow-hidden text-ellipsis whitespace-nowrap ${
                     isActive ? 'text-(--color-accent) font-semibold' : 'text-(--color-muted) font-normal'
