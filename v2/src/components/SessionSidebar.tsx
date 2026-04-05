@@ -20,103 +20,58 @@ export default function SessionSidebar() {
   const currentSessionId = useChatStore((s) => s.sessionId)
 
   return (
-    <>
-      <style>{`
-        @keyframes sidebar-slide-in {
-          from { transform: translateX(-100%); }
-          to { transform: translateX(0); }
-        }
-      `}</style>
-
-      <div
-        style={{
-          width: isOpen ? 260 : 0,
-          minWidth: isOpen ? 260 : 0,
-          height: '100vh',
-          background: 'var(--color-surface)',
-          borderRight: isOpen ? '1px solid var(--color-border)' : 'none',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          transition: 'width 200ms ease, min-width 200ms ease',
-          ...(isOpen ? { animation: 'sidebar-slide-in 200ms ease-out' } : {}),
-        }}
-      >
-        {/* Header */}
-        <div style={{
-          padding: '12px 12px 10px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderBottom: '1px solid var(--color-border)',
-          flexShrink: 0,
-        }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-bright)' }}>
-            Sessions
-          </span>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {/* New session button */}
-            <button
-              onClick={() => {
-                useChatStore.getState().reset()
-                close()
-              }}
-              title="New session"
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--color-muted)',
-                cursor: 'pointer',
-                fontSize: 16,
-                lineHeight: 1,
-                padding: '2px 6px',
-                borderRadius: 4,
-              }}
-            >
-              +
-            </button>
-            {/* Close button */}
-            <button
-              onClick={close}
-              title="Close sidebar"
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--color-muted)',
-                cursor: 'pointer',
-                fontSize: 14,
-                lineHeight: 1,
-                padding: '2px 6px',
-                borderRadius: 4,
-              }}
-            >
-              &#x2715;
-            </button>
-          </div>
-        </div>
-
-        {/* Session list */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '6px 0' }}>
-          {sessions.length === 0 && (
-            <div style={{
-              padding: '24px 12px',
-              textAlign: 'center',
-              fontSize: 11,
-              color: 'var(--color-muted)',
-            }}>
-              No sessions found
-            </div>
-          )}
-          {sessions.map((session) => (
-            <SessionRow
-              key={session.id}
-              session={session}
-              isActive={session.id === currentSessionId}
-            />
-          ))}
+    <div
+      className={`h-screen bg-(--color-surface) flex flex-col overflow-hidden transition-[width,min-width] duration-200 ease-out ${isOpen ? 'animate-slide-left' : ''}`}
+      style={{
+        width: isOpen ? 260 : 0,
+        minWidth: isOpen ? 260 : 0,
+        borderRight: isOpen ? '1px solid var(--color-border)' : 'none',
+      }}
+    >
+      {/* Header */}
+      <div className="px-3 pt-3 pb-2.5 flex items-center justify-between border-b border-(--color-border) shrink-0">
+        <span className="text-xs font-semibold text-(--color-text-bright)">
+          Sessions
+        </span>
+        <div className="flex gap-1">
+          {/* New session button */}
+          <button
+            onClick={() => {
+              useChatStore.getState().reset()
+              close()
+            }}
+            title="New session"
+            className="bg-transparent border-none text-(--color-muted) cursor-pointer text-[16px] leading-none px-1.5 py-0.5 rounded-[4px] hover:bg-(--color-elevated)"
+          >
+            +
+          </button>
+          {/* Close button */}
+          <button
+            onClick={close}
+            title="Close sidebar"
+            className="bg-transparent border-none text-(--color-muted) cursor-pointer text-sm leading-none px-1.5 py-0.5 rounded-[4px] hover:bg-(--color-elevated)"
+          >
+            &#x2715;
+          </button>
         </div>
       </div>
-    </>
+
+      {/* Session list */}
+      <div className="flex-1 overflow-y-auto py-1.5">
+        {sessions.length === 0 && (
+          <div className="px-3 py-6 text-center text-[11px] text-(--color-muted)">
+            No sessions found
+          </div>
+        )}
+        {sessions.map((session) => (
+          <SessionRow
+            key={session.id}
+            session={session}
+            isActive={session.id === currentSessionId}
+          />
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -165,35 +120,16 @@ function SessionRow({ session, isActive }: { session: SessionSummary; isActive: 
           console.error('Failed to load session:', e)
         }
       }}
-      style={{
-        display: 'block',
-        width: '100%',
-        textAlign: 'left',
-        background: isActive ? 'var(--color-elevated)' : 'transparent',
-        border: 'none',
-        borderLeft: isActive ? '2px solid var(--color-accent)' : '2px solid transparent',
-        padding: '8px 12px',
-        cursor: 'pointer',
-        fontFamily: 'inherit',
-        transition: 'background 100ms ease',
-      }}
+      className={`block w-full text-left border-none px-3 py-2 cursor-pointer font-mono transition-colors duration-100 hover:bg-(--color-elevated) ${
+        isActive ? 'bg-(--color-elevated) border-l-2 border-l-(--color-accent)' : 'bg-transparent border-l-2 border-l-transparent'
+      }`}
     >
-      <div style={{
-        fontSize: 11,
-        color: isActive ? 'var(--color-text-bright)' : 'var(--color-text)',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-        marginBottom: 2,
-      }}>
+      <div className={`text-[11px] overflow-hidden text-ellipsis whitespace-nowrap mb-0.5 ${
+        isActive ? 'text-(--color-text-bright)' : 'text-(--color-text)'
+      }`}>
         {session.title}
       </div>
-      <div style={{
-        display: 'flex',
-        gap: 8,
-        fontSize: 9,
-        color: 'var(--color-muted)',
-      }}>
+      <div className="flex gap-2 text-[9px] text-(--color-muted)">
         <span>{relativeTime(session.started_at)}</span>
         <span>{session.message_count} msgs</span>
       </div>

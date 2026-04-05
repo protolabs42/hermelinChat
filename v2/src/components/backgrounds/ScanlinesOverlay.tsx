@@ -17,14 +17,8 @@ export function ScanlinesOverlay({ opacity = 0.06 }: ScanlinesOverlayProps) {
 
   return (
     <div
+      className="absolute inset-0 pointer-events-none z-10"
       style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        pointerEvents: 'none',
-        zIndex: 10,
         opacity,
         mixBlendMode: 'overlay',
         backgroundImage: `repeating-linear-gradient(to bottom, ${stripe} 0, ${stripe} 1px, rgba(0,0,0,0) 4px, rgba(0,0,0,0) 7px)`,

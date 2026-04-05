@@ -22,16 +22,7 @@ export default function MessageBubble({ message }: Props) {
 
   if (message.role === 'system') {
     return (
-      <div style={{
-        marginBottom: 8,
-        padding: '8px 12px',
-        borderLeft: '2px solid var(--color-danger)',
-        background: 'var(--color-elevated)',
-        borderRadius: '0 6px 6px 0',
-        fontSize: 11,
-        color: 'var(--color-danger)',
-        lineHeight: 1.6,
-      }}>
+      <div className="mb-2 px-3 py-2 border-l-2 border-(--color-danger) bg-(--color-elevated) rounded-r-[6px] text-[11px] text-(--color-danger) leading-relaxed">
         {message.content}
       </div>
     )
@@ -40,22 +31,17 @@ export default function MessageBubble({ message }: Props) {
   const isUser = message.role === 'user'
 
   return (
-    <div style={{ marginBottom: 12 }}>
-      <div style={{
-        fontSize: 10,
-        color: isUser ? 'var(--color-accent)' : 'var(--color-success)',
-        fontWeight: 700,
-        marginBottom: 4,
-      }}>
+    <div className="mb-3">
+      <div className={`text-[10px] font-bold mb-1 ${isUser ? 'text-(--color-accent)' : 'text-(--color-success)'}`}>
         {isUser ? 'YOU' : 'AURORA'}
       </div>
       {isUser ? (
-        <div style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+        <div className="text-[13px] leading-relaxed whitespace-pre-wrap">
           {message.content}
         </div>
       ) : (
         <div
-          style={{ fontSize: 13, lineHeight: 1.7 }}
+          className="text-[13px] leading-[1.7]"
           dangerouslySetInnerHTML={{ __html: markdownToHtml(message.content) }}
         />
       )}

@@ -13,17 +13,7 @@ export default function UsageBar() {
   if (!usage) return null
 
   return (
-    <div style={{
-      padding: '3px 16px',
-      borderTop: '1px solid var(--color-elevated)',
-      display: 'flex',
-      justifyContent: 'flex-end',
-      alignItems: 'center',
-      gap: 12,
-      fontSize: 9,
-      color: 'var(--color-muted)',
-      fontFamily: 'monospace',
-    }}>
+    <div className="px-4 py-[3px] border-t border-(--color-elevated) flex justify-end items-center gap-3 text-[9px] text-(--color-muted) font-mono">
       <span>tokens: {formatTokens(usage.used)} / {formatTokens(usage.size)}</span>
       {usage.costUsd !== null && (
         <span>${usage.costUsd.toFixed(2)}</span>

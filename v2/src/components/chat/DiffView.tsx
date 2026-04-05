@@ -69,35 +69,18 @@ export default function DiffView({ message }: Props) {
   }
 
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div className="mb-3">
       {/* File header */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '6px 12px',
-        background: 'var(--color-surface)',
-        borderRadius: '6px 6px 0 0',
-        borderBottom: '1px solid var(--color-elevated)',
-      }}>
-        <span style={{ fontSize: 11, color: 'var(--color-purple)', fontFamily: 'monospace', fontWeight: 600 }}>
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-(--color-surface) rounded-t-[6px] border-b border-(--color-elevated)">
+        <span className="text-[11px] text-(--color-purple) font-mono font-semibold">
           {message.diffPath}
         </span>
-        <span style={{ fontSize: 10, color: 'var(--color-success)', marginLeft: 'auto' }}>+{addCount}</span>
-        <span style={{ fontSize: 10, color: 'var(--color-danger)' }}>-{removeCount}</span>
+        <span className="text-[10px] text-(--color-success) ml-auto">+{addCount}</span>
+        <span className="text-[10px] text-(--color-danger)">-{removeCount}</span>
       </div>
 
       {/* Diff body */}
-      <div style={{
-        background: 'var(--color-bg)',
-        padding: '8px 0',
-        borderRadius: '0 0 6px 6px',
-        fontFamily: 'monospace',
-        fontSize: 11,
-        lineHeight: 1.6,
-        overflow: 'auto',
-        maxHeight: 400,
-      }}>
+      <div className="bg-(--color-bg) py-2 rounded-b-[6px] font-mono text-[11px] leading-relaxed overflow-auto max-h-[400px]">
         {diffLines.map((line, i) => {
           const prefix = line.type === 'add' ? '+' : line.type === 'remove' ? '-' : ' '
           const color = line.type === 'add' ? 'var(--color-success)' : line.type === 'remove' ? 'var(--color-danger)' : 'var(--color-muted)'
@@ -116,34 +99,16 @@ export default function DiffView({ message }: Props) {
       </div>
 
       {/* Accept / Reject buttons */}
-      <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+      <div className="flex gap-2 mt-1.5">
         <button
           onClick={handleAccept}
-          style={{
-            background: 'transparent',
-            border: '1px solid var(--color-success)',
-            borderRadius: 4,
-            color: 'var(--color-success)',
-            fontSize: 10,
-            padding: '3px 10px',
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-          }}
+          className="bg-transparent border border-(--color-success) rounded-[4px] text-(--color-success) text-[10px] px-2.5 py-[3px] cursor-pointer font-mono hover:bg-(--color-success)/10"
         >
           Accept
         </button>
         <button
           onClick={handleReject}
-          style={{
-            background: 'transparent',
-            border: '1px solid var(--color-danger)',
-            borderRadius: 4,
-            color: 'var(--color-danger)',
-            fontSize: 10,
-            padding: '3px 10px',
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-          }}
+          className="bg-transparent border border-(--color-danger) rounded-[4px] text-(--color-danger) text-[10px] px-2.5 py-[3px] cursor-pointer font-mono hover:bg-(--color-danger)/10"
         >
           Reject
         </button>

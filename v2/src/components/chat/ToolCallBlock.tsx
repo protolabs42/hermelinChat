@@ -20,46 +20,21 @@ export default function ToolCallBlock({ message }: Props) {
   const hasOutput = message.content && message.content.length > 0
 
   return (
-    <div style={{ marginBottom: 8 }}>
+    <div className="mb-2">
       <div
         onClick={() => hasOutput && setExpanded((p) => !p)}
-        style={{
-          padding: '6px 12px',
-          background: 'var(--color-surface)',
-          borderRadius: 6,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          fontSize: 10,
-          cursor: hasOutput ? 'pointer' : 'default',
-          userSelect: 'none',
-        }}
+        className={`px-3 py-1.5 bg-(--color-surface) rounded-[6px] flex items-center gap-2 text-[10px] select-none ${hasOutput ? 'cursor-pointer' : 'cursor-default'}`}
       >
-        <span style={{ color: iconColor, fontSize: 10 }}>{statusIcon}</span>
-        <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>{message.toolTitle}</span>
+        <span className="text-[10px]" style={{ color: iconColor }}>{statusIcon}</span>
+        <span className="text-(--color-success) font-semibold">{message.toolTitle}</span>
         {hasOutput && (
-          <span style={{ color: 'var(--color-muted)', fontSize: 9, marginLeft: 'auto' }}>
+          <span className="text-(--color-muted) text-[9px] ml-auto">
             {expanded ? '\u25bc' : '\u25b6'}
           </span>
         )}
       </div>
       {expanded && hasOutput && (
-        <div style={{
-          marginTop: 4,
-          marginLeft: 12,
-          padding: '8px 12px',
-          background: 'var(--color-bg)',
-          borderRadius: 4,
-          border: '1px solid var(--color-elevated)',
-          fontFamily: 'monospace',
-          fontSize: 11,
-          color: 'var(--color-text)',
-          lineHeight: 1.5,
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          maxHeight: 300,
-          overflow: 'auto',
-        }}>
+        <div className="mt-1 ml-3 px-3 py-2 bg-(--color-bg) rounded-[4px] border border-(--color-elevated) font-mono text-[11px] text-(--color-text) leading-normal whitespace-pre-wrap break-words max-h-[300px] overflow-auto">
           {message.content}
         </div>
       )}

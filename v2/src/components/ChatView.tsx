@@ -39,17 +39,10 @@ export default function ChatView() {
       <div
         ref={scrollContainerRef}
         onScroll={checkScroll}
-        style={{ flex: 1, overflow: 'auto', padding: 16, position: 'relative' }}
+        className="flex-1 overflow-auto p-4 relative"
       >
         {messages.length === 0 && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100%',
-            color: 'var(--color-muted)',
-            fontSize: 13,
-          }}>
+          <div className="flex items-center justify-center h-full text-(--color-muted) text-[13px]">
             Start a conversation with Aurora
           </div>
         )}
@@ -64,25 +57,7 @@ export default function ChatView() {
         <button
           onClick={scrollToBottom}
           aria-label="Scroll to bottom"
-          style={{
-            position: 'absolute',
-            bottom: 80,
-            right: 24,
-            width: 32,
-            height: 32,
-            borderRadius: '50%',
-            background: 'var(--color-elevated)',
-            border: '1px solid var(--color-border)',
-            color: 'var(--color-text-bright)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 16,
-            zIndex: 10,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-            transition: 'opacity 200ms ease',
-          }}
+          className="absolute bottom-20 right-6 w-8 h-8 rounded-full bg-(--color-elevated) border border-(--color-border) text-(--color-text-bright) cursor-pointer flex items-center justify-center text-[16px] z-10 shadow-[0_2px_8px_rgba(0,0,0,0.3)] transition-opacity duration-200"
         >
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M8 3v10M4 9l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

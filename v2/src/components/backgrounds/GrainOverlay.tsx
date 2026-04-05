@@ -5,14 +5,8 @@ interface GrainOverlayProps {
 export function GrainOverlay({ opacity = 0.03 }: GrainOverlayProps) {
   return (
     <div
+      className="absolute inset-0 pointer-events-none z-10"
       style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        pointerEvents: 'none',
-        zIndex: 10,
         opacity,
         mixBlendMode: 'overlay',
         backgroundImage:

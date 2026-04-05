@@ -84,25 +84,13 @@ function TableRenderer({ data }: { data: unknown }) {
   const rows = d.rows || []
 
   return (
-    <div style={{ overflow: 'auto', padding: 12 }}>
-      <table style={{
-        width: '100%',
-        borderCollapse: 'collapse',
-        fontSize: 11,
-        fontFamily: "'JetBrains Mono', monospace",
-      }}>
+    <div className="overflow-auto p-3">
+      <table className="w-full border-collapse text-[11px] font-mono">
         {columns.length > 0 && (
           <thead>
             <tr>
               {columns.map((col, i) => (
-                <th key={i} style={{
-                  padding: '6px 10px',
-                  borderBottom: '2px solid var(--color-border)',
-                  textAlign: 'left',
-                  color: 'var(--color-accent)',
-                  fontWeight: 600,
-                  whiteSpace: 'nowrap',
-                }}>
+                <th key={i} className="px-2.5 py-1.5 border-b-2 border-(--color-border) text-left text-(--color-accent) font-semibold whitespace-nowrap">
                   {String(col)}
                 </th>
               ))}
@@ -113,11 +101,7 @@ function TableRenderer({ data }: { data: unknown }) {
           {rows.map((row, ri) => (
             <tr key={ri}>
               {(Array.isArray(row) ? row : [row]).map((cell, ci) => (
-                <td key={ci} style={{
-                  padding: '5px 10px',
-                  borderBottom: '1px solid var(--color-border)',
-                  color: 'var(--color-text)',
-                }}>
+                <td key={ci} className="px-2.5 py-[5px] border-b border-(--color-border) text-(--color-text)">
                   {String(cell ?? '')}
                 </td>
               ))}
@@ -144,13 +128,7 @@ function LogsRenderer({ data }: { data: unknown }) {
   }
 
   return (
-    <div style={{
-      padding: 12,
-      fontFamily: "'JetBrains Mono', monospace",
-      fontSize: 11,
-      lineHeight: 1.6,
-      overflow: 'auto',
-    }}>
+    <div className="p-3 font-mono text-[11px] leading-relaxed overflow-auto">
       {(lines as Array<Record<string, unknown> | string>).map((line, i) => {
         const entry = typeof line === 'string' ? { msg: line } : line
         const ts = String(entry.ts || entry.timestamp || '')
@@ -158,19 +136,19 @@ function LogsRenderer({ data }: { data: unknown }) {
         const msg = String(entry.msg || entry.text || entry.message || line)
         const source = String(entry.source || '')
         return (
-          <div key={i} style={{ color: levelColor(level), display: 'flex', gap: 8 }}>
+          <div key={i} className="flex gap-2" style={{ color: levelColor(level) }}>
             {ts && (
-              <span style={{ color: 'var(--color-muted)', flexShrink: 0 }}>{ts}</span>
+              <span className="text-(--color-muted) shrink-0">{ts}</span>
             )}
             {level && (
-              <span style={{ flexShrink: 0, width: 40, textTransform: 'uppercase', fontWeight: 600 }}>
+              <span className="shrink-0 w-10 uppercase font-semibold">
                 {level}
               </span>
             )}
             {source && (
-              <span style={{ color: 'var(--color-muted)', flexShrink: 0 }}>[{source}]</span>
+              <span className="text-(--color-muted) shrink-0">[{source}]</span>
             )}
-            <span style={{ flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+            <span className="flex-1 whitespace-pre-wrap break-words">
               {msg}
             </span>
           </div>
@@ -187,7 +165,7 @@ function MarkdownRenderer({ data }: { data: unknown }) {
     : d?.text ? String(d.text)
     : JSON.stringify(data, null, 2)
 
-  // Simple markdown → HTML: headings, bold, italic, code blocks, lists, links
+  // Simple markdown -> HTML: headings, bold, italic, code blocks, lists, links
   const html = text
     .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre style="background:var(--color-elevated);padding:10px 12px;border-radius:6px;overflow-x:auto;margin:8px 0;font-size:11px"><code>$2</code></pre>')
     .replace(/`([^`]+)`/g, '<code style="background:var(--color-elevated);padding:1px 4px;border-radius:3px;font-size:11px">$1</code>')
@@ -196,20 +174,13 @@ function MarkdownRenderer({ data }: { data: unknown }) {
     .replace(/^# (.+)$/gm, '<h1 style="font-size:16px;color:var(--color-accent);margin:0 0 8px">$1</h1>')
     .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--color-text-bright)">$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/^- (.+)$/gm, '<div style="padding-left:16px">• $1</div>')
+    .replace(/^- (.+)$/gm, '<div style="padding-left:16px">&bull; $1</div>')
     .replace(/^(\d+)\. (.+)$/gm, '<div style="padding-left:16px">$1. $2</div>')
     .replace(/\n\n/g, '<br/><br/>')
 
   return (
     <div
-      style={{
-        padding: 16,
-        fontFamily: "'JetBrains Mono', monospace",
-        fontSize: 12,
-        lineHeight: 1.7,
-        color: 'var(--color-text)',
-        overflow: 'auto',
-      }}
+      className="p-4 font-mono text-xs leading-[1.7] text-(--color-text) overflow-auto"
       dangerouslySetInnerHTML={{ __html: html }}
     />
   )
@@ -261,25 +232,11 @@ function IframeRenderer({ data, id }: { data: unknown; id: string }) {
 
 function ChartRenderer({ data }: { data: unknown }) {
   return (
-    <div style={{ padding: 16, overflow: 'auto' }}>
-      <div style={{
-        fontSize: 10,
-        color: 'var(--color-muted)',
-        marginBottom: 8,
-        textTransform: 'uppercase',
-        letterSpacing: '0.05em',
-      }}>
+    <div className="p-4 overflow-auto">
+      <div className="text-[10px] text-(--color-muted) mb-2 uppercase tracking-[0.05em]">
         Chart data
       </div>
-      <pre style={{
-        fontFamily: "'JetBrains Mono', monospace",
-        fontSize: 11,
-        lineHeight: 1.5,
-        color: 'var(--color-text)',
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-        margin: 0,
-      }}>
+      <pre className="font-mono text-[11px] leading-normal text-(--color-text) whitespace-pre-wrap break-words m-0">
         {JSON.stringify(data, null, 2)}
       </pre>
     </div>
@@ -288,25 +245,11 @@ function ChartRenderer({ data }: { data: unknown }) {
 
 function MapRenderer({ data }: { data: unknown }) {
   return (
-    <div style={{ padding: 16, overflow: 'auto' }}>
-      <div style={{
-        fontSize: 10,
-        color: 'var(--color-muted)',
-        marginBottom: 8,
-        textTransform: 'uppercase',
-        letterSpacing: '0.05em',
-      }}>
+    <div className="p-4 overflow-auto">
+      <div className="text-[10px] text-(--color-muted) mb-2 uppercase tracking-[0.05em]">
         Map data
       </div>
-      <pre style={{
-        fontFamily: "'JetBrains Mono', monospace",
-        fontSize: 11,
-        lineHeight: 1.5,
-        color: 'var(--color-text)',
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-        margin: 0,
-      }}>
+      <pre className="font-mono text-[11px] leading-normal text-(--color-text) whitespace-pre-wrap break-words m-0">
         {JSON.stringify(data, null, 2)}
       </pre>
     </div>
@@ -315,20 +258,9 @@ function MapRenderer({ data }: { data: unknown }) {
 
 function EmptyRenderer({ title, detail }: { title: string; detail: string }) {
   return (
-    <div style={{
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      padding: 28,
-      textAlign: 'center',
-      color: 'var(--color-muted)',
-      fontFamily: "'JetBrains Mono', monospace",
-    }}>
-      <div style={{ fontSize: 12, color: 'var(--color-text-bright)', opacity: 0.9 }}>{title}</div>
-      <div style={{ fontSize: 11, opacity: 0.7 }}>{detail}</div>
+    <div className="h-full flex flex-col items-center justify-center gap-2 p-7 text-center text-(--color-muted) font-mono">
+      <div className="text-xs text-(--color-text-bright) opacity-90">{title}</div>
+      <div className="text-[11px] opacity-70">{detail}</div>
     </div>
   )
 }
@@ -345,16 +277,8 @@ function ArtifactBody({ artifact }: { artifact: Artifact }) {
     case 'chart': return <ChartRenderer data={artifact.data} />
     case 'map': return <MapRenderer data={artifact.data} />
     default: return (
-      <div style={{ padding: 16, overflow: 'auto' }}>
-        <pre style={{
-          fontFamily: "'JetBrains Mono', monospace",
-          fontSize: 11,
-          lineHeight: 1.5,
-          color: 'var(--color-text)',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          margin: 0,
-        }}>
+      <div className="p-4 overflow-auto">
+        <pre className="font-mono text-[11px] leading-normal text-(--color-text) whitespace-pre-wrap break-words m-0">
           {JSON.stringify(artifact.data, null, 2)}
         </pre>
       </div>
@@ -470,155 +394,51 @@ export default function ArtifactPanel() {
   }
 
   return (
-    <div style={{
-      width,
-      flexShrink: 0,
-      borderLeft: '1px solid var(--color-border)',
-      background: 'var(--color-surface)',
-      position: 'relative',
-      zIndex: 20,
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden',
-      minWidth: 0,
-      animation: 'artifactSlideIn 0.25s cubic-bezier(0.16,1,0.3,1) both',
-    }}>
-      <style>{`
-        @keyframes artifactSlideIn {
-          from { transform: translateX(20px); opacity: 0; }
-          to   { transform: translateX(0); opacity: 1; }
-        }
-        @keyframes artifactLivePulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.45; }
-        }
-        @keyframes artifactDropdown {
-          from { opacity: 0; transform: translateY(-6px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        .artifact-trigger:hover { background: var(--color-elevated) !important; }
-        .artifact-row:hover { background: var(--color-border-alpha, rgba(128,128,128,0.15)) !important; }
-        .artifact-resize:hover { background: rgba(128,128,128,0.15); }
-        .artifact-resize:active { background: var(--color-accent-alpha, rgba(128,128,128,0.25)); }
-        body.artifact-panel--resizing iframe { pointer-events: none; }
-      `}</style>
-
+    <div
+      className="shrink-0 border-l border-(--color-border) bg-(--color-surface) relative z-20 flex flex-col overflow-hidden min-w-0 animate-slide-right"
+      style={{ width }}
+    >
       {/* Resize handle (left edge) */}
       <div
         onPointerDown={handleResizePointerDown}
         title="Drag to resize"
-        style={{
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: 12,
-          cursor: 'col-resize',
-          zIndex: 60,
-          touchAction: 'none',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-        className="artifact-resize"
+        className="artifact-resize absolute left-0 top-0 bottom-0 w-3 cursor-col-resize z-[60] touch-none flex items-center justify-center"
       >
-        <div style={{
-          width: 3,
-          height: 42,
-          borderRadius: 999,
-          background: 'var(--color-border)',
-          opacity: 0.6,
-        }} />
+        <div className="w-[3px] h-[42px] rounded-full bg-(--color-border) opacity-60" />
       </div>
 
       {/* Header */}
-      <div style={{
-        padding: '10px 12px',
-        borderBottom: '1px solid var(--color-border)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        background: 'var(--color-surface)',
-        position: 'relative',
-        zIndex: 40,
-      }}>
+      <div className="px-3 py-2.5 border-b border-(--color-border) flex items-center gap-2.5 bg-(--color-surface) relative z-40">
         {artifacts.length > 0 ? (
           <button
             ref={triggerRef}
             onClick={() => setDropdownOpen((o) => !o)}
-            className="artifact-trigger"
-            style={{
-              flex: 1,
-              minWidth: 0,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              border: 0,
-              background: 'transparent',
-              cursor: 'pointer',
-              padding: '6px 8px',
-              margin: '-6px -8px',
-              borderRadius: 8,
-              fontFamily: "'JetBrains Mono', monospace",
-              textAlign: 'left',
-              color: 'var(--color-text)',
-            }}
+            className="artifact-trigger flex-1 min-w-0 flex items-center gap-2 border-0 bg-transparent cursor-pointer px-2 py-1.5 -mx-2 -my-1.5 rounded-lg font-mono text-left text-(--color-text)"
             title={activeArtifact?.title || activeArtifact?.id || ''}
           >
-            <span style={{ color: 'var(--color-accent)', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+            <span className="text-(--color-accent) flex items-center shrink-0">
               <ArtifactIcon type={activeArtifact?.artifact_type || ''} />
             </span>
-            <span style={{
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              color: 'var(--color-text-bright)',
-              fontWeight: 650,
-              fontSize: 12,
-              minWidth: 0,
-            }}>
+            <span className="overflow-hidden text-ellipsis whitespace-nowrap text-(--color-text-bright) font-[650] text-xs min-w-0">
               {activeArtifact?.title || activeArtifact?.id || 'Artifacts'}
             </span>
-            <div style={{ flex: 1 }} />
+            <div className="flex-1" />
 
             {activeArtifact?.live && (
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                color: 'var(--color-success)',
-                fontSize: 10,
-                flexShrink: 0,
-              }}>
-                <span style={{
-                  width: 6, height: 6, borderRadius: '50%',
-                  background: 'var(--color-success)',
-                  animation: 'artifactLivePulse 2s ease infinite',
-                }} />
+              <span className="inline-flex items-center gap-1.5 text-(--color-success) text-[10px] shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-(--color-success) animate-live-pulse" />
                 live
               </span>
             )}
 
             {activeArtifact?.persistent && (
-              <span style={{
-                flexShrink: 0, fontSize: 9,
-                color: 'var(--color-accent)',
-                border: '1px solid var(--color-accent)',
-                opacity: 0.7,
-                padding: '1px 7px', borderRadius: 999,
-                textTransform: 'uppercase', letterSpacing: '0.06em',
-              }}>
+              <span className="shrink-0 text-[9px] text-(--color-accent) border border-(--color-accent) opacity-70 px-[7px] py-px rounded-full uppercase tracking-[0.06em]">
                 saved
               </span>
             )}
 
             {artifacts.length > 1 && (
-              <span style={{
-                flexShrink: 0, fontSize: 9,
-                color: 'var(--color-muted)',
-                border: '1px solid var(--color-border)',
-                padding: '1px 7px', borderRadius: 999,
-              }}>
+              <span className="shrink-0 text-[9px] text-(--color-muted) border border-(--color-border) px-[7px] py-px rounded-full">
                 {artifacts.length}
               </span>
             )}
@@ -626,20 +446,14 @@ export default function ArtifactPanel() {
             <svg
               width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
               strokeLinecap="round" strokeLinejoin="round"
-              style={{
-                color: 'var(--color-muted)', flexShrink: 0,
-                transform: dropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                transition: 'transform 0.12s ease',
-              }}
+              className="text-(--color-muted) shrink-0 transition-transform duration-[120ms]"
+              style={{ transform: dropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
             >
               <polyline points="6 9 12 15 18 9" />
             </svg>
           </button>
         ) : (
-          <div style={{
-            flex: 1, fontSize: 12, color: 'var(--color-text-bright)',
-            fontWeight: 650, fontFamily: "'JetBrains Mono', monospace",
-          }}>
+          <div className="flex-1 text-xs text-(--color-text-bright) font-[650] font-mono">
             Artifacts
           </div>
         )}
@@ -648,11 +462,7 @@ export default function ArtifactPanel() {
         <button
           onClick={(e) => { e.stopPropagation(); closePanel() }}
           title="Close panel"
-          style={{
-            cursor: 'pointer', display: 'flex', alignItems: 'center',
-            justifyContent: 'center', padding: 4, border: 0,
-            background: 'transparent', color: 'var(--color-muted)', flexShrink: 0,
-          }}
+          className="cursor-pointer flex items-center justify-center p-1 border-0 bg-transparent text-(--color-muted) shrink-0 hover:text-(--color-text)"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <line x1="18" y1="6" x2="6" y2="18" />
@@ -664,18 +474,7 @@ export default function ArtifactPanel() {
         {dropdownOpen && artifacts.length > 0 && (
           <div
             ref={menuRef}
-            style={{
-              position: 'absolute',
-              top: 'calc(100% + 6px)',
-              left: 10, right: 10,
-              border: '1px solid var(--color-border)',
-              background: 'var(--color-elevated)',
-              borderRadius: 10,
-              boxShadow: '0 12px 28px rgba(0,0,0,0.45)',
-              padding: 6, zIndex: 70,
-              maxHeight: 320, overflowY: 'auto',
-              animation: 'artifactDropdown 0.12s ease both',
-            }}
+            className="absolute top-[calc(100%+6px)] left-2.5 right-2.5 border border-(--color-border) bg-(--color-elevated) rounded-[10px] shadow-[0_12px_28px_rgba(0,0,0,0.45)] p-1.5 z-[70] max-h-80 overflow-y-auto animate-dropdown"
           >
             {artifacts.map((artifact) => {
               const active = activeArtifact?.id === artifact.id
@@ -683,53 +482,28 @@ export default function ArtifactPanel() {
                 <button
                   key={artifact.id}
                   onClick={() => { setActiveId(artifact.id); setDropdownOpen(false) }}
-                  className="artifact-row"
+                  className="artifact-row w-full flex items-center gap-2 px-2.5 py-2 border-0 rounded-lg cursor-pointer font-mono text-left"
                   style={{
-                    width: '100%', display: 'flex', alignItems: 'center',
-                    gap: 8, padding: '8px 10px', border: 0, borderRadius: 8,
-                    cursor: 'pointer',
                     background: active ? 'var(--color-accent-alpha, rgba(128,128,128,0.12))' : 'transparent',
                     color: active ? 'var(--color-accent)' : 'var(--color-text)',
-                    fontFamily: "'JetBrains Mono', monospace", textAlign: 'left',
                     borderLeft: active ? '2px solid var(--color-accent)' : '2px solid transparent',
                   }}
                 >
-                  <span style={{ color: active ? 'var(--color-accent)' : 'var(--color-muted)', display: 'flex', alignItems: 'center' }}>
+                  <span className="flex items-center" style={{ color: active ? 'var(--color-accent)' : 'var(--color-muted)' }}>
                     <ArtifactIcon type={artifact.artifact_type} />
                   </span>
-                  <span style={{
-                    flex: 1, overflow: 'hidden', textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap', fontSize: 11,
-                    color: active ? 'var(--color-accent)' : 'var(--color-text-bright)',
-                  }}>
+                  <span className={`flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-[11px] ${active ? 'text-(--color-accent)' : 'text-(--color-text-bright)'}`}>
                     {artifact.title || artifact.id}
                   </span>
                   {artifact.live && (
-                    <span style={{
-                      width: 6, height: 6, borderRadius: '50%',
-                      background: 'var(--color-success)',
-                      animation: 'artifactLivePulse 2s ease infinite',
-                      flexShrink: 0,
-                    }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-(--color-success) animate-live-pulse shrink-0" />
                   )}
                   {artifact.persistent && (
-                    <span style={{
-                      flexShrink: 0, fontSize: 9,
-                      color: 'var(--color-accent)', opacity: 0.7,
-                      border: '1px solid var(--color-accent)',
-                      padding: '1px 6px', borderRadius: 999,
-                      textTransform: 'uppercase', letterSpacing: '0.06em',
-                    }}>
+                    <span className="shrink-0 text-[9px] text-(--color-accent) opacity-70 border border-(--color-accent) px-1.5 py-px rounded-full uppercase tracking-[0.06em]">
                       saved
                     </span>
                   )}
-                  <span style={{
-                    flexShrink: 0, fontSize: 9,
-                    color: 'var(--color-muted)',
-                    border: '1px solid var(--color-border)',
-                    padding: '1px 6px', borderRadius: 999,
-                    textTransform: 'uppercase', letterSpacing: '0.06em',
-                  }}>
+                  <span className="shrink-0 text-[9px] text-(--color-muted) border border-(--color-border) px-1.5 py-px rounded-full uppercase tracking-[0.06em]">
                     {artifact.artifact_type}
                   </span>
                 </button>
@@ -740,7 +514,7 @@ export default function ArtifactPanel() {
       </div>
 
       {/* Body */}
-      <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
+      <div className="flex-1 overflow-auto min-h-0">
         {activeArtifact ? (
           <ArtifactBody artifact={activeArtifact} />
         ) : (
@@ -750,17 +524,7 @@ export default function ArtifactPanel() {
 
       {/* Footer */}
       {activeArtifact && (
-        <div style={{
-          padding: '4px 12px',
-          borderTop: '1px solid var(--color-border)',
-          fontSize: 9,
-          color: 'var(--color-muted)',
-          opacity: 0.5,
-          display: 'flex',
-          justifyContent: 'space-between',
-          gap: 12,
-          fontFamily: "'JetBrains Mono', monospace",
-        }}>
+        <div className="px-3 py-1 border-t border-(--color-border) text-[9px] text-(--color-muted) opacity-50 flex justify-between gap-3 font-mono">
           <span>
             {activeArtifact.timestamp ? `updated ${formatTimeAgo(activeArtifact.timestamp)}` : ''}
           </span>

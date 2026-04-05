@@ -15,12 +15,7 @@ export function BackgroundRenderer() {
   const overlayOpacity = bg.overlay?.opacity
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 9999,
-      pointerEvents: 'none',
-    }}>
+    <div className="fixed inset-0 z-[9999] pointer-events-none">
       {bg.kind === 'matrix-rain' ? (
         <MatrixRainField intensity={50} config={theme.background?.matrixRain} />
       ) : bg.kind === 'nous-crt' ? (

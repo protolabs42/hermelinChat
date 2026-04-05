@@ -16,30 +16,11 @@ import { useChatStore } from './stores/chat'
 
 function LoadingScreen() {
   return (
-    <>
-      <style>{`
-        @keyframes aurora-pulse {
-          0%, 100% { opacity: 0.4; }
-          50% { opacity: 1; }
-        }
-      `}</style>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100vh',
-        background: 'var(--color-bg, #1e1e2e)',
-      }}>
-        <span style={{
-          color: 'var(--color-muted, #6c7086)',
-          fontSize: 13,
-          fontFamily: 'inherit',
-          animation: 'aurora-pulse 2s ease-in-out infinite',
-        }}>
-          connecting to Aurora...
-        </span>
-      </div>
-    </>
+    <div className="flex items-center justify-center h-screen bg-(--color-bg)">
+      <span className="text-(--color-muted) text-[13px] animate-aurora-pulse">
+        connecting to Aurora...
+      </span>
+    </div>
   )
 }
 
@@ -75,12 +56,12 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <div style={{ display: 'flex', height: '100vh' }}>
+      <div className="flex h-screen">
         {/* Session sidebar (left, collapsible) */}
         <SessionSidebar />
 
         {/* Main chat area */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--color-bg)', position: 'relative' }}>
+        <div className="flex-1 flex flex-col bg-(--color-bg) relative">
           <BackgroundRenderer />
           <StatusBar />
           <ChatView />

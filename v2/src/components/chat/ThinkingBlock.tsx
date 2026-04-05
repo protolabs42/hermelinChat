@@ -36,42 +36,24 @@ export default function ThinkingBlock({ message }: Props) {
     : null
 
   return (
-    <div style={{ marginBottom: 8 }}>
+    <div className="mb-2">
       <div
         onClick={() => setManualToggle((prev) => prev === null ? !isActive : !prev)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          cursor: 'pointer',
-          padding: '4px 0',
-          userSelect: 'none',
-        }}
+        className="flex items-center gap-1.5 cursor-pointer py-1 select-none"
       >
-        <span style={{ fontSize: 9, color: 'var(--color-muted)', transition: 'transform 0.15s' }}>
+        <span className="text-[9px] text-(--color-muted) transition-transform duration-150">
           {isExpanded ? '\u25bc' : '\u25b6'}
         </span>
-        <span style={{ fontSize: 10, color: 'var(--color-muted)', fontStyle: 'italic' }}>
+        <span className="text-[10px] text-(--color-muted) italic">
           {isActive ? 'Thinking...' : 'Thinking'}
           {durationStr && (
-            <span style={{ marginLeft: 4, fontStyle: 'normal' }}>({durationStr})</span>
+            <span className="ml-1 not-italic">({durationStr})</span>
           )}
         </span>
       </div>
       {isExpanded && (
-        <div style={{
-          borderLeft: '2px solid var(--color-border)',
-          paddingLeft: 12,
-          marginLeft: 4,
-          marginTop: 2,
-        }}>
-          <div style={{
-            fontSize: 11,
-            color: 'var(--color-muted)',
-            lineHeight: 1.6,
-            whiteSpace: 'pre-wrap',
-            fontStyle: 'italic',
-          }}>
+        <div className="border-l-2 border-(--color-border) pl-3 ml-1 mt-0.5">
+          <div className="text-[11px] text-(--color-muted) leading-relaxed whitespace-pre-wrap italic">
             {message.content}
           </div>
         </div>

@@ -61,14 +61,8 @@ export default function MessageInput() {
   }
 
   return (
-    <div style={{
-      borderTop: '1px solid var(--color-border)',
-      padding: '12px 16px',
-      display: 'flex',
-      gap: 8,
-      alignItems: 'flex-start',
-    }}>
-      <div style={{ flex: 1, position: 'relative' }}>
+    <div className="border-t border-(--color-border) px-4 py-3 flex gap-2 items-start">
+      <div className="flex-1 relative">
         <textarea
           ref={textareaRef}
           autoFocus
@@ -78,32 +72,14 @@ export default function MessageInput() {
           onKeyDown={handleKeyDown}
           placeholder="Message Aurora..."
           disabled={isStreaming}
+          className="w-full bg-(--color-elevated) border border-(--color-border) rounded-lg px-3 py-2 text-(--color-text-bright) text-[13px] font-mono outline-none resize-none overflow-auto"
           style={{
-            width: '100%',
-            background: 'var(--color-elevated)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 8,
-            padding: '8px 12px',
-            color: 'var(--color-text-bright)',
-            fontSize: 13,
-            fontFamily: 'inherit',
-            outline: 'none',
             opacity: isStreaming ? 0.5 : 1,
-            resize: 'none',
             lineHeight: `${LINE_HEIGHT}px`,
-            overflow: 'auto',
           }}
         />
         {input.length > CHAR_COUNT_THRESHOLD && (
-          <span style={{
-            position: 'absolute',
-            right: 8,
-            bottom: 6,
-            fontSize: 9,
-            color: 'var(--color-muted)',
-            opacity: 0.6,
-            pointerEvents: 'none',
-          }}>
+          <span className="absolute right-2 bottom-1.5 text-[9px] text-(--color-muted) opacity-60 pointer-events-none">
             {input.length}
           </span>
         )}
@@ -111,19 +87,8 @@ export default function MessageInput() {
       {isStreaming ? (
         <button
           onClick={handleCancel}
-          style={{
-            background: 'var(--color-danger, #f38ba8)',
-            color: 'var(--color-bg)',
-            border: '1px solid transparent',
-            borderRadius: 8,
-            padding: '7px 16px',
-            fontWeight: 700,
-            fontSize: 12,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            flexShrink: 0,
-            lineHeight: `${LINE_HEIGHT}px`,
-          }}
+          className="bg-(--color-danger) text-(--color-bg) border border-transparent rounded-lg px-4 font-bold text-xs cursor-pointer font-mono shrink-0"
+          style={{ padding: '7px 16px', lineHeight: `${LINE_HEIGHT}px` }}
         >
           Stop
         </button>
@@ -131,19 +96,10 @@ export default function MessageInput() {
         <button
           onClick={handleSend}
           disabled={!input.trim()}
-          style={{
-            background: input.trim() ? 'var(--color-accent)' : 'var(--color-border)',
-            color: 'var(--color-bg)',
-            border: '1px solid transparent',
-            borderRadius: 8,
-            padding: '7px 16px',
-            fontWeight: 700,
-            fontSize: 12,
-            cursor: input.trim() ? 'pointer' : 'not-allowed',
-            fontFamily: 'inherit',
-            flexShrink: 0,
-            lineHeight: `${LINE_HEIGHT}px`,
-          }}
+          className={`text-(--color-bg) border border-transparent rounded-lg font-bold text-xs font-mono shrink-0 ${
+            input.trim() ? 'bg-(--color-accent) cursor-pointer' : 'bg-(--color-border) cursor-not-allowed'
+          }`}
+          style={{ padding: '7px 16px', lineHeight: `${LINE_HEIGHT}px` }}
         >
           Send
         </button>

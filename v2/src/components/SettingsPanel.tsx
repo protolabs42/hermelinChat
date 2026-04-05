@@ -22,85 +22,33 @@ export default function SettingsPanel() {
 
   return (
     <>
-      <style>{`
-        @keyframes settings-slide-in {
-          from { transform: translateX(100%); }
-          to { transform: translateX(0); }
-        }
-        @keyframes settings-overlay-in {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-      `}</style>
-
       {/* Overlay */}
       <div
         onClick={close}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.4)',
-          zIndex: 900,
-          animation: 'settings-overlay-in 200ms ease-out',
-        }}
+        className="fixed inset-0 bg-black/40 z-[900] animate-settings-overlay"
       />
 
       {/* Panel */}
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          right: 0,
-          bottom: 0,
-          width: 300,
-          background: 'var(--color-surface)',
-          borderLeft: '1px solid var(--color-border)',
-          zIndex: 910,
-          display: 'flex',
-          flexDirection: 'column',
-          animation: 'settings-slide-in 200ms ease-out',
-          overflow: 'hidden',
-        }}
-      >
+      <div className="fixed top-0 right-0 bottom-0 w-[300px] bg-(--color-surface) border-l border-(--color-border) z-[910] flex flex-col animate-settings-slide overflow-hidden">
         {/* Header */}
-        <div style={{
-          padding: '16px 16px 12px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderBottom: '1px solid var(--color-border)',
-        }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-bright)' }}>
+        <div className="px-4 pt-4 pb-3 flex items-center justify-between border-b border-(--color-border)">
+          <span className="text-[13px] font-semibold text-(--color-text-bright)">
             Settings
           </span>
           <button
             onClick={close}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--color-muted)',
-              cursor: 'pointer',
-              fontSize: 16,
-              lineHeight: 1,
-              padding: '2px 6px',
-              borderRadius: 4,
-            }}
+            className="bg-transparent border-none text-(--color-muted) cursor-pointer text-[16px] leading-none px-1.5 py-0.5 rounded-[4px] hover:bg-(--color-elevated)"
           >
             &#x2715;
           </button>
         </div>
 
         {/* Scrollable content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
+        <div className="flex-1 overflow-y-auto p-4">
 
           {/* Section: Appearance */}
           <SectionLabel>Appearance</SectionLabel>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: 8,
-            marginBottom: 24,
-          }}>
+          <div className="grid grid-cols-4 gap-2 mb-6">
             {themeList.map((t) => {
               const isActive = t.id === themeId
               return (
@@ -108,58 +56,25 @@ export default function SettingsPanel() {
                   key={t.id}
                   onClick={() => setThemeId(t.id)}
                   title={t.label}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    padding: 0,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 4,
-                  }}
+                  className="bg-transparent border-none p-0 cursor-pointer flex flex-col items-center gap-1"
                 >
-                  <div style={{
-                    width: 60,
-                    height: 40,
-                    borderRadius: 6,
-                    background: t.colors.bg,
-                    border: isActive
-                      ? `2px solid ${t.colors.accent}`
-                      : `1px solid ${t.colors.border}`,
-                    overflow: 'hidden',
-                    position: 'relative',
-                    transition: 'border-color 150ms ease',
-                  }}>
+                  <div
+                    className="w-[60px] h-[40px] rounded-[6px] overflow-hidden relative transition-[border-color] duration-150"
+                    style={{
+                      background: t.colors.bg,
+                      border: isActive
+                        ? `2px solid ${t.colors.accent}`
+                        : `1px solid ${t.colors.border}`,
+                    }}
+                  >
                     {/* Accent strip at bottom */}
-                    <div style={{
-                      position: 'absolute',
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      height: 6,
-                      background: t.colors.accent,
-                    }} />
+                    <div className="absolute bottom-0 left-0 right-0 h-1.5" style={{ background: t.colors.accent }} />
                     {/* Surface hint */}
-                    <div style={{
-                      position: 'absolute',
-                      top: 6,
-                      left: 6,
-                      right: 6,
-                      height: 10,
-                      borderRadius: 2,
-                      background: t.colors.surface,
-                    }} />
+                    <div className="absolute top-1.5 left-1.5 right-1.5 h-2.5 rounded-sm" style={{ background: t.colors.surface }} />
                   </div>
-                  <span style={{
-                    fontSize: 9,
-                    color: isActive ? 'var(--color-accent)' : 'var(--color-muted)',
-                    fontWeight: isActive ? 600 : 400,
-                    maxWidth: 60,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}>
+                  <span className={`text-[9px] max-w-[60px] overflow-hidden text-ellipsis whitespace-nowrap ${
+                    isActive ? 'text-(--color-accent) font-semibold' : 'text-(--color-muted) font-normal'
+                  }`}>
                     {t.label.split(' (')[0]}
                   </span>
                 </button>
@@ -171,31 +86,25 @@ export default function SettingsPanel() {
           <SectionLabel>Agent</SectionLabel>
 
           {/* Approval mode pills */}
-          <div style={{ marginBottom: 12 }}>
-            <span style={{ fontSize: 10, color: 'var(--color-muted)', display: 'block', marginBottom: 6 }}>
+          <div className="mb-3">
+            <span className="text-[10px] text-(--color-muted) block mb-1.5">
               Approval mode
             </span>
-            <div style={{ display: 'flex', gap: 6 }}>
+            <div className="flex gap-1.5">
               {(['yolo', 'smart', 'manual'] as ApprovalMode[]).map((mode) => {
                 const isActive = mode === approvalMode
                 return (
                   <button
                     key={mode}
                     onClick={() => setApprovalMode(mode)}
+                    className="flex-1 py-1.5 text-[11px] font-mono rounded-[6px] cursor-pointer transition-all duration-150"
                     style={{
-                      flex: 1,
-                      padding: '6px 0',
-                      fontSize: 11,
                       fontWeight: isActive ? 600 : 400,
-                      fontFamily: 'inherit',
                       border: isActive
                         ? `1px solid ${MODE_COLORS[mode]}`
                         : '1px solid var(--color-border)',
-                      borderRadius: 6,
                       background: isActive ? 'var(--color-elevated)' : 'transparent',
                       color: isActive ? MODE_COLORS[mode] : 'var(--color-muted)',
-                      cursor: 'pointer',
-                      transition: 'all 150ms ease',
                     }}
                   >
                     {mode}
@@ -206,25 +115,25 @@ export default function SettingsPanel() {
           </div>
 
           {/* Model display */}
-          <div style={{ marginBottom: 24 }}>
-            <span style={{ fontSize: 10, color: 'var(--color-muted)', display: 'block', marginBottom: 4 }}>
+          <div className="mb-6">
+            <span className="text-[10px] text-(--color-muted) block mb-1">
               Model
             </span>
-            <span style={{ fontSize: 11, color: 'var(--color-text)' }}>
+            <span className="text-[11px] text-(--color-text)">
               via Hermes (ACP)
             </span>
           </div>
 
           {/* Section: About */}
           <SectionLabel>About</SectionLabel>
-          <div style={{ fontSize: 11, color: 'var(--color-text)', lineHeight: 1.6 }}>
-            <div style={{ fontWeight: 600, color: 'var(--color-text-bright)' }}>
+          <div className="text-[11px] text-(--color-text) leading-relaxed">
+            <div className="font-semibold text-(--color-text-bright)">
               Aurora Chat v2
             </div>
-            <div style={{ color: 'var(--color-muted)', fontSize: 10 }}>
+            <div className="text-(--color-muted) text-[10px]">
               version 0.1.0
             </div>
-            <div style={{ marginTop: 8, color: 'var(--color-muted)', fontSize: 10 }}>
+            <div className="mt-2 text-(--color-muted) text-[10px]">
               Powered by Hermes Agent (ACP)
             </div>
           </div>
@@ -236,14 +145,7 @@ export default function SettingsPanel() {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{
-      fontSize: 10,
-      fontWeight: 600,
-      textTransform: 'uppercase',
-      letterSpacing: '0.06em',
-      color: 'var(--color-muted)',
-      marginBottom: 10,
-    }}>
+    <div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-(--color-muted) mb-2.5">
       {children}
     </div>
   )
