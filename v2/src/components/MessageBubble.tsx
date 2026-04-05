@@ -22,7 +22,7 @@ export default function MessageBubble({ message }: Props) {
 
   if (message.role === 'system') {
     return (
-      <div className="mb-6 p-5 border-l-2 border-(--color-danger) bg-(--color-elevated) rounded-lg text-(--color-danger) leading-relaxed">
+      <div className="mb-6 pl-4 py-2 border-l-2 border-(--color-danger) text-(--color-danger) leading-relaxed">
         {message.content}
       </div>
     )
@@ -31,12 +31,12 @@ export default function MessageBubble({ message }: Props) {
   const isUser = message.role === 'user'
 
   return (
-    <div className={`mb-6 p-5 rounded-lg border border-(--color-border) ${isUser ? 'bg-(--color-elevated)' : 'bg-(--color-elevated)'}`}>
-      <div className={`text-[11px] font-semibold uppercase tracking-wider mb-3 ${isUser ? 'text-(--color-accent)' : 'text-(--color-success)'}`}>
+    <div className={`mb-8 ${isUser ? 'pl-4 border-l-2 border-(--color-accent)' : ''}`}>
+      <div className={`text-[10px] font-bold uppercase tracking-widest mb-2 ${isUser ? 'text-(--color-accent)' : 'text-(--color-success)'}`}>
         {isUser ? 'YOU' : 'AURORA'}
       </div>
       {isUser ? (
-        <div className="leading-[1.8] whitespace-pre-wrap text-(--color-text-bright)">
+        <div className="leading-[1.8] whitespace-pre-wrap text-(--color-text)">
           {message.content}
         </div>
       ) : (
