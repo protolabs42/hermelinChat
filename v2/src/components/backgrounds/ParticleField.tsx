@@ -40,18 +40,25 @@ export function ParticleField({ intensity = 50 }: ParticleFieldProps) {
       canvas.width = window.innerWidth
       canvas.height = window.innerHeight
 
-      const count = Math.max(20, Math.round(80 * factor))
+      const count = Math.max(12, Math.round(40 * factor))
       particles = Array.from({ length: count }, () => ({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
-        vx: (Math.random() - 0.5) * 0.4,
-        vy: (Math.random() - 0.5) * 0.4,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
         r: Math.random() * 2 + 0.8,
         o: Math.min(0.35, (Math.random() * 0.2 + 0.05) * factor),
       }))
     }
 
-    const draw = () => {
+    let lastFrame = 0
+    const FRAME_INTERVAL = 33 // ~30fps
+
+    const draw = (now: number) => {
+      animId = requestAnimationFrame(draw)
+      if (now - lastFrame < FRAME_INTERVAL) return
+      lastFrame = now
+
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       for (const p of particles) {
         p.x += p.vx
@@ -66,13 +73,16 @@ export function ParticleField({ intensity = 50 }: ParticleFieldProps) {
         ctx.fill()
       }
 
+      // Connection lines — use squared distance to avoid sqrt
       const connBase = Math.min(0.08, 0.04 * factor)
+      const maxDistSq = 14400 // 120 * 120
       for (let i = 0; i < particles.length; i++) {
         for (let j = i + 1; j < particles.length; j++) {
           const dx = particles[i].x - particles[j].x
           const dy = particles[i].y - particles[j].y
-          const d = Math.sqrt(dx * dx + dy * dy)
-          if (d < 120) {
+          const dSq = dx * dx + dy * dy
+          if (dSq < maxDistSq) {
+            const d = Math.sqrt(dSq)
             ctx.beginPath()
             ctx.moveTo(particles[i].x, particles[i].y)
             ctx.lineTo(particles[j].x, particles[j].y)
@@ -82,12 +92,11 @@ export function ParticleField({ intensity = 50 }: ParticleFieldProps) {
           }
         }
       }
-      animId = requestAnimationFrame(draw)
     }
 
     init()
     window.addEventListener('resize', init)
-    draw()
+    animId = requestAnimationFrame(draw)
     return () => {
       cancelAnimationFrame(animId)
       window.removeEventListener('resize', init)
