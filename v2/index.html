@@ -4,27 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Aurora Chat</title>
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body {
-        font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
-        background: var(--color-bg, #1e1e2e);
-        color: var(--color-text, #cdd6f4);
-        overflow: hidden;
-      }
-      #root { height: 100vh; display: flex; flex-direction: column; }
-
-      /* Themed scrollbars */
-      ::-webkit-scrollbar { width: 6px; height: 6px; }
-      ::-webkit-scrollbar-track { background: transparent; }
-      ::-webkit-scrollbar-thumb {
-        background: var(--color-border, #45475a);
-        border-radius: 3px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: var(--color-muted, #6c7086);
-      }
-    </style>
   </head>
   <body>
     <div id="root"></div>

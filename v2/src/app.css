@@ -1,0 +1,118 @@
+@import "tailwindcss";
+
+@theme {
+  /* Map our existing CSS custom properties to Tailwind theme */
+  --color-bg: var(--color-bg);
+  --color-surface: var(--color-surface);
+  --color-elevated: var(--color-elevated);
+  --color-border: var(--color-border);
+  --color-muted: var(--color-muted);
+  --color-text: var(--color-text);
+  --color-text-bright: var(--color-text-bright);
+  --color-accent: var(--color-accent);
+  --color-danger: var(--color-danger);
+  --color-success: var(--color-success);
+  --color-info: var(--color-info);
+  --color-purple: var(--color-purple);
+  --color-cyan: var(--color-cyan);
+
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+}
+
+/* Base styles */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-mono);
+  background: var(--color-bg, #1e1e2e);
+  color: var(--color-text, #cdd6f4);
+  overflow: hidden;
+}
+
+#root {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Themed scrollbars */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--color-border, #45475a);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted, #6c7086);
+}
+
+/* Animations */
+@keyframes aurora-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes dropdown-fade {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+@keyframes settings-slide-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes settings-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@utility animate-aurora-pulse {
+  animation: aurora-pulse 2s ease-in-out infinite;
+}
+
+@utility animate-slide-left {
+  animation: slide-in-left 200ms ease-out;
+}
+
+@utility animate-slide-right {
+  animation: slide-in-right 0.25s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+@utility animate-dropdown {
+  animation: dropdown-fade 0.12s ease both;
+}
+
+@utility animate-live-pulse {
+  animation: live-pulse 2s ease infinite;
+}
+
+@utility animate-settings-slide {
+  animation: settings-slide-in 200ms ease-out;
+}
+
+@utility animate-settings-overlay {
+  animation: settings-overlay-in 200ms ease-out;
+}
+
+/* Artifact panel hover styles */
+.artifact-trigger:hover { background: var(--color-elevated) !important; }
+.artifact-row:hover { background: var(--color-border-alpha, rgba(128,128,128,0.15)) !important; }
+.artifact-resize:hover { background: rgba(128,128,128,0.15); }
+.artifact-resize:active { background: var(--color-accent-alpha, rgba(128,128,128,0.25)); }
+body.artifact-panel--resizing iframe { pointer-events: none; }
