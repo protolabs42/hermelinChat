@@ -87,8 +87,8 @@ export default function MessageInput() {
       {isStreaming ? (
         <button
           onClick={handleCancel}
-          className="bg-(--color-danger) text-(--color-bg) border border-transparent rounded-lg px-4 font-bold text-xs cursor-pointer font-mono shrink-0"
-          style={{ padding: '7px 16px', lineHeight: `${LINE_HEIGHT}px` }}
+          className="bg-(--color-danger) text-(--color-bg) border border-transparent rounded-lg px-4 py-[7px] font-bold text-xs cursor-pointer font-mono shrink-0"
+          style={{ lineHeight: `${LINE_HEIGHT}px` }}
         >
           Stop
         </button>
@@ -96,10 +96,10 @@ export default function MessageInput() {
         <button
           onClick={handleSend}
           disabled={!input.trim()}
-          className={`text-(--color-bg) border border-transparent rounded-lg font-bold text-xs font-mono shrink-0 ${
+          className={`text-(--color-bg) border border-transparent rounded-lg px-4 py-[7px] font-bold text-xs font-mono shrink-0 ${
             input.trim() ? 'bg-(--color-accent) cursor-pointer' : 'bg-(--color-border) cursor-not-allowed'
           }`}
-          style={{ padding: '7px 16px', lineHeight: `${LINE_HEIGHT}px` }}
+          style={{ lineHeight: `${LINE_HEIGHT}px` }}
         >
           Send
         </button>
