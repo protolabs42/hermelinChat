@@ -69,29 +69,47 @@ export default function DiffView({ message }: Props) {
   }
 
   return (
-    <div className="mb-4">
+    <div style={{
+      marginBottom: 16,
+      borderRadius: 8,
+      overflow: 'hidden',
+      border: '1px solid var(--color-border)',
+    }}>
       {/* File header */}
-      <div className="flex items-center gap-2 px-4 py-2 bg-(--color-surface) rounded-t-lg border-b border-(--color-elevated)">
-        <span className="text-[11px] text-(--color-purple) font-mono font-semibold">
+      <div style={{
+        padding: '10px 16px',
+        background: 'var(--color-surface)',
+        display: 'flex',
+        alignItems: 'baseline',
+        justifyContent: 'space-between',
+        fontSize: 12,
+        lineHeight: 1.4,
+      }}>
+        <span style={{ color: 'var(--color-purple)', fontWeight: 500 }}>
           {message.diffPath}
         </span>
-        <span className="text-[10px] text-(--color-success) ml-auto">+{addCount}</span>
-        <span className="text-[10px] text-(--color-danger)">-{removeCount}</span>
+        <span style={{ color: 'var(--color-muted)' }}>
+          +{addCount} -{removeCount}
+        </span>
       </div>
 
       {/* Diff body */}
-      <div className="bg-(--color-elevated) py-2 rounded-b-lg font-mono text-[11px] leading-relaxed overflow-auto max-h-[400px]">
+      <div style={{
+        background: 'var(--color-bg)',
+        padding: '12px 16px',
+        fontSize: 12,
+        lineHeight: 1.7,
+        fontFamily: "'Fira Code', monospace",
+        overflow: 'auto',
+        maxHeight: 400,
+      }}>
         {diffLines.map((line, i) => {
           const prefix = line.type === 'add' ? '+' : line.type === 'remove' ? '-' : ' '
           const color = line.type === 'add' ? 'var(--color-success)' : line.type === 'remove' ? 'var(--color-danger)' : 'var(--color-muted)'
-          const bg = line.type === 'add'
-            ? 'color-mix(in srgb, var(--color-success) 6%, transparent)'
-            : line.type === 'remove'
-              ? 'color-mix(in srgb, var(--color-danger) 6%, transparent)'
-              : 'transparent'
+          const opacity = line.type === 'remove' ? 0.7 : 1
 
           return (
-            <div key={i} style={{ padding: '0 16px', color, background: bg, whiteSpace: 'pre' }}>
+            <div key={i} style={{ color, opacity, whiteSpace: 'pre' }}>
               {prefix} {line.text}
             </div>
           )
@@ -99,16 +117,42 @@ export default function DiffView({ message }: Props) {
       </div>
 
       {/* Accept / Reject buttons */}
-      <div className="flex gap-2 mt-2">
+      <div style={{
+        padding: '8px 16px',
+        background: 'var(--color-surface)',
+        display: 'flex',
+        gap: 8,
+        justifyContent: 'flex-end',
+      }}>
         <button
           onClick={handleAccept}
-          className="bg-(--color-success) text-(--color-bg) border-none rounded-md text-[10px] px-3 py-1.5 cursor-pointer font-mono font-semibold h-7 hover:opacity-90 transition-opacity duration-100"
+          style={{
+            padding: '6px 16px',
+            borderRadius: 6,
+            border: 'none',
+            fontSize: 12,
+            fontFamily: 'inherit',
+            cursor: 'pointer',
+            fontWeight: 600,
+            background: 'var(--color-success)',
+            color: 'var(--color-bg)',
+          }}
         >
           Accept
         </button>
         <button
           onClick={handleReject}
-          className="bg-(--color-danger) text-(--color-bg) border-none rounded-md text-[10px] px-3 py-1.5 cursor-pointer font-mono font-semibold h-7 hover:opacity-90 transition-opacity duration-100"
+          style={{
+            padding: '6px 16px',
+            borderRadius: 6,
+            border: 'none',
+            fontSize: 12,
+            fontFamily: 'inherit',
+            cursor: 'pointer',
+            fontWeight: 600,
+            background: 'var(--color-danger)',
+            color: 'var(--color-bg)',
+          }}
         >
           Reject
         </button>

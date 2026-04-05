@@ -41,7 +41,7 @@ export default function ChatView() {
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: 32,
+          padding: '32px 40px',
           position: 'relative',
         }}
       >

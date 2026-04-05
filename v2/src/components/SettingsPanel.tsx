@@ -27,30 +27,85 @@ export default function SettingsPanel() {
       {/* Overlay */}
       <div
         onClick={close}
-        className="fixed inset-0 bg-black/50 z-[900] animate-settings-overlay"
+        className="animate-settings-overlay"
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          zIndex: 900,
+        }}
       />
 
       {/* Panel */}
-      <div className="fixed top-0 right-0 bottom-0 w-[300px] glass-surface border-l border-(--color-border) z-[910] flex flex-col animate-settings-slide overflow-hidden rounded-l-xl">
+      <div
+        className="animate-settings-slide"
+        style={{
+          position: 'fixed',
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: 320,
+          background: 'var(--color-surface)',
+          borderLeft: '1px solid var(--color-border)',
+          zIndex: 910,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
         {/* Header */}
-        <div className="px-4 pt-4 pb-3 flex items-center justify-between border-b border-(--color-border)">
-          <span className="text-[13px] font-semibold text-(--color-text-bright)">
+        <div style={{
+          height: 48,
+          padding: '0 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: '1px solid var(--color-border)',
+        }}>
+          <span style={{
+            fontSize: 14,
+            fontWeight: 600,
+            color: 'var(--color-text-bright)',
+          }}>
             Settings
           </span>
           <button
             onClick={close}
-            className="w-7 h-7 bg-transparent border-none text-(--color-muted) cursor-pointer rounded flex items-center justify-center hover:bg-(--color-elevated) transition-colors duration-100"
+            style={{
+              width: 32,
+              height: 32,
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--color-muted)',
+              cursor: 'pointer',
+              borderRadius: 8,
+              fontSize: 16,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
           >
             &#x2715;
           </button>
         </div>
 
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '24px 20px',
+        }}>
 
           {/* Section: Appearance */}
           <SectionLabel>Appearance</SectionLabel>
-          <div className="grid grid-cols-3 gap-2 mb-5">
+
+          {/* Theme grid */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: 8,
+            marginBottom: 24,
+          }}>
             {themeList.map((t) => {
               const isActive = t.id === themeId
               return (
@@ -58,25 +113,55 @@ export default function SettingsPanel() {
                   key={t.id}
                   onClick={() => setThemeId(t.id)}
                   title={t.label}
-                  className="bg-transparent border-none p-0 cursor-pointer flex flex-col items-center gap-1"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
                 >
-                  <div
-                    className="w-[80px] h-[48px] rounded-lg overflow-hidden relative transition-[border-color] duration-150"
-                    style={{
-                      background: t.colors.bg,
-                      border: isActive
-                        ? `2px solid ${t.colors.accent}`
-                        : `1px solid ${t.colors.border}`,
-                    }}
-                  >
-                    {/* Accent strip at bottom */}
-                    <div className="absolute bottom-0 left-0 right-0 h-1" style={{ background: t.colors.accent }} />
+                  <div style={{
+                    width: '100%',
+                    height: 44,
+                    borderRadius: 8,
+                    position: 'relative',
+                    overflow: 'hidden',
+                    background: t.colors.bg,
+                    border: isActive
+                      ? `2px solid ${t.colors.accent}`
+                      : `1px solid ${t.colors.border}`,
+                    transition: 'border-color 0.15s',
+                  }}>
+                    {/* Accent strip */}
+                    <div style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: 4,
+                      background: t.colors.accent,
+                    }} />
                     {/* Surface hint */}
-                    <div className="absolute top-2 left-2 right-2 h-2 rounded-sm" style={{ background: t.colors.surface }} />
+                    <div style={{
+                      position: 'absolute',
+                      top: 8,
+                      left: 8,
+                      right: 8,
+                      height: 8,
+                      borderRadius: 2,
+                      background: t.colors.surface,
+                    }} />
                   </div>
-                  <span className={`text-[9px] max-w-[80px] overflow-hidden text-ellipsis whitespace-nowrap ${
-                    isActive ? 'text-(--color-accent) font-semibold' : 'text-(--color-muted) font-normal'
-                  }`}>
+                  <span style={{
+                    fontSize: 10,
+                    color: isActive ? 'var(--color-accent)' : 'var(--color-muted)',
+                    fontWeight: isActive ? 600 : 400,
+                    fontFamily: 'inherit',
+                  }}>
                     {t.label.split(' (')[0]}
                   </span>
                 </button>
@@ -85,29 +170,75 @@ export default function SettingsPanel() {
           </div>
 
           {/* Font size control */}
-          <div className="mb-5 flex items-center justify-between">
-            <span className="text-[10px] text-(--color-muted)">
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 24,
+          }}>
+            <span style={{ fontSize: 12, color: 'var(--color-text)' }}>
               Font size
             </span>
-            <div className="flex items-center gap-2">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <button
                 onClick={() => fontSizeStore.decrease()}
-                className="w-7 h-7 rounded-full bg-(--color-elevated) border border-(--color-border) text-(--color-text-bright) text-xs cursor-pointer flex items-center justify-center hover:bg-(--color-border) transition-colors duration-100"
+                style={{
+                  width: 32,
+                  height: 32,
+                  background: 'var(--color-elevated)',
+                  border: '1px solid var(--color-border)',
+                  color: 'var(--color-text-bright)',
+                  cursor: 'pointer',
+                  borderRadius: '50%',
+                  fontSize: 14,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontFamily: 'inherit',
+                }}
               >
                 −
               </button>
-              <span className="text-[11px] text-(--color-text-bright) w-8 text-center">
+              <span style={{
+                fontSize: 13,
+                color: 'var(--color-text-bright)',
+                width: 32,
+                textAlign: 'center',
+              }}>
                 {fontSizeStore.size}
               </span>
               <button
                 onClick={() => fontSizeStore.increase()}
-                className="w-7 h-7 rounded-full bg-(--color-elevated) border border-(--color-border) text-(--color-text-bright) text-xs cursor-pointer flex items-center justify-center hover:bg-(--color-border) transition-colors duration-100"
+                style={{
+                  width: 32,
+                  height: 32,
+                  background: 'var(--color-elevated)',
+                  border: '1px solid var(--color-border)',
+                  color: 'var(--color-text-bright)',
+                  cursor: 'pointer',
+                  borderRadius: '50%',
+                  fontSize: 14,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontFamily: 'inherit',
+                }}
               >
                 +
               </button>
               <button
                 onClick={() => fontSizeStore.reset()}
-                className="text-[9px] text-(--color-muted) hover:text-(--color-text) cursor-pointer bg-transparent border-none transition-colors duration-100"
+                style={{
+                  width: 'auto',
+                  borderRadius: 6,
+                  padding: '0 12px',
+                  fontSize: 11,
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--color-muted)',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
               >
                 reset
               </button>
@@ -115,22 +246,33 @@ export default function SettingsPanel() {
           </div>
 
           {/* Section: Agent */}
-          <SectionLabel>Agent</SectionLabel>
+          <SectionLabel style={{ marginTop: 28 }}>Agent</SectionLabel>
 
           {/* Approval mode pills */}
-          <div className="mb-3">
-            <span className="text-[10px] text-(--color-muted) block mb-1.5">
+          <div style={{ marginBottom: 24 }}>
+            <span style={{
+              fontSize: 11,
+              color: 'var(--color-muted)',
+              display: 'block',
+              marginBottom: 8,
+            }}>
               Approval mode
             </span>
-            <div className="flex gap-1.5">
+            <div style={{ display: 'flex', gap: 8 }}>
               {(['yolo', 'smart', 'manual'] as ApprovalMode[]).map((mode) => {
                 const isActive = mode === approvalMode
                 return (
                   <button
                     key={mode}
                     onClick={() => setApprovalMode(mode)}
-                    className="flex-1 py-1.5 text-[11px] font-mono rounded-lg cursor-pointer transition-all duration-150"
                     style={{
+                      flex: 1,
+                      padding: '8px 0',
+                      fontSize: 12,
+                      fontFamily: 'inherit',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
                       fontWeight: isActive ? 600 : 400,
                       border: isActive
                         ? `1px solid ${MODE_COLORS[mode]}`
@@ -147,26 +289,44 @@ export default function SettingsPanel() {
           </div>
 
           {/* Model display */}
-          <div className="mb-5">
-            <span className="text-[10px] text-(--color-muted) block mb-1">
+          <div style={{ marginBottom: 24 }}>
+            <div style={{
+              fontSize: 11,
+              color: 'var(--color-muted)',
+              marginBottom: 4,
+            }}>
               Model
-            </span>
-            <span className="text-[11px] text-(--color-text)">
+            </div>
+            <div style={{
+              fontSize: 13,
+              color: 'var(--color-text)',
+            }}>
               via Hermes (ACP)
-            </span>
+            </div>
           </div>
 
           {/* Section: About */}
-          <SectionLabel>About</SectionLabel>
-          <div className="text-[11px] text-(--color-text) leading-relaxed">
-            <div className="font-semibold text-(--color-text-bright)">
-              Aurora Chat v2
+          <SectionLabel style={{ marginTop: 28 }}>About</SectionLabel>
+
+          <div style={{
+            padding: 16,
+            background: 'var(--color-elevated)',
+            borderRadius: 8,
+            textAlign: 'center',
+          }}>
+            <div style={{
+              fontSize: 14,
+              fontWeight: 700,
+              color: 'var(--color-text-bright)',
+              marginBottom: 4,
+            }}>
+              Aurora Chat
             </div>
-            <div className="text-(--color-muted) text-[10px]">
-              version 0.1.0
-            </div>
-            <div className="mt-2 text-(--color-muted) text-[10px]">
-              Powered by Hermes Agent (ACP)
+            <div style={{
+              fontSize: 11,
+              color: 'var(--color-muted)',
+            }}>
+              v0.1.0 &middot; Powered by Hermes Agent
             </div>
           </div>
         </div>
@@ -175,9 +335,17 @@ export default function SettingsPanel() {
   )
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+function SectionLabel({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
-    <div className="text-[9px] font-semibold uppercase tracking-widest text-(--color-accent) mb-3">
+    <div style={{
+      fontSize: 10,
+      fontWeight: 600,
+      textTransform: 'uppercase',
+      letterSpacing: '0.12em',
+      color: 'var(--color-accent)',
+      marginBottom: 12,
+      ...style,
+    }}>
       {children}
     </div>
   )

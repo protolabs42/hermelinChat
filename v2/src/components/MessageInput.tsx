@@ -12,6 +12,7 @@ export default function MessageInput() {
   const isStreaming = useChatStore((s) => s.isStreaming)
   const addUserMessage = useChatStore((s) => s.addUserMessage)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [focused, setFocused] = useState(false)
 
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current
@@ -60,11 +61,11 @@ export default function MessageInput() {
 
   return (
     <div style={{
-      borderTop: '1px solid var(--color-border)',
-      background: 'var(--color-surface)',
-      padding: 24,
+      borderTop: 'none',
+      background: 'var(--color-bg)',
+      padding: '20px 40px',
       display: 'flex',
-      gap: 16,
+      gap: 12,
       alignItems: 'flex-start',
     }}>
       <div style={{ flex: 1, position: 'relative' }}>
@@ -75,17 +76,19 @@ export default function MessageInput() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           placeholder="Message Aurora..."
           disabled={isStreaming}
           style={{
             width: '100%',
             background: 'var(--color-elevated)',
-            border: '1px solid var(--color-border)',
+            border: focused ? '1px solid var(--color-accent)' : '1px solid var(--color-border)',
             borderRadius: 8,
-            padding: '12px 20px',
+            padding: '12px 16px',
             color: 'var(--color-text-bright)',
             fontFamily: 'inherit',
-            fontSize: 'inherit',
+            fontSize: 14,
             outline: 'none',
             resize: 'none',
             overflow: 'auto',

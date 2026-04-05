@@ -36,26 +36,49 @@ export default function ThinkingBlock({ message }: Props) {
     : null
 
   return (
-    <div className="mb-4 glass-surface rounded-lg overflow-hidden">
+    <div style={{
+      marginBottom: 16,
+      padding: '12px 16px',
+      background: 'var(--color-surface)',
+      borderRadius: 8,
+      border: '1px solid var(--color-border)',
+    }}>
       <div
         onClick={() => setManualToggle((prev) => prev === null ? !isActive : !prev)}
-        className="flex items-center gap-2 cursor-pointer px-4 py-2.5 select-none"
+        style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 8,
+          cursor: 'pointer',
+          fontSize: 12,
+          color: 'var(--color-muted)',
+          lineHeight: 1,
+          userSelect: 'none',
+        }}
       >
-        <span className="text-[9px] text-(--color-muted) transition-transform duration-150">
+        <span style={{
+          fontSize: 8,
+          transition: 'transform 0.15s',
+        }}>
           {isExpanded ? '\u25bc' : '\u25b6'}
         </span>
-        <span className="text-[10px] text-(--color-muted) italic">
+        <span>
           {isActive ? 'Thinking...' : 'Thinking'}
         </span>
         {durationStr && (
-          <span className="ml-auto text-[10px] text-(--color-muted) not-italic">({durationStr})</span>
+          <span style={{ marginLeft: 'auto', fontSize: 11 }}>{durationStr}</span>
         )}
       </div>
       {isExpanded && (
-        <div className="px-4 py-2 border-t border-(--color-border)">
-          <div className="text-[11px] text-(--color-muted) leading-relaxed whitespace-pre-wrap italic">
-            {message.content}
-          </div>
+        <div style={{
+          marginTop: 8,
+          fontSize: 12,
+          color: 'var(--color-muted)',
+          lineHeight: 1.7,
+          fontStyle: 'italic',
+          whiteSpace: 'pre-wrap',
+        }}>
+          {message.content}
         </div>
       )}
     </div>

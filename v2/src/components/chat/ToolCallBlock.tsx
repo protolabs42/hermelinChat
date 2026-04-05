@@ -13,28 +13,52 @@ export default function ToolCallBlock({ message }: Props) {
   const isFailed = status === 'failed' || status === 'error'
 
   const statusIcon = isRunning ? '\u25b6' : isFailed ? '\u2717' : '\u2713'
-  const iconColor = isFailed ? 'var(--color-danger)' : 'var(--color-success)'
+  const iconColor = isFailed ? 'var(--color-danger)' : isRunning ? 'var(--color-accent)' : 'var(--color-success)'
 
-  // Calculate duration placeholder (tool messages don't have end timestamps inherently,
-  // but the toolStatus change marks completion)
   const hasOutput = message.content && message.content.length > 0
 
   return (
-    <div className="mb-4">
+    <div style={{ marginBottom: 12 }}>
       <div
         onClick={() => hasOutput && setExpanded((p) => !p)}
-        className={`px-4 py-2.5 bg-(--color-surface) rounded-lg flex items-center gap-2 text-[10px] select-none ${hasOutput ? 'cursor-pointer' : 'cursor-default'}`}
+        style={{
+          padding: '10px 16px',
+          background: 'var(--color-surface)',
+          borderRadius: 8,
+          border: '1px solid var(--color-border)',
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 10,
+          fontSize: 12,
+          cursor: hasOutput ? 'pointer' : 'default',
+          lineHeight: 1.4,
+          fontFamily: "'Fira Code', monospace",
+        }}
       >
-        <span className="text-[10px]" style={{ color: iconColor }}>{statusIcon}</span>
-        <span className="text-(--color-success) font-semibold">{message.toolTitle}</span>
+        <span style={{ fontSize: 14, color: iconColor }}>{statusIcon}</span>
+        <span style={{ color: 'var(--color-text-bright)', fontWeight: 500 }}>{message.toolTitle}</span>
         {hasOutput && (
-          <span className="text-(--color-muted) text-[9px] ml-auto">
+          <span style={{ color: 'var(--color-muted)', marginLeft: 'auto', fontSize: 11 }}>
             {expanded ? '\u25bc' : '\u25b6'}
           </span>
         )}
       </div>
       {expanded && hasOutput && (
-        <div className="mt-1 ml-3 px-4 py-3 bg-(--color-elevated) rounded-lg font-mono text-[11px] text-(--color-text) leading-normal whitespace-pre-wrap break-words max-h-[300px] overflow-auto">
+        <div style={{
+          marginTop: 4,
+          marginLeft: 12,
+          padding: '12px 16px',
+          background: 'var(--color-elevated)',
+          borderRadius: 8,
+          fontFamily: "'Fira Code', monospace",
+          fontSize: 12,
+          color: 'var(--color-text)',
+          lineHeight: 1.6,
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+          maxHeight: 300,
+          overflow: 'auto',
+        }}>
           {message.content}
         </div>
       )}

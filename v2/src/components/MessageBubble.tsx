@@ -23,13 +23,12 @@ export default function MessageBubble({ message }: Props) {
   if (message.role === 'system') {
     return (
       <div style={{
-        marginBottom: 24,
-        paddingLeft: 16,
-        paddingTop: 8,
-        paddingBottom: 8,
+        marginBottom: 16,
+        padding: '12px 16px',
         borderLeft: '2px solid var(--color-danger)',
         color: 'var(--color-danger)',
-        lineHeight: 1.7,
+        fontSize: 13,
+        lineHeight: 1.6,
       }}>
         {message.content}
       </div>
@@ -41,24 +40,25 @@ export default function MessageBubble({ message }: Props) {
   return (
     <div style={{
       marginBottom: 32,
+      maxWidth: '100%',
       paddingLeft: isUser ? 16 : 0,
       borderLeft: isUser ? '2px solid var(--color-accent)' : 'none',
     }}>
       <div style={{
-        fontSize: 10,
-        fontWeight: 700,
+        fontSize: 11,
+        fontWeight: 600,
         textTransform: 'uppercase' as const,
-        letterSpacing: '0.1em',
+        letterSpacing: '0.08em',
         marginBottom: 8,
         color: isUser ? 'var(--color-accent)' : 'var(--color-success)',
       }}>
-        {isUser ? 'YOU' : 'AURORA'}
+        {isUser ? 'You' : 'Aurora'}
       </div>
       {isUser ? (
         <div style={{
           lineHeight: 1.8,
           whiteSpace: 'pre-wrap' as const,
-          color: 'var(--color-text)',
+          color: 'var(--color-text-bright)',
         }}>
           {message.content}
         </div>

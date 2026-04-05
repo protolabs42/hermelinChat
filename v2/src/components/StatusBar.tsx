@@ -44,8 +44,8 @@ export default function StatusBar() {
   }
 
   const btnStyle: React.CSSProperties = {
-    width: 36,
-    height: 36,
+    width: 34,
+    height: 34,
     background: 'transparent',
     border: 'none',
     color: 'var(--color-muted)',
@@ -54,11 +54,13 @@ export default function StatusBar() {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    fontSize: 16,
   }
 
   return (
     <div style={{
-      padding: '12px 24px',
+      padding: '0 24px',
+      height: 48,
       borderBottom: '1px solid var(--color-border)',
       background: 'var(--color-surface)',
       display: 'flex',
@@ -105,8 +107,8 @@ export default function StatusBar() {
       </div>
 
       {/* Center */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-        <span style={{ width: 10, height: 10, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        <span style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
         <span>{status}</span>
         {status === 'connected' && sessionId && (
           <span style={{ color: 'var(--color-muted)', opacity: 0.5, fontSize: 11 }}>
@@ -170,17 +172,8 @@ export default function StatusBar() {
           </span>
         )}
 
-        <button onClick={toggleSettings} title="Settings (Ctrl+,)" style={btnStyle}>
-          <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
-            <path
-              d="M6.5 1.5h3l.4 1.6.7.3 1.5-.8 2.1 2.1-.8 1.5.3.7 1.6.4v3l-1.6.4-.3.7.8 1.5-2.1 2.1-1.5-.8-.7.3-.4 1.6h-3l-.4-1.6-.7-.3-1.5.8-2.1-2.1.8-1.5-.3-.7L.7 9.5v-3l1.6-.4.3-.7-.8-1.5L3.9 1.8l1.5.8.7-.3.4-1.1z"
-              stroke="currentColor"
-              strokeWidth="1.2"
-              strokeLinejoin="round"
-              fill="none"
-            />
-            <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.2" fill="none" />
-          </svg>
+        <button onClick={toggleSettings} title="Settings (Ctrl+,)" style={{ ...btnStyle, fontSize: 20 }}>
+          &#9881;
         </button>
       </div>
     </div>

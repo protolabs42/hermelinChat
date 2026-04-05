@@ -21,33 +21,76 @@ export default function SessionSidebar() {
 
   return (
     <div
-      className={`h-screen bg-(--color-surface) flex flex-col overflow-hidden transition-[width,min-width] duration-200 ease-out ${isOpen ? 'animate-slide-left' : ''}`}
+      className={isOpen ? 'animate-slide-left' : ''}
       style={{
         width: isOpen ? 280 : 0,
         minWidth: isOpen ? 280 : 0,
+        height: '100vh',
+        background: 'var(--color-surface)',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        transition: 'width 200ms ease-out, min-width 200ms ease-out',
         borderRight: isOpen ? '1px solid var(--color-border)' : 'none',
+        flexShrink: 0,
       }}
     >
       {/* Header */}
-      <div className="px-5 py-4 flex items-center justify-between border-b border-(--color-border) shrink-0">
-        <span className="text-xs font-semibold text-(--color-text-bright)">
+      <div style={{
+        padding: '0 20px',
+        height: 48,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderBottom: '1px solid var(--color-border)',
+        flexShrink: 0,
+      }}>
+        <span style={{
+          fontSize: 13,
+          fontWeight: 600,
+          color: 'var(--color-text-bright)',
+        }}>
           Sessions
         </span>
-        <div className="flex gap-1">
+        <div style={{ display: 'flex', gap: 4 }}>
           <button
             onClick={() => {
               useChatStore.getState().reset()
               close()
             }}
             title="New session"
-            className="w-8 h-8 bg-transparent border-none text-(--color-muted) cursor-pointer text-lg leading-none rounded-lg flex items-center justify-center hover:bg-(--color-elevated) transition-colors duration-100"
+            style={{
+              width: 32,
+              height: 32,
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--color-muted)',
+              cursor: 'pointer',
+              borderRadius: 8,
+              fontSize: 18,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
           >
             +
           </button>
           <button
             onClick={close}
             title="Close sidebar"
-            className="w-8 h-8 bg-transparent border-none text-(--color-muted) cursor-pointer text-sm leading-none rounded-lg flex items-center justify-center hover:bg-(--color-elevated) transition-colors duration-100"
+            style={{
+              width: 32,
+              height: 32,
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--color-muted)',
+              cursor: 'pointer',
+              borderRadius: 8,
+              fontSize: 16,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
           >
             &#x2715;
           </button>
@@ -55,9 +98,18 @@ export default function SessionSidebar() {
       </div>
 
       {/* Session list */}
-      <div className="flex-1 overflow-y-auto py-2 px-2">
+      <div style={{
+        flex: 1,
+        overflowY: 'auto',
+        padding: 8,
+      }}>
         {sessions.length === 0 && (
-          <div className="px-4 py-8 text-center text-sm text-(--color-muted)">
+          <div style={{
+            padding: '32px 16px',
+            textAlign: 'center',
+            fontSize: 13,
+            color: 'var(--color-muted)',
+          }}>
             No sessions found
           </div>
         )}
@@ -112,16 +164,40 @@ function SessionRow({ session, isActive }: { session: SessionSummary; isActive: 
           console.error('Failed to load session:', e)
         }
       }}
-      className={`block w-full text-left border-none px-4 py-3 cursor-pointer font-mono rounded-lg mb-1 transition-colors duration-100 hover:bg-(--color-elevated) ${
-        isActive ? 'bg-(--color-elevated) border-l-2 border-l-(--color-accent)' : 'bg-transparent border-l-2 border-l-transparent'
-      }`}
+      style={{
+        display: 'block',
+        width: '100%',
+        textAlign: 'left',
+        background: isActive ? 'var(--color-elevated)' : 'transparent',
+        border: 'none',
+        borderLeft: isActive ? '2px solid var(--color-accent)' : '2px solid transparent',
+        color: 'var(--color-text)',
+        fontFamily: 'inherit',
+        fontSize: 13,
+        padding: '12px 16px',
+        borderRadius: 8,
+        cursor: 'pointer',
+        marginBottom: 2,
+      }}
     >
-      <div className={`text-sm overflow-hidden text-ellipsis whitespace-nowrap mb-1 ${
-        isActive ? 'text-(--color-text-bright) font-medium' : 'text-(--color-text)'
-      }`}>
+      <div style={{
+        color: isActive ? 'var(--color-text-bright)' : 'var(--color-text-bright)',
+        fontWeight: 500,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        marginBottom: 6,
+        lineHeight: 1.3,
+      }}>
         {session.title}
       </div>
-      <div className="flex gap-3 text-[10px] text-(--color-muted)">
+      <div style={{
+        fontSize: 11,
+        color: 'var(--color-muted)',
+        display: 'flex',
+        gap: 12,
+        lineHeight: 1,
+      }}>
         <span>{relativeTime(session.started_at)}</span>
         <span>{session.message_count} msgs</span>
       </div>

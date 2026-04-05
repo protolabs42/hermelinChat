@@ -9,7 +9,7 @@ function ArtifactIcon({ type }: { type: string }) {
   const kind = (type || '').toLowerCase()
 
   if (kind === 'table') return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="4" width="18" height="16" rx="2" />
       <line x1="3" y1="10" x2="21" y2="10" />
       <line x1="9" y1="4" x2="9" y2="20" />
@@ -18,14 +18,14 @@ function ArtifactIcon({ type }: { type: string }) {
   )
 
   if (kind === 'chart') return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M3 3v18h18" />
       <path d="M7 14l4-4 4 4 5-6" />
     </svg>
   )
 
   if (kind === 'logs') return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <line x1="8" y1="6" x2="21" y2="6" />
       <line x1="8" y1="12" x2="21" y2="12" />
       <line x1="8" y1="18" x2="21" y2="18" />
@@ -36,7 +36,7 @@ function ArtifactIcon({ type }: { type: string }) {
   )
 
   if (kind === 'markdown') return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
       <polyline points="14 2 14 8 20 8" />
       <line x1="8" y1="13" x2="16" y2="13" />
@@ -45,14 +45,14 @@ function ArtifactIcon({ type }: { type: string }) {
   )
 
   if (kind === 'html') return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="16 18 22 12 16 6" />
       <polyline points="8 6 2 12 8 18" />
     </svg>
   )
 
   if (kind === 'iframe') return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="5" width="14" height="14" rx="2" />
       <path d="M14 3h7v7" />
       <path d="M21 3l-9 9" />
@@ -60,14 +60,14 @@ function ArtifactIcon({ type }: { type: string }) {
   )
 
   if (kind === 'map') return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M21 10c0 6-9 13-9 13S3 16 3 10a9 9 0 1 1 18 0z" />
       <circle cx="12" cy="10" r="3" />
     </svg>
   )
 
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="3" width="18" height="18" rx="2" />
     </svg>
   )
@@ -84,13 +84,20 @@ function TableRenderer({ data }: { data: unknown }) {
   const rows = d.rows || []
 
   return (
-    <div className="overflow-auto p-3">
-      <table className="w-full border-collapse text-[11px] font-mono">
+    <div style={{ overflow: 'auto', padding: 12 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, fontFamily: "'Fira Code', monospace" }}>
         {columns.length > 0 && (
           <thead>
             <tr>
               {columns.map((col, i) => (
-                <th key={i} className="px-2.5 py-1.5 border-b-2 border-(--color-border) text-left text-(--color-accent) font-semibold whitespace-nowrap">
+                <th key={i} style={{
+                  padding: '8px 12px',
+                  borderBottom: '2px solid var(--color-border)',
+                  textAlign: 'left',
+                  color: 'var(--color-accent)',
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                }}>
                   {String(col)}
                 </th>
               ))}
@@ -101,7 +108,11 @@ function TableRenderer({ data }: { data: unknown }) {
           {rows.map((row, ri) => (
             <tr key={ri}>
               {(Array.isArray(row) ? row : [row]).map((cell, ci) => (
-                <td key={ci} className="px-2.5 py-[5px] border-b border-(--color-border) text-(--color-text)">
+                <td key={ci} style={{
+                  padding: '4px 12px',
+                  borderBottom: '1px solid var(--color-border)',
+                  color: 'var(--color-text)',
+                }}>
                   {String(cell ?? '')}
                 </td>
               ))}
@@ -128,7 +139,7 @@ function LogsRenderer({ data }: { data: unknown }) {
   }
 
   return (
-    <div className="p-3 font-mono text-[11px] leading-relaxed overflow-auto">
+    <div style={{ padding: 12, fontFamily: "'Fira Code', monospace", fontSize: 12, lineHeight: 1.7, overflow: 'auto' }}>
       {(lines as Array<Record<string, unknown> | string>).map((line, i) => {
         const entry = typeof line === 'string' ? { msg: line } : line
         const ts = String(entry.ts || entry.timestamp || '')
@@ -136,19 +147,19 @@ function LogsRenderer({ data }: { data: unknown }) {
         const msg = String(entry.msg || entry.text || entry.message || line)
         const source = String(entry.source || '')
         return (
-          <div key={i} className="flex gap-2" style={{ color: levelColor(level) }}>
+          <div key={i} style={{ display: 'flex', gap: 8, color: levelColor(level) }}>
             {ts && (
-              <span className="text-(--color-muted) shrink-0">{ts}</span>
+              <span style={{ color: 'var(--color-muted)', flexShrink: 0 }}>{ts}</span>
             )}
             {level && (
-              <span className="shrink-0 w-10 uppercase font-semibold">
+              <span style={{ flexShrink: 0, width: 40, textTransform: 'uppercase', fontWeight: 600 }}>
                 {level}
               </span>
             )}
             {source && (
-              <span className="text-(--color-muted) shrink-0">[{source}]</span>
+              <span style={{ color: 'var(--color-muted)', flexShrink: 0 }}>[{source}]</span>
             )}
-            <span className="flex-1 whitespace-pre-wrap break-words">
+            <span style={{ flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
               {msg}
             </span>
           </div>
@@ -165,12 +176,12 @@ function MarkdownRenderer({ data }: { data: unknown }) {
     : d?.text ? String(d.text)
     : JSON.stringify(data, null, 2)
 
-  // Simple markdown -> HTML: headings, bold, italic, code blocks, lists, links
+  // Simple markdown -> HTML
   const html = text
-    .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre style="background:var(--color-elevated);padding:10px 12px;border-radius:6px;overflow-x:auto;margin:8px 0;font-size:11px"><code>$2</code></pre>')
-    .replace(/`([^`]+)`/g, '<code style="background:var(--color-elevated);padding:1px 4px;border-radius:3px;font-size:11px">$1</code>')
-    .replace(/^### (.+)$/gm, '<h3 style="font-size:13px;color:var(--color-text-bright);margin:12px 0 4px">$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2 style="font-size:14px;color:var(--color-text-bright);margin:16px 0 6px">$1</h2>')
+    .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre style="background:var(--color-elevated);padding:12px;border-radius:8px;overflow-x:auto;margin:8px 0;font-size:12px"><code>$2</code></pre>')
+    .replace(/`([^`]+)`/g, '<code style="background:var(--color-elevated);padding:2px 4px;border-radius:4px;font-size:12px">$1</code>')
+    .replace(/^### (.+)$/gm, '<h3 style="font-size:12px;color:var(--color-text-bright);margin:12px 0 4px">$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2 style="font-size:1em;color:var(--color-text-bright);margin:16px 0 8px">$1</h2>')
     .replace(/^# (.+)$/gm, '<h1 style="font-size:16px;color:var(--color-accent);margin:0 0 8px">$1</h1>')
     .replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--color-text-bright)">$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
@@ -180,7 +191,14 @@ function MarkdownRenderer({ data }: { data: unknown }) {
 
   return (
     <div
-      className="p-4 font-mono text-xs leading-[1.7] text-(--color-text) overflow-auto"
+      style={{
+        padding: 16,
+        fontFamily: "'Fira Code', monospace",
+        fontSize: 12,
+        lineHeight: 1.7,
+        color: 'var(--color-text)',
+        overflow: 'auto',
+      }}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   )
@@ -232,11 +250,19 @@ function IframeRenderer({ data, id }: { data: unknown; id: string }) {
 
 function ChartRenderer({ data }: { data: unknown }) {
   return (
-    <div className="p-4 overflow-auto">
-      <div className="text-[10px] text-(--color-muted) mb-2 uppercase tracking-[0.05em]">
+    <div style={{ padding: 16, overflow: 'auto' }}>
+      <div style={{ fontSize: 10, color: 'var(--color-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
         Chart data
       </div>
-      <pre className="font-mono text-[11px] leading-normal text-(--color-text) whitespace-pre-wrap break-words m-0">
+      <pre style={{
+        fontFamily: "'Fira Code', monospace",
+        fontSize: 12,
+        lineHeight: 1.6,
+        color: 'var(--color-text)',
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+        margin: 0,
+      }}>
         {JSON.stringify(data, null, 2)}
       </pre>
     </div>
@@ -245,11 +271,19 @@ function ChartRenderer({ data }: { data: unknown }) {
 
 function MapRenderer({ data }: { data: unknown }) {
   return (
-    <div className="p-4 overflow-auto">
-      <div className="text-[10px] text-(--color-muted) mb-2 uppercase tracking-[0.05em]">
+    <div style={{ padding: 16, overflow: 'auto' }}>
+      <div style={{ fontSize: 10, color: 'var(--color-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
         Map data
       </div>
-      <pre className="font-mono text-[11px] leading-normal text-(--color-text) whitespace-pre-wrap break-words m-0">
+      <pre style={{
+        fontFamily: "'Fira Code', monospace",
+        fontSize: 12,
+        lineHeight: 1.6,
+        color: 'var(--color-text)',
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+        margin: 0,
+      }}>
         {JSON.stringify(data, null, 2)}
       </pre>
     </div>
@@ -258,9 +292,19 @@ function MapRenderer({ data }: { data: unknown }) {
 
 function EmptyRenderer({ title, detail }: { title: string; detail: string }) {
   return (
-    <div className="h-full flex flex-col items-center justify-center gap-2 p-8 text-center text-(--color-muted) font-mono">
-      <div className="text-xs text-(--color-text-bright) opacity-90">{title}</div>
-      <div className="text-[11px] opacity-70">{detail}</div>
+    <div style={{
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      padding: 32,
+      textAlign: 'center',
+      color: 'var(--color-muted)',
+    }}>
+      <div style={{ fontSize: 12, color: 'var(--color-text-bright)', opacity: 0.9 }}>{title}</div>
+      <div style={{ fontSize: 12, opacity: 0.7 }}>{detail}</div>
     </div>
   )
 }
@@ -277,8 +321,16 @@ function ArtifactBody({ artifact }: { artifact: Artifact }) {
     case 'chart': return <ChartRenderer data={artifact.data} />
     case 'map': return <MapRenderer data={artifact.data} />
     default: return (
-      <div className="p-4 overflow-auto">
-        <pre className="font-mono text-[11px] leading-normal text-(--color-text) whitespace-pre-wrap break-words m-0">
+      <div style={{ padding: 16, overflow: 'auto' }}>
+        <pre style={{
+          fontFamily: "'Fira Code', monospace",
+          fontSize: 12,
+          lineHeight: 1.6,
+          color: 'var(--color-text)',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+          margin: 0,
+        }}>
           {JSON.stringify(artifact.data, null, 2)}
         </pre>
       </div>
@@ -395,65 +447,162 @@ export default function ArtifactPanel() {
 
   return (
     <div
-      className="shrink-0 border-l border-(--color-border) glass-surface relative z-20 flex flex-col overflow-hidden min-w-0 animate-slide-right"
-      style={{ width }}
+      className="animate-slide-right"
+      style={{
+        flexShrink: 0,
+        borderLeft: '1px solid var(--color-border)',
+        background: 'var(--color-surface)',
+        position: 'relative',
+        zIndex: 20,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        minWidth: 0,
+        width,
+      }}
     >
       {/* Resize handle (left edge) */}
       <div
         onPointerDown={handleResizePointerDown}
         title="Drag to resize"
-        className="artifact-resize absolute left-0 top-0 bottom-0 w-3 cursor-col-resize z-[60] touch-none flex items-center justify-center"
+        className="artifact-resize"
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: 12,
+          cursor: 'col-resize',
+          zIndex: 60,
+          touchAction: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
       >
-        <div className="w-[3px] h-[42px] rounded-full bg-(--color-border) opacity-60" />
+        <div style={{
+          width: 4,
+          height: 40,
+          borderRadius: 99,
+          background: 'var(--color-border)',
+          opacity: 0.6,
+        }} />
       </div>
 
       {/* Header */}
-      <div className="px-3 py-3 border-b border-(--color-border) flex items-center gap-2.5 glass-surface relative z-40">
+      <div style={{
+        padding: 12,
+        borderBottom: '1px solid var(--color-border)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        background: 'var(--color-surface)',
+        position: 'relative',
+        zIndex: 40,
+      }}>
         {artifacts.length > 0 ? (
           <button
             ref={triggerRef}
             onClick={() => setDropdownOpen((o) => !o)}
-            className="artifact-trigger flex-1 min-w-0 flex items-center gap-2 border-0 bg-transparent cursor-pointer px-2 py-1.5 -mx-2 -my-1.5 rounded-lg font-mono text-left text-(--color-text)"
+            className="artifact-trigger"
             title={activeArtifact?.title || activeArtifact?.id || ''}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              border: 0,
+              background: 'transparent',
+              cursor: 'pointer',
+              padding: '8px 8px',
+              margin: '-8px -8px',
+              borderRadius: 8,
+              fontFamily: "'Fira Code', monospace",
+              textAlign: 'left',
+              color: 'var(--color-text)',
+            }}
           >
-            <span className="text-(--color-accent) flex items-center shrink-0">
+            <span style={{ color: 'var(--color-accent)', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
               <ArtifactIcon type={activeArtifact?.artifact_type || ''} />
             </span>
-            <span className="overflow-hidden text-ellipsis whitespace-nowrap text-(--color-text-bright) font-[650] text-xs min-w-0">
+            <span style={{
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              color: 'var(--color-text-bright)',
+              fontWeight: 650,
+              fontSize: 12,
+              minWidth: 0,
+            }}>
               {activeArtifact?.title || activeArtifact?.id || 'Artifacts'}
             </span>
-            <div className="flex-1" />
+            <div style={{ flex: 1 }} />
 
             {activeArtifact?.live && (
-              <span className="inline-flex items-center gap-1.5 text-(--color-success) text-[10px] shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-(--color-success) animate-live-pulse" />
+              <span className="animate-live-pulse" style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                color: 'var(--color-success)',
+                fontSize: 10,
+                flexShrink: 0,
+              }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-success)' }} />
                 live
               </span>
             )}
 
             {activeArtifact?.persistent && (
-              <span className="shrink-0 text-[9px] text-(--color-accent) border border-(--color-accent) opacity-70 px-[7px] py-px rounded-full uppercase tracking-[0.06em]">
+              <span style={{
+                flexShrink: 0,
+                fontSize: 10,
+                color: 'var(--color-accent)',
+                border: '1px solid var(--color-accent)',
+                opacity: 0.7,
+                padding: '2px 8px',
+                borderRadius: 99,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+              }}>
                 saved
               </span>
             )}
 
             {artifacts.length > 1 && (
-              <span className="shrink-0 text-[9px] text-(--color-muted) border border-(--color-border) px-[7px] py-px rounded-full">
+              <span style={{
+                flexShrink: 0,
+                fontSize: 10,
+                color: 'var(--color-muted)',
+                border: '1px solid var(--color-border)',
+                padding: '2px 8px',
+                borderRadius: 99,
+              }}>
                 {artifacts.length}
               </span>
             )}
 
             <svg
-              width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+              width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
               strokeLinecap="round" strokeLinejoin="round"
-              className="text-(--color-muted) shrink-0 transition-transform duration-[120ms]"
-              style={{ transform: dropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+              style={{
+                color: 'var(--color-muted)',
+                flexShrink: 0,
+                transition: 'transform 120ms',
+                transform: dropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+              }}
             >
               <polyline points="6 9 12 15 18 9" />
             </svg>
           </button>
         ) : (
-          <div className="flex-1 text-xs text-(--color-text-bright) font-[650] font-mono">
+          <div style={{
+            flex: 1,
+            fontSize: 12,
+            color: 'var(--color-text-bright)',
+            fontWeight: 650,
+            fontFamily: "'Fira Code', monospace",
+          }}>
             Artifacts
           </div>
         )}
@@ -462,9 +611,21 @@ export default function ArtifactPanel() {
         <button
           onClick={(e) => { e.stopPropagation(); closePanel() }}
           title="Close panel"
-          className="cursor-pointer flex items-center justify-center w-7 h-7 rounded border-0 bg-transparent text-(--color-muted) shrink-0 hover:text-(--color-text) hover:bg-(--color-elevated) transition-colors duration-100"
+          style={{
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 28,
+            height: 28,
+            borderRadius: 8,
+            border: 0,
+            background: 'transparent',
+            color: 'var(--color-muted)',
+            flexShrink: 0,
+          }}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
@@ -474,7 +635,21 @@ export default function ArtifactPanel() {
         {dropdownOpen && artifacts.length > 0 && (
           <div
             ref={menuRef}
-            className="absolute top-[calc(100%+6px)] left-2.5 right-2.5 border border-(--color-border) bg-(--color-elevated) rounded-xl shadow-[0_12px_32px_rgba(0,0,0,0.5)] p-1.5 z-[70] max-h-80 overflow-y-auto animate-dropdown"
+            className="animate-dropdown"
+            style={{
+              position: 'absolute',
+              top: 'calc(100% + 8px)',
+              left: 8,
+              right: 8,
+              border: '1px solid var(--color-border)',
+              background: 'var(--color-elevated)',
+              borderRadius: 12,
+              boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
+              padding: 8,
+              zIndex: 70,
+              maxHeight: 320,
+              overflowY: 'auto',
+            }}
           >
             {artifacts.map((artifact) => {
               const active = activeArtifact?.id === artifact.id
@@ -482,28 +657,64 @@ export default function ArtifactPanel() {
                 <button
                   key={artifact.id}
                   onClick={() => { setActiveId(artifact.id); setDropdownOpen(false) }}
-                  className="artifact-row w-full flex items-center gap-2 px-2.5 py-2 border-0 rounded-lg cursor-pointer font-mono text-left"
+                  className="artifact-row"
                   style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '8px 12px',
+                    border: 0,
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    fontFamily: "'Fira Code', monospace",
+                    textAlign: 'left',
                     background: active ? 'color-mix(in srgb, var(--color-accent) 10%, transparent)' : 'transparent',
                     color: active ? 'var(--color-accent)' : 'var(--color-text)',
                     borderLeft: active ? '2px solid var(--color-accent)' : '2px solid transparent',
                   }}
                 >
-                  <span className="flex items-center" style={{ color: active ? 'var(--color-accent)' : 'var(--color-muted)' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', color: active ? 'var(--color-accent)' : 'var(--color-muted)' }}>
                     <ArtifactIcon type={artifact.artifact_type} />
                   </span>
-                  <span className={`flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-[11px] ${active ? 'text-(--color-accent)' : 'text-(--color-text-bright)'}`}>
+                  <span style={{
+                    flex: 1,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    fontSize: 12,
+                    color: active ? 'var(--color-accent)' : 'var(--color-text-bright)',
+                  }}>
                     {artifact.title || artifact.id}
                   </span>
                   {artifact.live && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-(--color-success) animate-live-pulse shrink-0" />
+                    <span className="animate-live-pulse" style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-success)', flexShrink: 0 }} />
                   )}
                   {artifact.persistent && (
-                    <span className="shrink-0 text-[9px] text-(--color-accent) opacity-70 border border-(--color-accent) px-1.5 py-px rounded-full uppercase tracking-[0.06em]">
+                    <span style={{
+                      flexShrink: 0,
+                      fontSize: 10,
+                      color: 'var(--color-accent)',
+                      opacity: 0.7,
+                      border: '1px solid var(--color-accent)',
+                      padding: '2px 8px',
+                      borderRadius: 99,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                    }}>
                       saved
                     </span>
                   )}
-                  <span className="shrink-0 text-[9px] text-(--color-muted) border border-(--color-border) px-1.5 py-px rounded-full uppercase tracking-[0.06em]">
+                  <span style={{
+                    flexShrink: 0,
+                    fontSize: 10,
+                    color: 'var(--color-muted)',
+                    border: '1px solid var(--color-border)',
+                    padding: '2px 8px',
+                    borderRadius: 99,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                  }}>
                     {artifact.artifact_type}
                   </span>
                 </button>
@@ -514,7 +725,7 @@ export default function ArtifactPanel() {
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-auto min-h-0">
+      <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
         {activeArtifact ? (
           <ArtifactBody artifact={activeArtifact} />
         ) : (
@@ -524,7 +735,17 @@ export default function ArtifactPanel() {
 
       {/* Footer */}
       {activeArtifact && (
-        <div className="px-3 py-2 border-t border-(--color-border) text-[9px] text-(--color-muted) opacity-50 flex justify-between gap-3 font-mono">
+        <div style={{
+          padding: '8px 12px',
+          borderTop: '1px solid var(--color-border)',
+          fontSize: 10,
+          color: 'var(--color-muted)',
+          opacity: 0.5,
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: 12,
+          fontFamily: "'Fira Code', monospace",
+        }}>
           <span>
             {activeArtifact.timestamp ? `updated ${formatTimeAgo(activeArtifact.timestamp)}` : ''}
           </span>
