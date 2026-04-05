@@ -59,8 +59,15 @@ export default function MessageInput() {
   }
 
   return (
-    <div className="border-t border-(--color-border) bg-(--color-surface) p-6 flex gap-4 items-start">
-      <div className="flex-1 relative">
+    <div style={{
+      borderTop: '1px solid var(--color-border)',
+      background: 'var(--color-surface)',
+      padding: 24,
+      display: 'flex',
+      gap: 16,
+      alignItems: 'flex-start',
+    }}>
+      <div style={{ flex: 1, position: 'relative' }}>
         <textarea
           ref={textareaRef}
           autoFocus
@@ -70,14 +77,32 @@ export default function MessageInput() {
           onKeyDown={handleKeyDown}
           placeholder="Message Aurora..."
           disabled={isStreaming}
-          className="w-full bg-(--color-elevated) border border-(--color-border) rounded-lg px-5 py-3 text-(--color-text-bright) font-mono outline-none resize-none overflow-auto focus:border-(--color-accent) transition-colors"
           style={{
+            width: '100%',
+            background: 'var(--color-elevated)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 8,
+            padding: '12px 20px',
+            color: 'var(--color-text-bright)',
+            fontFamily: 'inherit',
+            fontSize: 'inherit',
+            outline: 'none',
+            resize: 'none',
+            overflow: 'auto',
             opacity: isStreaming ? 0.5 : 1,
             lineHeight: `${LINE_HEIGHT}px`,
           }}
         />
         {input.length > CHAR_COUNT_THRESHOLD && (
-          <span className="absolute right-3 bottom-2 text-[9px] text-(--color-muted) opacity-60 pointer-events-none">
+          <span style={{
+            position: 'absolute',
+            right: 12,
+            bottom: 8,
+            fontSize: 9,
+            color: 'var(--color-muted)',
+            opacity: 0.6,
+            pointerEvents: 'none',
+          }}>
             {input.length}
           </span>
         )}
@@ -85,7 +110,18 @@ export default function MessageInput() {
       {isStreaming ? (
         <button
           onClick={handleCancel}
-          className="bg-(--color-danger) text-(--color-bg) border-none rounded-lg px-6 py-3 font-bold text-sm cursor-pointer font-mono shrink-0 hover:opacity-90 transition-opacity"
+          style={{
+            background: 'var(--color-danger)',
+            color: 'var(--color-bg)',
+            border: 'none',
+            borderRadius: 8,
+            padding: '12px 24px',
+            fontWeight: 700,
+            fontSize: 14,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            flexShrink: 0,
+          }}
         >
           Stop
         </button>
@@ -93,9 +129,19 @@ export default function MessageInput() {
         <button
           onClick={handleSend}
           disabled={!input.trim()}
-          className={`text-(--color-bg) border-none rounded-lg px-6 py-3 font-bold text-sm font-mono shrink-0 transition-all ${
-            input.trim() ? 'bg-(--color-accent) cursor-pointer hover:opacity-90' : 'bg-(--color-border) cursor-not-allowed opacity-50'
-          }`}
+          style={{
+            background: input.trim() ? 'var(--color-accent)' : 'var(--color-border)',
+            color: 'var(--color-bg)',
+            border: 'none',
+            borderRadius: 8,
+            padding: '12px 24px',
+            fontWeight: 700,
+            fontSize: 14,
+            cursor: input.trim() ? 'pointer' : 'not-allowed',
+            fontFamily: 'inherit',
+            flexShrink: 0,
+            opacity: input.trim() ? 1 : 0.5,
+          }}
         >
           Send
         </button>

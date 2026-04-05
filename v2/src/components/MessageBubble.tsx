@@ -22,7 +22,15 @@ export default function MessageBubble({ message }: Props) {
 
   if (message.role === 'system') {
     return (
-      <div className="mb-6 pl-4 py-2 border-l-2 border-(--color-danger) text-(--color-danger) leading-relaxed">
+      <div style={{
+        marginBottom: 24,
+        paddingLeft: 16,
+        paddingTop: 8,
+        paddingBottom: 8,
+        borderLeft: '2px solid var(--color-danger)',
+        color: 'var(--color-danger)',
+        lineHeight: 1.7,
+      }}>
         {message.content}
       </div>
     )
@@ -31,17 +39,35 @@ export default function MessageBubble({ message }: Props) {
   const isUser = message.role === 'user'
 
   return (
-    <div className={`mb-8 ${isUser ? 'pl-4 border-l-2 border-(--color-accent)' : ''}`}>
-      <div className={`text-[10px] font-bold uppercase tracking-widest mb-2 ${isUser ? 'text-(--color-accent)' : 'text-(--color-success)'}`}>
+    <div style={{
+      marginBottom: 32,
+      paddingLeft: isUser ? 16 : 0,
+      borderLeft: isUser ? '2px solid var(--color-accent)' : 'none',
+    }}>
+      <div style={{
+        fontSize: 10,
+        fontWeight: 700,
+        textTransform: 'uppercase' as const,
+        letterSpacing: '0.1em',
+        marginBottom: 8,
+        color: isUser ? 'var(--color-accent)' : 'var(--color-success)',
+      }}>
         {isUser ? 'YOU' : 'AURORA'}
       </div>
       {isUser ? (
-        <div className="leading-[1.8] whitespace-pre-wrap text-(--color-text)">
+        <div style={{
+          lineHeight: 1.8,
+          whiteSpace: 'pre-wrap' as const,
+          color: 'var(--color-text)',
+        }}>
           {message.content}
         </div>
       ) : (
         <div
-          className="leading-[1.8] text-(--color-text-bright)"
+          style={{
+            lineHeight: 1.8,
+            color: 'var(--color-text-bright)',
+          }}
           dangerouslySetInnerHTML={{ __html: markdownToHtml(message.content) }}
         />
       )}

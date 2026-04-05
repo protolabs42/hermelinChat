@@ -38,13 +38,25 @@ export default function ChatView() {
       <div
         ref={scrollContainerRef}
         onScroll={checkScroll}
-        className="flex-1 overflow-auto p-8 relative"
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: 32,
+          position: 'relative',
+        }}
       >
         {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full gap-4">
-            <span className="text-(--color-accent) text-[32px] opacity-30">&#9672;</span>
-            <span className="text-(--color-text-bright) text-lg font-semibold">Start a conversation</span>
-            <span className="text-(--color-muted) text-sm">Message Aurora to begin</span>
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            gap: 16,
+          }}>
+            <span style={{ color: 'var(--color-accent)', fontSize: 32, opacity: 0.3 }}>&#9672;</span>
+            <span style={{ color: 'var(--color-text-bright)', fontSize: 18, fontWeight: 600 }}>Start a conversation</span>
+            <span style={{ color: 'var(--color-muted)', fontSize: 14 }}>Message Aurora to begin</span>
           </div>
         )}
         {messages.map((msg) => (
@@ -57,7 +69,22 @@ export default function ChatView() {
         <button
           onClick={scrollToBottom}
           aria-label="Scroll to bottom"
-          className="absolute bottom-24 right-8 w-10 h-10 rounded-full bg-(--color-elevated) border border-(--color-border) text-(--color-text-bright) cursor-pointer flex items-center justify-center z-10 shadow-lg hover:bg-(--color-border) transition-colors"
+          style={{
+            position: 'absolute',
+            bottom: 96,
+            right: 32,
+            width: 40,
+            height: 40,
+            borderRadius: '50%',
+            background: 'var(--color-elevated)',
+            border: '1px solid var(--color-border)',
+            color: 'var(--color-text-bright)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10,
+          }}
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M8 3v10M4 9l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
