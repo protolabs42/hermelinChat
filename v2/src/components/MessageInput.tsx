@@ -68,6 +68,7 @@ export default function MessageInput() {
       gap: 8,
       alignItems: 'flex-end',
     }}>
+      {/* Wrapper ensures button aligns to bottom of textarea */}
       <div style={{ flex: 1, position: 'relative' }}>
         <textarea
           ref={textareaRef}
@@ -114,14 +115,15 @@ export default function MessageInput() {
           style={{
             background: 'var(--color-danger, #f38ba8)',
             color: 'var(--color-bg)',
-            border: 'none',
+            border: '1px solid transparent',
             borderRadius: 8,
-            padding: '8px 16px',
+            padding: '7px 16px',
             fontWeight: 700,
             fontSize: 12,
             cursor: 'pointer',
             fontFamily: 'inherit',
             flexShrink: 0,
+            lineHeight: `${LINE_HEIGHT}px`,
           }}
         >
           Stop
@@ -133,14 +135,15 @@ export default function MessageInput() {
           style={{
             background: input.trim() ? 'var(--color-accent)' : 'var(--color-border)',
             color: 'var(--color-bg)',
-            border: 'none',
+            border: '1px solid transparent',
             borderRadius: 8,
-            padding: '8px 16px',
+            padding: '7px 16px',
             fontWeight: 700,
             fontSize: 12,
             cursor: input.trim() ? 'pointer' : 'not-allowed',
             fontFamily: 'inherit',
             flexShrink: 0,
+            lineHeight: `${LINE_HEIGHT}px`,
           }}
         >
           Send
