@@ -66,7 +66,7 @@ export default function MessageInput() {
       padding: '12px 16px',
       display: 'flex',
       gap: 8,
-      alignItems: 'center',
+      alignItems: 'flex-start',
     }}>
       <div style={{ flex: 1, position: 'relative' }}>
         <textarea
