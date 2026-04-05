@@ -1,10 +1,10 @@
 [package]
-name = "hermelinchat"
+name = "aurora-chat"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "hermelinchat_lib"
+name = "aurora_chat_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]

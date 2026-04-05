@@ -1,6 +1,6 @@
 {
   "identifier": "default",
-  "description": "Default capability for hermelinChat",
+  "description": "Default capability for Aurora Chat",
   "windows": ["main"],
   "permissions": [
     "core:default"

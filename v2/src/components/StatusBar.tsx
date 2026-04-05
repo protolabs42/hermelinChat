@@ -80,7 +80,7 @@ export default function StatusBar() {
       <button
         onClick={() => {
           useChatStore.getState().reset()
-          invoke('set_window_title', { title: 'hermelinChat' }).catch(() => {})
+          invoke('set_window_title', { title: 'Aurora Chat' }).catch(() => {})
         }}
         title="New chat (Ctrl+N)"
         style={{

@@ -12,7 +12,7 @@ export function useKeyboardShortcuts() {
       if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
         e.preventDefault()
         useChatStore.getState().reset()
-        invoke('set_window_title', { title: 'hermelinChat' }).catch(() => {})
+        invoke('set_window_title', { title: 'Aurora Chat' }).catch(() => {})
       }
       // Ctrl+, or Cmd+, -- open settings
       if ((e.ctrlKey || e.metaKey) && e.key === ',') {

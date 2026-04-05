@@ -11,7 +11,7 @@ const ThemeContext = createContext<ThemeContextValue>(null!)
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [themeId, setThemeIdState] = useState(() => {
-    return localStorage.getItem('hermelinchat-theme') || DEFAULT_THEME_ID
+    return localStorage.getItem('aurora-chat-theme') || DEFAULT_THEME_ID
   })
 
   const theme = THEMES[themeId] || THEMES[DEFAULT_THEME_ID]
@@ -19,7 +19,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const setThemeId = useCallback((id: string) => {
     if (THEMES[id]) {
       setThemeIdState(id)
-      localStorage.setItem('hermelinchat-theme', id)
+      localStorage.setItem('aurora-chat-theme', id)
     }
   }, [])
 

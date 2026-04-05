@@ -219,7 +219,7 @@ export default function SettingsPanel() {
           <SectionLabel>About</SectionLabel>
           <div style={{ fontSize: 11, color: 'var(--color-text)', lineHeight: 1.6 }}>
             <div style={{ fontWeight: 600, color: 'var(--color-text-bright)' }}>
-              hermelinChat v2
+              Aurora Chat v2
             </div>
             <div style={{ color: 'var(--color-muted)', fontSize: 10 }}>
               version 0.1.0

@@ -156,7 +156,7 @@ function SessionRow({ session, isActive }: { session: SessionSummary; isActive: 
 
           // Update window title
           invoke('set_window_title', {
-            title: `hermelinChat \u2014 ${session.title}`,
+            title: `Aurora Chat \u2014 ${session.title}`,
           }).catch(() => {})
 
           // Close sidebar

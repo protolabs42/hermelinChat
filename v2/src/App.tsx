@@ -52,14 +52,14 @@ export default function App() {
 
   // Set initial window title
   useEffect(() => {
-    invoke('set_window_title', { title: 'hermelinChat' }).catch(() => {})
+    invoke('set_window_title', { title: 'Aurora Chat' }).catch(() => {})
   }, [])
 
   // Reset window title when session is cleared
   useEffect(() => {
     const unsub = useChatStore.subscribe((state, prev) => {
       if (prev.sessionId && !state.sessionId) {
-        invoke('set_window_title', { title: 'hermelinChat' }).catch(() => {})
+        invoke('set_window_title', { title: 'Aurora Chat' }).catch(() => {})
       }
     })
     return unsub
