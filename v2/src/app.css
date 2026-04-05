@@ -16,7 +16,8 @@
   --color-purple: var(--color-purple);
   --color-cyan: var(--color-cyan);
 
-  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  --font-mono: 'FiraCode Nerd Font Mono', 'Fira Code', 'JetBrains Mono', monospace;
+  --font-size-base: 13px;
 }
 
 /* Base styles */
@@ -24,6 +25,7 @@
 
 body {
   font-family: var(--font-mono);
+  font-size: var(--font-size-base, 13px);
   background: var(--color-bg, #1e1e2e);
   color: var(--color-text, #cdd6f4);
   overflow: hidden;

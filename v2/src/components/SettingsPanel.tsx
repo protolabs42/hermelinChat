@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useSettingsStore } from '../stores/settings'
+import { useFontSizeStore } from '../stores/font-size'
 import { useTheme, THEMES } from '../theme'
 
 type ApprovalMode = 'yolo' | 'smart' | 'manual'
@@ -17,6 +18,7 @@ export default function SettingsPanel() {
   const close = useSettingsStore((s) => s.close)
   const { themeId, setThemeId } = useTheme()
   const [approvalMode, setApprovalMode] = useState<ApprovalMode>('yolo')
+  const fontSizeStore = useFontSizeStore()
 
   if (!isOpen) return null
 
@@ -80,6 +82,36 @@ export default function SettingsPanel() {
                 </button>
               )
             })}
+          </div>
+
+          {/* Font size control */}
+          <div className="mb-4 flex items-center justify-between">
+            <span className="text-[10px] text-(--color-muted)">
+              Font size
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => fontSizeStore.decrease()}
+                className="w-6 h-6 rounded bg-(--color-elevated) border border-(--color-border) text-(--color-text-bright) text-xs cursor-pointer flex items-center justify-center hover:bg-(--color-border)"
+              >
+                −
+              </button>
+              <span className="text-[11px] text-(--color-text-bright) w-8 text-center">
+                {fontSizeStore.size}
+              </span>
+              <button
+                onClick={() => fontSizeStore.increase()}
+                className="w-6 h-6 rounded bg-(--color-elevated) border border-(--color-border) text-(--color-text-bright) text-xs cursor-pointer flex items-center justify-center hover:bg-(--color-border)"
+              >
+                +
+              </button>
+              <button
+                onClick={() => fontSizeStore.reset()}
+                className="text-[9px] text-(--color-muted) hover:text-(--color-text) cursor-pointer bg-transparent border-none"
+              >
+                reset
+              </button>
+            </div>
           </div>
 
           {/* Section: Agent */}
