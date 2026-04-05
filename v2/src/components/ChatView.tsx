@@ -44,11 +44,11 @@ export default function ChatView() {
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full gap-3">
             <span className="text-(--color-accent) text-[24px] opacity-40">&#9672;</span>
-            <span className="text-(--color-muted) text-[15px] font-semibold">Start a conversation</span>
-            <span className="text-(--color-muted) text-[11px] opacity-60">Message Aurora to begin</span>
+            <span className="text-(--color-muted) text-base font-semibold">Start a conversation</span>
+            <span className="text-(--color-muted) text-sm opacity-60">Message Aurora to begin</span>
           </div>
         )}
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           {messages.map((msg) => (
             <MessageBubble key={msg.id} message={msg} />
           ))}

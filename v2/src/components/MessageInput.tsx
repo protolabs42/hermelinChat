@@ -62,7 +62,7 @@ export default function MessageInput() {
 
   return (
     <div className="px-6 py-4">
-      <div className="max-w-3xl mx-auto glass-surface rounded-lg border border-(--color-border) shadow-[0_-4px_24px_rgba(0,0,0,0.15)]">
+      <div className="max-w-5xl mx-auto glass-surface rounded-lg border border-(--color-border) shadow-[0_-4px_24px_rgba(0,0,0,0.15)]">
         <div className="flex gap-2 items-start p-2">
           <div className="flex-1 relative">
             <textarea
@@ -74,7 +74,7 @@ export default function MessageInput() {
               onKeyDown={handleKeyDown}
               placeholder="Message Aurora..."
               disabled={isStreaming}
-              className="w-full bg-transparent border-none rounded-lg px-4 py-3 text-(--color-text-bright) text-[13px] font-mono outline-none resize-none overflow-auto"
+              className="w-full bg-transparent border-none rounded-lg px-4 py-3 text-(--color-text-bright) font-mono outline-none resize-none overflow-auto"
               style={{
                 opacity: isStreaming ? 0.5 : 1,
                 lineHeight: `${LINE_HEIGHT}px`,

@@ -43,12 +43,12 @@ export default function MessageBubble({ message }: Props) {
         {isUser ? 'YOU' : 'AURORA'}
       </div>
       {isUser ? (
-        <div className="text-[13px] leading-relaxed whitespace-pre-wrap">
+        <div className="leading-relaxed whitespace-pre-wrap">
           {message.content}
         </div>
       ) : (
         <div
-          className="text-[13px] leading-[1.7]"
+          className="leading-[1.7]"
           dangerouslySetInnerHTML={{ __html: markdownToHtml(message.content) }}
         />
       )}
