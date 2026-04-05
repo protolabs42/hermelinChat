@@ -3,7 +3,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { useChatStore } from '../stores/chat'
 
 const MAX_ROWS = 4
-const LINE_HEIGHT = 20
+const LINE_HEIGHT = 22
 const CHAR_COUNT_THRESHOLD = 500
 
 export default function MessageInput() {
@@ -17,7 +17,7 @@ export default function MessageInput() {
     const el = textareaRef.current
     if (!el) return
     el.style.height = 'auto'
-    const maxHeight = LINE_HEIGHT * MAX_ROWS + 16
+    const maxHeight = LINE_HEIGHT * MAX_ROWS + 24
     el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`
   }, [])
 
@@ -59,7 +59,7 @@ export default function MessageInput() {
   }
 
   return (
-    <div className="border-t border-(--color-border) px-8 py-4 bg-(--color-surface) flex gap-3 items-start">
+    <div className="border-t border-(--color-border) bg-(--color-surface) p-6 flex gap-4 items-start">
       <div className="flex-1 relative">
         <textarea
           ref={textareaRef}
@@ -70,7 +70,7 @@ export default function MessageInput() {
           onKeyDown={handleKeyDown}
           placeholder="Message Aurora..."
           disabled={isStreaming}
-          className="w-full bg-(--color-elevated) border border-(--color-border) rounded-lg px-4 py-3 text-(--color-text-bright) font-mono outline-none resize-none overflow-auto"
+          className="w-full bg-(--color-elevated) border border-(--color-border) rounded-lg px-5 py-3 text-(--color-text-bright) font-mono outline-none resize-none overflow-auto focus:border-(--color-accent) transition-colors"
           style={{
             opacity: isStreaming ? 0.5 : 1,
             lineHeight: `${LINE_HEIGHT}px`,
@@ -85,8 +85,7 @@ export default function MessageInput() {
       {isStreaming ? (
         <button
           onClick={handleCancel}
-          className="bg-(--color-danger) text-(--color-bg) border-none rounded-lg px-5 py-3 font-bold text-xs cursor-pointer font-mono shrink-0 hover:opacity-90 transition-opacity duration-100"
-          style={{ lineHeight: `${LINE_HEIGHT}px` }}
+          className="bg-(--color-danger) text-(--color-bg) border-none rounded-lg px-6 py-3 font-bold text-sm cursor-pointer font-mono shrink-0 hover:opacity-90 transition-opacity"
         >
           Stop
         </button>
@@ -94,10 +93,9 @@ export default function MessageInput() {
         <button
           onClick={handleSend}
           disabled={!input.trim()}
-          className={`text-(--color-bg) border-none rounded-lg px-5 py-3 font-bold text-xs font-mono shrink-0 transition-all duration-100 ${
+          className={`text-(--color-bg) border-none rounded-lg px-6 py-3 font-bold text-sm font-mono shrink-0 transition-all ${
             input.trim() ? 'bg-(--color-accent) cursor-pointer hover:opacity-90' : 'bg-(--color-border) cursor-not-allowed opacity-50'
           }`}
-          style={{ lineHeight: `${LINE_HEIGHT}px` }}
         >
           Send
         </button>
