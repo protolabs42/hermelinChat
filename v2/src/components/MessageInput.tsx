@@ -66,9 +66,8 @@ export default function MessageInput() {
       padding: '12px 16px',
       display: 'flex',
       gap: 8,
-      alignItems: 'flex-end',
+      alignItems: 'center',
     }}>
-      {/* Wrapper ensures button aligns to bottom of textarea */}
       <div style={{ flex: 1, position: 'relative' }}>
         <textarea
           ref={textareaRef}
