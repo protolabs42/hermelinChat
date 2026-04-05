@@ -61,7 +61,7 @@ export default function ChatView() {
         <button
           onClick={scrollToBottom}
           aria-label="Scroll to bottom"
-          className="absolute bottom-20 right-6 w-8 h-8 rounded-full bg-(--color-elevated) border border-(--color-border) text-(--color-text-bright) cursor-pointer flex items-center justify-center text-[16px] z-10 shadow-[0_2px_8px_rgba(0,0,0,0.3)] transition-opacity duration-200"
+          className="absolute bottom-20 right-6 w-8 h-8 rounded-full glass-surface border border-(--color-border) text-(--color-text-bright) cursor-pointer flex items-center justify-center text-[16px] z-10 shadow-[0_2px_12px_rgba(0,0,0,0.35)] transition-opacity duration-200"
         >
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M8 3v10M4 9l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

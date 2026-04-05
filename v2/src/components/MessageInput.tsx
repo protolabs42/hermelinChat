@@ -89,7 +89,7 @@ export default function MessageInput() {
           {isStreaming ? (
             <button
               onClick={handleCancel}
-              className="bg-(--color-danger) text-(--color-bg) border border-transparent rounded-lg px-4 h-[34px] font-bold text-xs cursor-pointer font-mono shrink-0 self-end mb-1 mr-1"
+              className="bg-(--color-danger) text-(--color-bg) border border-transparent rounded-lg px-4 h-[34px] font-bold text-xs cursor-pointer font-mono shrink-0 self-end mb-1 mr-1 hover:opacity-90 transition-opacity duration-100"
             >
               Stop
             </button>
@@ -97,8 +97,8 @@ export default function MessageInput() {
             <button
               onClick={handleSend}
               disabled={!input.trim()}
-              className={`text-(--color-bg) border border-transparent rounded-lg px-4 h-[34px] font-bold text-xs font-mono shrink-0 self-end mb-1 mr-1 ${
-                input.trim() ? 'bg-(--color-accent) cursor-pointer' : 'bg-(--color-border) cursor-not-allowed'
+              className={`text-(--color-bg) border border-transparent rounded-lg px-4 h-[34px] font-bold text-xs font-mono shrink-0 self-end mb-1 mr-1 transition-all duration-100 ${
+                input.trim() ? 'bg-(--color-accent) cursor-pointer hover:opacity-90' : 'bg-(--color-border) cursor-not-allowed opacity-60'
               }`}
             >
               Send

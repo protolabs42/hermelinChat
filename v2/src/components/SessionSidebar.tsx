@@ -124,9 +124,10 @@ function SessionRow({ session, isActive }: { session: SessionSummary; isActive: 
       }}
       className={`block w-full text-left border-none px-2.5 py-2.5 cursor-pointer font-mono transition-colors duration-100 rounded-lg hover:bg-(--color-elevated) ${
         isActive
-          ? 'bg-[color-mix(in_srgb,var(--color-accent)_8%,var(--color-bg))] border-l-2 border-l-(--color-accent)'
+          ? 'border-l-2 border-l-(--color-accent)'
           : 'bg-transparent border-l-2 border-l-transparent'
       }`}
+      style={isActive ? { background: 'color-mix(in srgb, var(--color-accent) 8%, var(--color-bg))' } : undefined}
     >
       <div className={`text-[11px] overflow-hidden text-ellipsis whitespace-nowrap mb-0.5 ${
         isActive ? 'text-(--color-text-bright)' : 'text-(--color-text)'

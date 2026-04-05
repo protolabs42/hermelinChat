@@ -45,7 +45,10 @@ export default function StatusBar() {
   }
 
   return (
-    <div className="px-4 py-2 border-b border-[color-mix(in_srgb,var(--color-border)_60%,transparent)] glass-surface flex items-center text-[10px] text-(--color-muted)">
+    <div
+      className="px-4 py-2 border-b glass-surface flex items-center text-[10px] text-(--color-muted)"
+      style={{ borderBottomColor: 'color-mix(in srgb, var(--color-border) 60%, transparent)' }}
+    >
       {/* Left group: sidebar toggle, new chat, theme mark */}
       <div className="flex items-center gap-1.5">
         <button

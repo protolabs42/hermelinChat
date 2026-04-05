@@ -31,11 +31,14 @@ export default function MessageBubble({ message }: Props) {
   const isUser = message.role === 'user'
 
   return (
-    <div className={`mb-4 px-4 py-3 rounded-lg ${
-      isUser
-        ? 'bg-[color-mix(in_srgb,var(--color-accent)_5%,var(--color-bg))] border-l-2 border-l-(--color-accent)'
-        : 'bg-(--color-surface)'
-    }`}>
+    <div
+      className={`mb-4 px-4 py-3 rounded-lg ${
+        isUser
+          ? 'border-l-2 border-l-(--color-accent)'
+          : 'bg-(--color-surface)'
+      }`}
+      style={isUser ? { background: 'color-mix(in srgb, var(--color-accent) 5%, var(--color-bg))' } : undefined}
+    >
       <div className={`text-[9px] font-bold uppercase tracking-wide mb-2 ${isUser ? 'text-(--color-accent)' : 'text-(--color-success)'}`}>
         {isUser ? 'YOU' : 'AURORA'}
       </div>
