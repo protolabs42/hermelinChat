@@ -27,9 +27,16 @@ pub fn list_sessions(limit: usize) -> Result<Vec<SessionSummary>, String> {
     // have a different session-id format and live in a separate slot of
     // hermes's session manager, so filtering them out here prevents the
     // "session not found" errors users see when clicking a CLI session.
+    // visible_count mirrors the filter used by get_session_messages so the
+    // sidebar count matches what the chat view actually shows after loading
+    // (hermes's raw sessions.message_count counts tool calls, thinking blocks,
+    // system messages, etc — often 10-20x larger than the user-visible count).
     let mut stmt = conn
         .prepare(
-            "SELECT s.id, s.title, s.model, s.started_at, s.message_count, s.model_config,
+            "SELECT s.id, s.title, s.model, s.started_at, s.model_config,
+             (SELECT COUNT(*) FROM messages m
+              WHERE m.session_id = s.id AND m.role IN ('user','assistant')
+              AND m.content IS NOT NULL AND m.content != '') AS visible_count,
              (SELECT m.content FROM messages m
               WHERE m.session_id = s.id AND m.role = 'user'
               AND m.content IS NOT NULL AND m.content != ''
@@ -47,8 +54,8 @@ pub fn list_sessions(limit: usize) -> Result<Vec<SessionSummary>, String> {
             let db_title: Option<String> = row.get(1)?;
             let model: Option<String> = row.get(2)?;
             let started_at: Option<f64> = row.get(3)?;
-            let message_count: i64 = row.get(4).unwrap_or(0);
-            let model_config: Option<String> = row.get(5)?;
+            let model_config: Option<String> = row.get(4)?;
+            let message_count: i64 = row.get(5).unwrap_or(0);
             let first_msg: Option<String> = row.get(6)?;
 
             // Extract cwd from the JSON blob Hermes stores in model_config.
