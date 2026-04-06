@@ -1,5 +1,46 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { useArtifactStore, type Artifact } from '../stores/artifacts'
+
+// Lazy-loaded renderers — each pulls in its own library chunks only on first use
+// so the idle bundle stays small.
+const ChartRenderer = lazy(() => import('./artifacts/ChartRenderer'))
+const MapRenderer = lazy(() => import('./artifacts/MapRenderer'))
+const ImageRenderer = lazy(() => import('./artifacts/ImageRenderer'))
+const MermaidRenderer = lazy(() => import('./artifacts/MermaidRenderer'))
+
+function RendererFallback() {
+  return (
+    <div
+      style={{
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: 11,
+        color: 'var(--color-muted)',
+        fontFamily: 'var(--font-mono, monospace)',
+      }}
+      className="animate-aurora-pulse"
+    >
+      loading renderer...
+    </div>
+  )
+}
+
+/**
+ * Detect renderer by artifact data shape — fallback when the type field
+ * doesn't match a first-class hermes type. Lets Aurora send e.g. an image
+ * inside a `html` or `markdown` wrapper as long as the payload looks right.
+ */
+function detectShape(data: unknown): string | null {
+  if (!data || typeof data !== 'object') return null
+  const d = data as Record<string, unknown>
+  if (typeof d.diagram === 'string' || typeof d.mermaid === 'string') return 'mermaid'
+  if (typeof d.src === 'string' && /\.(png|jpe?g|gif|webp|svg|bmp)(\?|$)/i.test(String(d.src))) return 'image'
+  if (typeof d.base64 === 'string') return 'image'
+  if (Array.isArray(d.markers) || d.geojson) return 'map'
+  return null
+}
 
 /* ------------------------------------------------------------------ */
 /*  Type-specific icon SVGs                                           */
@@ -63,6 +104,24 @@ function ArtifactIcon({ type }: { type: string }) {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M21 10c0 6-9 13-9 13S3 16 3 10a9 9 0 1 1 18 0z" />
       <circle cx="12" cy="10" r="3" />
+    </svg>
+  )
+
+  if (kind === 'image') return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <circle cx="9" cy="9" r="2" />
+      <path d="M21 15l-5-5L5 21" />
+    </svg>
+  )
+
+  if (kind === 'mermaid') return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="8" y="14" width="7" height="7" rx="1" />
+      <path d="M6.5 10v2.5a1.5 1.5 0 0 0 1.5 1.5h3.5" />
+      <path d="M17.5 10v2.5a1.5 1.5 0 0 1-1.5 1.5h-4.5" />
     </svg>
   )
 
@@ -248,48 +307,6 @@ function IframeRenderer({ data, id }: { data: unknown; id: string }) {
   )
 }
 
-function ChartRenderer({ data }: { data: unknown }) {
-  return (
-    <div style={{ padding: 16, overflow: 'auto' }}>
-      <div style={{ fontSize: 10, color: 'var(--color-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-        Chart data
-      </div>
-      <pre style={{
-        fontFamily: "'Fira Code', monospace",
-        fontSize: 12,
-        lineHeight: 1.6,
-        color: 'var(--color-text)',
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-        margin: 0,
-      }}>
-        {JSON.stringify(data, null, 2)}
-      </pre>
-    </div>
-  )
-}
-
-function MapRenderer({ data }: { data: unknown }) {
-  return (
-    <div style={{ padding: 16, overflow: 'auto' }}>
-      <div style={{ fontSize: 10, color: 'var(--color-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-        Map data
-      </div>
-      <pre style={{
-        fontFamily: "'Fira Code', monospace",
-        fontSize: 12,
-        lineHeight: 1.6,
-        color: 'var(--color-text)',
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-        margin: 0,
-      }}>
-        {JSON.stringify(data, null, 2)}
-      </pre>
-    </div>
-  )
-}
-
 function EmptyRenderer({ title, detail }: { title: string; detail: string }) {
   return (
     <div style={{
@@ -310,31 +327,63 @@ function EmptyRenderer({ title, detail }: { title: string; detail: string }) {
 }
 
 function ArtifactBody({ artifact }: { artifact: Artifact }) {
+  // Prefer first-class type, fall back to shape detection on the payload
   const kind = (artifact.artifact_type || '').toLowerCase()
+  const effective = kind || detectShape(artifact.data) || ''
 
-  switch (kind) {
-    case 'table': return <TableRenderer data={artifact.data} />
-    case 'logs': return <LogsRenderer data={artifact.data} />
-    case 'markdown': return <MarkdownRenderer data={artifact.data} />
-    case 'html': return <HtmlRenderer data={artifact.data} id={artifact.id} />
-    case 'iframe': return <IframeRenderer data={artifact.data} id={artifact.id} />
-    case 'chart': return <ChartRenderer data={artifact.data} />
-    case 'map': return <MapRenderer data={artifact.data} />
-    default: return (
-      <div style={{ padding: 16, overflow: 'auto' }}>
-        <pre style={{
-          fontFamily: "'Fira Code', monospace",
-          fontSize: 12,
-          lineHeight: 1.6,
-          color: 'var(--color-text)',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          margin: 0,
-        }}>
-          {JSON.stringify(artifact.data, null, 2)}
-        </pre>
-      </div>
-    )
+  switch (effective) {
+    case 'table':
+      return <TableRenderer data={artifact.data} />
+    case 'logs':
+      return <LogsRenderer data={artifact.data} />
+    case 'markdown':
+      return <MarkdownRenderer data={artifact.data} />
+    case 'html':
+      return <HtmlRenderer data={artifact.data} id={artifact.id} />
+    case 'iframe':
+      return <IframeRenderer data={artifact.data} id={artifact.id} />
+    case 'chart':
+      return (
+        <Suspense fallback={<RendererFallback />}>
+          <ChartRenderer data={artifact.data} />
+        </Suspense>
+      )
+    case 'map':
+      return (
+        <Suspense fallback={<RendererFallback />}>
+          <MapRenderer data={artifact.data} />
+        </Suspense>
+      )
+    case 'image':
+      return (
+        <Suspense fallback={<RendererFallback />}>
+          <ImageRenderer data={artifact.data} />
+        </Suspense>
+      )
+    case 'mermaid':
+      return (
+        <Suspense fallback={<RendererFallback />}>
+          <MermaidRenderer data={artifact.data} id={artifact.id} />
+        </Suspense>
+      )
+    default:
+      return (
+        <div style={{ padding: 16, overflow: 'auto' }}>
+          <pre
+            style={{
+              fontFamily: "'Fira Code', monospace",
+              fontSize: 12,
+              lineHeight: 1.6,
+              color: 'var(--color-text)',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              margin: 0,
+            }}
+          >
+            {JSON.stringify(artifact.data, null, 2)}
+          </pre>
+        </div>
+      )
   }
 }
 
