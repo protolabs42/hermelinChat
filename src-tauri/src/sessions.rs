@@ -8,6 +8,7 @@ pub struct SessionSummary {
     pub model: Option<String>,
     pub started_at: Option<f64>,
     pub message_count: i64,
+    pub cwd: Option<String>,
 }
 
 pub fn list_sessions(limit: usize) -> Result<Vec<SessionSummary>, String> {
@@ -24,7 +25,7 @@ pub fn list_sessions(limit: usize) -> Result<Vec<SessionSummary>, String> {
 
     let mut stmt = conn
         .prepare(
-            "SELECT s.id, s.title, s.model, s.started_at, s.message_count,
+            "SELECT s.id, s.title, s.model, s.started_at, s.message_count, s.model_config,
              (SELECT m.content FROM messages m
               WHERE m.session_id = s.id AND m.role = 'user'
               AND m.content IS NOT NULL AND m.content != ''
@@ -42,7 +43,16 @@ pub fn list_sessions(limit: usize) -> Result<Vec<SessionSummary>, String> {
             let model: Option<String> = row.get(2)?;
             let started_at: Option<f64> = row.get(3)?;
             let message_count: i64 = row.get(4).unwrap_or(0);
-            let first_msg: Option<String> = row.get(5)?;
+            let model_config: Option<String> = row.get(5)?;
+            let first_msg: Option<String> = row.get(6)?;
+
+            // Extract cwd from the JSON blob Hermes stores in model_config.
+            // See hermes-agent/acp_adapter/session.py: model_config={"cwd": state.cwd}
+            let cwd = model_config
+                .as_deref()
+                .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
+                .and_then(|v| v.get("cwd").and_then(|c| c.as_str()).map(String::from))
+                .filter(|s| !s.is_empty() && s != ".");
 
             let title = db_title
                 .filter(|s| !s.is_empty())
@@ -63,6 +73,7 @@ pub fn list_sessions(limit: usize) -> Result<Vec<SessionSummary>, String> {
                 model,
                 started_at,
                 message_count,
+                cwd,
             })
         })
         .map_err(|e| format!("row error: {}", e))?;

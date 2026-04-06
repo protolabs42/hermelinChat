@@ -148,10 +148,14 @@ export default function StatusBar() {
           </button>
         )}
 
-        {/* cwd picker */}
+        {/* cwd picker — reflects active session's cwd, or default for next new session */}
         <button
           onClick={pickDirectory}
-          title={cwd || 'Click to set working directory'}
+          title={
+            cwd
+              ? `${sessionId ? 'Current session cwd' : 'Default cwd for next session'}: ${cwd}`
+              : 'Click to set working directory'
+          }
           style={{
             background: 'transparent',
             border: '1px solid var(--color-border)',

@@ -153,8 +153,11 @@ function SessionRow({ session, isActive }: { session: SessionSummary; isActive: 
             pendingPrompt: null,
           })
 
-          const cwd = useChatStore.getState().cwd
-          await invoke('acp_load_session', { sessionId: session.id, cwd })
+          // Prefer the session's own stored cwd; fall back to the global cwd
+          // if the session has none recorded (old sessions, etc.)
+          const sessionCwd = session.cwd || useChatStore.getState().cwd
+          if (sessionCwd) useChatStore.getState().setCwd(sessionCwd)
+          await invoke('acp_load_session', { sessionId: session.id, cwd: sessionCwd })
 
           invoke('set_window_title', {
             title: `Aurora Chat \u2014 ${session.title}`,
@@ -202,6 +205,23 @@ function SessionRow({ session, isActive }: { session: SessionSummary; isActive: 
         <span>{relativeTime(session.started_at)}</span>
         <span>{session.message_count} msgs</span>
       </div>
+      {session.cwd && (
+        <div
+          title={session.cwd}
+          style={{
+            fontSize: 11,
+            color: 'var(--color-muted)',
+            opacity: 0.6,
+            marginTop: 4,
+            fontFamily: 'var(--font-mono, monospace)',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {session.cwd.split(/[\\/]/).filter(Boolean).pop()}
+        </div>
+      )}
     </button>
   )
 }

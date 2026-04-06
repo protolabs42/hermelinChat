@@ -6,6 +6,7 @@ export interface SessionSummary {
   model: string | null
   started_at: number | null
   message_count: number
+  cwd: string | null
 }
 
 interface SidebarStore {
