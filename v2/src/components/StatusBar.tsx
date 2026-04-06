@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { open } from '@tauri-apps/plugin-dialog'
 import { useChatStore } from '../stores/chat'
 import { useSettingsStore } from '../stores/settings'
 import { useSidebarStore } from '../stores/sidebar'
@@ -19,7 +20,21 @@ export default function StatusBar() {
   const toggleSidebar = useSidebarStore((s) => s.toggle)
   const artifactCount = useArtifactStore((s) => s.artifacts.length)
   const toggleArtifacts = useArtifactStore((s) => s.togglePanel)
+  const cwd = useChatStore((s) => s.cwd)
+  const setCwd = useChatStore((s) => s.setCwd)
   const { theme } = useTheme()
+
+  const pickDirectory = async () => {
+    const selected = await open({
+      directory: true,
+      title: 'Select working directory',
+      defaultPath: cwd || undefined,
+    })
+    if (selected) setCwd(selected as string)
+  }
+
+  // Show just the last segment of the path, full path in tooltip
+  const cwdLabel = cwd ? cwd.split(/[\\/]/).filter(Boolean).pop() || cwd : null
 
   const [updateInfo, setUpdateInfo] = useState<VersionInfo | null>(null)
 
@@ -132,6 +147,28 @@ export default function StatusBar() {
             Reconnect
           </button>
         )}
+
+        {/* cwd picker */}
+        <button
+          onClick={pickDirectory}
+          title={cwd || 'Click to set working directory'}
+          style={{
+            background: 'transparent',
+            border: '1px solid var(--color-border)',
+            borderRadius: 6,
+            color: 'var(--color-muted)',
+            fontSize: 11,
+            padding: '4px 12px',
+            cursor: 'pointer',
+            fontFamily: 'var(--font-mono, monospace)',
+            maxWidth: 180,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {cwdLabel || 'set cwd...'}
+        </button>
       </div>
 
       {/* Right */}

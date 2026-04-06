@@ -9,6 +9,7 @@ use tauri::Manager;
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(AcpState(Mutex::new(None)))
         .setup(|app| {
             match acp::client::AcpClient::spawn(&app.handle()) {

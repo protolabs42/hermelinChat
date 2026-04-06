@@ -35,3 +35,4 @@ hermelin/static/
 # Tauri / Rust
 target/
 v2/dist/
+.gstack/

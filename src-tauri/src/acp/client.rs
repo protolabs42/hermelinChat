@@ -103,12 +103,13 @@ impl AcpClient {
 
     /// Send a session/new JSON-RPC request. Returns the request ID
     /// so the caller can correlate the response (which contains the session ID).
-    pub fn new_session(&self) -> Result<u64, String> {
+    pub fn new_session(&self, cwd: Option<&str>) -> Result<u64, String> {
         let id = self.next_request_id();
-        // ACP session/new requires cwd (absolute path) and mcpServers (list)
-        let cwd = std::env::current_dir()
-            .map(|p| p.to_string_lossy().to_string())
-            .unwrap_or_else(|_| ".".to_string());
+        let cwd = cwd.map(|s| s.to_string()).unwrap_or_else(|| {
+            std::env::current_dir()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|_| ".".to_string())
+        });
         let msg = serde_json::json!({
             "jsonrpc": "2.0",
             "id": id,
@@ -141,11 +142,13 @@ impl AcpClient {
     }
 
     /// Send a session/load JSON-RPC request to restore an existing session.
-    pub fn load_session(&self, session_id: &str) -> Result<u64, String> {
+    pub fn load_session(&self, session_id: &str, cwd: Option<&str>) -> Result<u64, String> {
         let id = self.next_request_id();
-        let cwd = std::env::current_dir()
-            .map(|p| p.to_string_lossy().to_string())
-            .unwrap_or_else(|_| ".".to_string());
+        let cwd = cwd.map(|s| s.to_string()).unwrap_or_else(|| {
+            std::env::current_dir()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|_| ".".to_string())
+        });
         let msg = serde_json::json!({
             "jsonrpc": "2.0",
             "id": id,

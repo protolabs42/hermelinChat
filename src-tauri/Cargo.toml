@@ -17,3 +17,4 @@ serde_json = "1"
 tokio = { version = "1", features = ["sync", "io-util", "process"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 notify = { version = "7", features = ["macos_fsevent"] }
+tauri-plugin-dialog = "2"

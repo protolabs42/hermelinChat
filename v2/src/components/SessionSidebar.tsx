@@ -153,7 +153,8 @@ function SessionRow({ session, isActive }: { session: SessionSummary; isActive: 
             pendingPrompt: null,
           })
 
-          await invoke('acp_load_session', { sessionId: session.id })
+          const cwd = useChatStore.getState().cwd
+          await invoke('acp_load_session', { sessionId: session.id, cwd })
 
           invoke('set_window_title', {
             title: `Aurora Chat \u2014 ${session.title}`,

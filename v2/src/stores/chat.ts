@@ -65,11 +65,13 @@ export interface ChatStore {
   connectionStatus: string
   pendingPrompt: string | null
   usage: UsageInfo | null
+  cwd: string | null
 
   addUserMessage: (text: string) => void
   handleAcpEvent: (event: AcpEvent) => void
   setSessionId: (id: string) => void
   setPendingPrompt: (text: string | null) => void
+  setCwd: (path: string) => void
   reset: () => void
 }
 
@@ -83,6 +85,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   connectionStatus: 'connecting',
   pendingPrompt: null,
   usage: null,
+  cwd: localStorage.getItem('aurora-cwd') || null,
 
   addUserMessage: (text: string) => {
     set((s) => ({
@@ -219,6 +222,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   setSessionId: (id: string) => set({ sessionId: id }),
   setPendingPrompt: (text: string | null) => set({ pendingPrompt: text }),
+  setCwd: (path: string) => {
+    localStorage.setItem('aurora-cwd', path)
+    set({ cwd: path })
+  },
 
   reset: () => {
     _nextId = 0

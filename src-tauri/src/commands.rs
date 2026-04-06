@@ -6,18 +6,18 @@ use crate::acp::client::AcpClient;
 pub struct AcpState(pub Mutex<Option<AcpClient>>);
 
 #[tauri::command]
-pub fn acp_new_session(state: State<'_, AcpState>) -> Result<String, String> {
+pub fn acp_new_session(state: State<'_, AcpState>, cwd: Option<String>) -> Result<String, String> {
     let guard = state.0.lock().map_err(|e| e.to_string())?;
     let client = guard.as_ref().ok_or("ACP client not initialized")?;
-    client.new_session()?;
+    client.new_session(cwd.as_deref())?;
     Ok("session/new sent".to_string())
 }
 
 #[tauri::command]
-pub fn acp_load_session(state: State<'_, AcpState>, session_id: String) -> Result<String, String> {
+pub fn acp_load_session(state: State<'_, AcpState>, session_id: String, cwd: Option<String>) -> Result<String, String> {
     let guard = state.0.lock().map_err(|e| e.to_string())?;
     let client = guard.as_ref().ok_or("ACP client not initialized")?;
-    client.load_session(&session_id)?;
+    client.load_session(&session_id, cwd.as_deref())?;
     Ok("session/load sent".to_string())
 }
 
