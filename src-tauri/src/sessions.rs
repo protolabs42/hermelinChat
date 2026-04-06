@@ -23,6 +23,10 @@ pub fn list_sessions(limit: usize) -> Result<Vec<SessionSummary>, String> {
     )
     .map_err(|e| format!("failed to open state.db: {}", e))?;
 
+    // Only ACP sessions are loadable by the ACP adapter — CLI sessions
+    // have a different session-id format and live in a separate slot of
+    // hermes's session manager, so filtering them out here prevents the
+    // "session not found" errors users see when clicking a CLI session.
     let mut stmt = conn
         .prepare(
             "SELECT s.id, s.title, s.model, s.started_at, s.message_count, s.model_config,
@@ -31,6 +35,7 @@ pub fn list_sessions(limit: usize) -> Result<Vec<SessionSummary>, String> {
               AND m.content IS NOT NULL AND m.content != ''
               ORDER BY m.timestamp ASC LIMIT 1) AS first_user_message
              FROM sessions s
+             WHERE s.source = 'acp'
              ORDER BY s.started_at DESC
              LIMIT ?1",
         )
