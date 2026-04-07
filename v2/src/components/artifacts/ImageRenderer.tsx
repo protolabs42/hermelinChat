@@ -17,6 +17,7 @@
  */
 
 import { useState } from 'react'
+import ZoomPanFrame from './ZoomPanFrame'
 
 interface ImageData {
   src?: string
@@ -74,48 +75,49 @@ export default function ImageRenderer({ data }: { data: unknown }) {
         display: 'flex',
         flexDirection: 'column',
         background: 'var(--color-bg)',
+        minHeight: 0,
       }}
     >
-      <div
-        style={{
-          flex: 1,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 16,
-          minHeight: 0,
-          position: 'relative',
-        }}
-      >
+      <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
         {!loaded && (
           <div
             style={{
               position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
               fontSize: 11,
               color: 'var(--color-muted)',
               fontFamily: 'var(--font-mono, monospace)',
+              zIndex: 5,
             }}
             className="animate-aurora-pulse"
           >
             loading image...
           </div>
         )}
-        <img
-          src={src}
-          alt={alt}
-          onLoad={() => setLoaded(true)}
-          onError={() => setErrored(true)}
-          style={{
-            maxWidth: '100%',
-            maxHeight: '100%',
-            width: d.width || 'auto',
-            height: d.height || 'auto',
-            objectFit: fit,
-            opacity: loaded ? 1 : 0,
-            transition: 'opacity 160ms',
-            borderRadius: 4,
-          }}
-        />
+        <ZoomPanFrame initialScale={1} minScale={0.1} maxScale={10}>
+          <img
+            src={src}
+            alt={alt}
+            onLoad={() => setLoaded(true)}
+            onError={() => setErrored(true)}
+            style={{
+              display: 'block',
+              maxWidth: '100%',
+              maxHeight: '100%',
+              width: d.width || 'auto',
+              height: d.height || 'auto',
+              objectFit: fit,
+              opacity: loaded ? 1 : 0,
+              transition: 'opacity 160ms',
+              borderRadius: 4,
+              userSelect: 'none',
+              pointerEvents: 'none', // let pan/drag pass through to ZoomPanFrame
+            }}
+            draggable={false}
+          />
+        </ZoomPanFrame>
       </div>
       {d.caption && (
         <div
