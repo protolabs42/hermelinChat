@@ -54,14 +54,16 @@ export default function ZoomPanFrame({
   // Track the container's screen position so the portaled toolbar can hug
   // its bottom-right corner. ResizeObserver covers panel resize, scroll
   // listeners cover the user dragging the artifact panel divider.
+  //
+  // We offset the bottom anchor by 60px so the toolbar clears the
+  // AlignmentMascot easter egg, which lives at fixed bottom-4 right-4
+  // with z-index 10000 — that was the actual blocker for the buttons.
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
     const update = () => {
       const r = el.getBoundingClientRect()
-      // Toolbar is 28+28+28 = 84px wide-ish, plus padding/borders. Anchor
-      // to bottom-right with a 12px inset.
-      setToolbarPos({ left: r.right - 12, top: r.bottom - 12 })
+      setToolbarPos({ left: r.right - 12, top: r.bottom - 60 })
     }
     update()
     const ro = new ResizeObserver(update)
@@ -138,7 +140,9 @@ export default function ZoomPanFrame({
               boxShadow: '0 4px 16px rgba(0, 0, 0, 0.4)',
               backdropFilter: 'blur(8px)',
               WebkitBackdropFilter: 'blur(8px)',
-              zIndex: 9999,
+              // Sit above AlignmentMascot's z-index of 10000 so neither
+              // visual nor pointer-event stacking can hide the buttons.
+              zIndex: 10001,
               pointerEvents: 'auto',
             }}
           >
