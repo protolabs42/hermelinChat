@@ -11,6 +11,7 @@ import SettingsPanel from './components/SettingsPanel'
 import SessionSidebar from './components/SessionSidebar'
 import ArtifactPanel from './components/ArtifactPanel'
 import { AlignmentMascot } from './components/AlignmentMascot'
+import ErrorBoundary from './components/ErrorBoundary'
 import { useArtifactStore } from './stores/artifacts'
 import { useChatStore } from './stores/chat'
 
@@ -56,27 +57,47 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <div className="flex h-screen">
-        {/* Session sidebar (left, collapsible) */}
-        <SessionSidebar />
+      <ErrorBoundary label="App root">
+        <div className="flex h-screen">
+          {/* Session sidebar (left, collapsible) */}
+          <ErrorBoundary label="Sidebar">
+            <SessionSidebar />
+          </ErrorBoundary>
 
-        {/* Main chat area */}
-        <div className="flex-1 flex flex-col bg-(--color-bg) relative">
-          <BackgroundRenderer />
-          <StatusBar />
-          <ChatView />
-          <MessageInput />
+          {/* Main chat area */}
+          <div className="flex-1 flex flex-col bg-(--color-bg) relative">
+            <ErrorBoundary label="Background">
+              <BackgroundRenderer />
+            </ErrorBoundary>
+            <ErrorBoundary label="StatusBar" compact>
+              <StatusBar />
+            </ErrorBoundary>
+            <ErrorBoundary label="ChatView">
+              <ChatView />
+            </ErrorBoundary>
+            <ErrorBoundary label="MessageInput" compact>
+              <MessageInput />
+            </ErrorBoundary>
+          </div>
+
+          {/* Artifact panel (right, conditional) */}
+          {panelOpen && (
+            <ErrorBoundary label="ArtifactPanel">
+              <ArtifactPanel />
+            </ErrorBoundary>
+          )}
         </div>
 
-        {/* Artifact panel (right, conditional) */}
-        {panelOpen && <ArtifactPanel />}
-      </div>
+        {/* Settings panel (right overlay) */}
+        <ErrorBoundary label="Settings">
+          <SettingsPanel />
+        </ErrorBoundary>
 
-      {/* Settings panel (right overlay) */}
-      <SettingsPanel />
-
-      {/* Easter egg mascot */}
-      <AlignmentMascot />
+        {/* Easter egg mascot */}
+        <ErrorBoundary label="Mascot" compact>
+          <AlignmentMascot />
+        </ErrorBoundary>
+      </ErrorBoundary>
     </ThemeProvider>
   )
 }

@@ -1,5 +1,6 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useArtifactStore, type Artifact } from '../stores/artifacts'
+import ErrorBoundary from './ErrorBoundary'
 
 // Lazy-loaded renderers — each pulls in its own library chunks only on first use
 // so the idle bundle stays small.
@@ -326,7 +327,7 @@ function EmptyRenderer({ title, detail }: { title: string; detail: string }) {
   )
 }
 
-function ArtifactBody({ artifact }: { artifact: Artifact }) {
+function pickRenderer(artifact: Artifact) {
   // Prefer first-class type, fall back to shape detection on the payload
   const kind = (artifact.artifact_type || '').toLowerCase()
   const effective = kind || detectShape(artifact.data) || ''
@@ -387,6 +388,18 @@ function ArtifactBody({ artifact }: { artifact: Artifact }) {
   }
 }
 
+function ArtifactBody({ artifact }: { artifact: Artifact }) {
+  const label = `${artifact.artifact_type || 'artifact'}: ${artifact.title || artifact.id}`
+  // Keying the boundary by artifact id auto-resets state when the user picks
+  // a different artifact, so a previously crashed renderer doesn't poison the
+  // panel forever.
+  return (
+    <ErrorBoundary key={artifact.id} label={label} resetKeys={[artifact.id]}>
+      {pickRenderer(artifact)}
+    </ErrorBoundary>
+  )
+}
+
 /* ------------------------------------------------------------------ */
 /*  Time formatting                                                   */
 /* ------------------------------------------------------------------ */
@@ -411,7 +424,12 @@ export default function ArtifactPanel() {
   const setActiveId = useArtifactStore((s) => s.setActiveId)
   const closePanel = useArtifactStore((s) => s.closePanel)
 
-  const activeArtifact = artifacts.find((a) => a.id === activeId) || artifacts[0] || null
+  // Memoize so dropdown toggles don't generate a fresh activeArtifact reference
+  // every parent render — that was forcing ArtifactBody to re-mount unnecessarily.
+  const activeArtifact = useMemo(
+    () => artifacts.find((a) => a.id === activeId) || artifacts[0] || null,
+    [artifacts, activeId]
+  )
 
   const [width, setWidth] = useState(420)
   const [dropdownOpen, setDropdownOpen] = useState(false)
