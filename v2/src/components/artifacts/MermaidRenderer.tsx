@@ -155,7 +155,7 @@ export default function MermaidRenderer({ data, id }: { data: unknown; id: strin
         .nodeLabel, .edgeLabel, .label, .messageText, .actor, .actor-line, .activation0, .activation1, .activation2,
         .titleText, .taskText, .sectionTitle, .stateLabel, .classLabel, .erLabel, text {
           font-family: var(--font-sans, system-ui, sans-serif) !important;
-          font-size: 13px !important;
+          font-size: 12px !important;
           font-weight: 500 !important;
         }
         .titleText { font-size: 16px !important; font-weight: 600 !important; }
@@ -184,7 +184,6 @@ export default function MermaidRenderer({ data, id }: { data: unknown; id: strin
         /* Edge labels — solid bg so they don't blend into lines */
         .edgeLabel {
           background-color: ${theme.colors.bg} !important;
-          padding: 2px 6px !important;
           border-radius: 4px !important;
         }
         .edgeLabel rect {
@@ -194,7 +193,7 @@ export default function MermaidRenderer({ data, id }: { data: unknown; id: strin
         /* Sequence diagrams */
         .actor {
           stroke-width: 1.5px !important;
-          filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3));
+          filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
         }
         .messageLine0, .messageLine1 {
           stroke-width: 1.5px !important;
@@ -249,11 +248,10 @@ export default function MermaidRenderer({ data, id }: { data: unknown; id: strin
         ref.current.innerHTML = svg
         const svgEl = ref.current.querySelector('svg')
         if (svgEl) {
-          // Let the SVG be its natural size — ZoomPanFrame handles scaling
-          svgEl.removeAttribute('width')
-          svgEl.removeAttribute('height')
+          // Keep mermaid's intrinsic width/height so the SVG has real dimensions
+          // inside ZoomPanFrame's TransformComponent (otherwise it renders 0x0).
+          // Just unlock max-width so wide diagrams aren't clamped.
           svgEl.style.maxWidth = 'none'
-          svgEl.style.height = 'auto'
           svgEl.style.display = 'block'
         }
       } catch (e) {
