@@ -1,0 +1,648 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aurora-chat.dev/catalog/v0.1.json",
+  "title": "Aurora Chat A2UI Catalog",
+  "description": "Component + function catalog for Aurora Chat A2UI surfaces. Conforms to A2UI protocol v0.9. Includes the basic A2UI components (Text, Button, TextField, CheckBox, ChoicePicker, Column, Row, Card, List, Divider, Icon, Image) and Aurora Chat visual extensions (Chart, Map, Mermaid, Table, Logs, Markdown, HtmlEmbed, IframeEmbed, McpApp).",
+  "version": "0.1.0",
+  "a2uiVersion": "v0.9",
+  "type": "object",
+
+  "$defs": {
+
+    "ComponentId": {
+      "description": "Reference to another component in the same surface by its string id.",
+      "type": "string",
+      "minLength": 1
+    },
+
+    "JsonPointer": {
+      "description": "RFC 6901 JSON Pointer into the surface's data model.",
+      "type": "object",
+      "properties": {
+        "path": { "type": "string", "pattern": "^/" }
+      },
+      "required": ["path"],
+      "additionalProperties": false
+    },
+
+    "FunctionCall": {
+      "description": "Invocation of a catalog function. Arguments may themselves be Dynamic* bindings.",
+      "type": "object",
+      "properties": {
+        "call": { "type": "string", "minLength": 1 },
+        "args": { "type": "object" }
+      },
+      "required": ["call"],
+      "additionalProperties": false
+    },
+
+    "DynamicString": {
+      "description": "A string literal, a data binding ({path}), or a function call ({call, args}).",
+      "oneOf": [
+        { "type": "string" },
+        { "$ref": "#/$defs/JsonPointer" },
+        { "$ref": "#/$defs/FunctionCall" }
+      ]
+    },
+
+    "DynamicNumber": {
+      "description": "A number literal, a data binding, or a function call.",
+      "oneOf": [
+        { "type": "number" },
+        { "$ref": "#/$defs/JsonPointer" },
+        { "$ref": "#/$defs/FunctionCall" }
+      ]
+    },
+
+    "DynamicBoolean": {
+      "description": "A boolean literal, a data binding, or a function call.",
+      "oneOf": [
+        { "type": "boolean" },
+        { "$ref": "#/$defs/JsonPointer" },
+        { "$ref": "#/$defs/FunctionCall" }
+      ]
+    },
+
+    "ChildList": {
+      "description": "Either a static list of child component ids or a template-iteration binding.",
+      "oneOf": [
+        {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ComponentId" }
+        },
+        {
+          "type": "object",
+          "properties": {
+            "path": { "type": "string", "pattern": "^/" },
+            "componentId": { "$ref": "#/$defs/ComponentId" }
+          },
+          "required": ["path", "componentId"],
+          "additionalProperties": false
+        }
+      ]
+    },
+
+    "ServerAction": {
+      "description": "Component action that round-trips to the agent.",
+      "type": "object",
+      "properties": {
+        "event": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "context": { "type": "object" }
+          },
+          "required": ["name"],
+          "additionalProperties": false
+        }
+      },
+      "required": ["event"],
+      "additionalProperties": false
+    },
+
+    "LocalAction": {
+      "description": "Component action that executes a catalog function locally (no agent round-trip).",
+      "type": "object",
+      "properties": {
+        "functionCall": { "$ref": "#/$defs/FunctionCall" }
+      },
+      "required": ["functionCall"],
+      "additionalProperties": false
+    },
+
+    "Action": {
+      "description": "Attached to interactive components to emit an event or run a local function.",
+      "oneOf": [
+        { "$ref": "#/$defs/ServerAction" },
+        { "$ref": "#/$defs/LocalAction" }
+      ]
+    },
+
+    "ValidationCheck": {
+      "description": "A validation rule attached to an input component. The call names a catalog function, args are its parameters, and message is shown to the user on failure.",
+      "type": "object",
+      "properties": {
+        "call": { "type": "string", "minLength": 1 },
+        "args": { "type": "object" },
+        "message": { "type": "string" }
+      },
+      "required": ["call", "message"],
+      "additionalProperties": false
+    },
+
+    "BaseComponent": {
+      "description": "Fields every component instance must have.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "description": "Unique within the surface. Exactly one component per surface must have id='root'." },
+        "component": { "type": "string", "minLength": 1, "description": "Component type name; must exist in the catalog." }
+      },
+      "required": ["id", "component"]
+    }
+
+  },
+
+  "components": {
+
+    "Text": {
+      "description": "Display static or bound text. Supports Markdown if markdown=true.",
+      "allOf": [{ "$ref": "#/$defs/BaseComponent" }],
+      "properties": {
+        "component": { "const": "Text" },
+        "text": { "$ref": "#/$defs/DynamicString" },
+        "markdown": { "type": "boolean", "default": false },
+        "variant": {
+          "type": "string",
+          "enum": ["body", "caption", "heading1", "heading2", "heading3", "code"],
+          "default": "body"
+        },
+        "align": { "type": "string", "enum": ["start", "center", "end"] }
+      },
+      "required": ["text"]
+    },
+
+    "Button": {
+      "description": "Clickable element that emits an action when pressed.",
+      "allOf": [{ "$ref": "#/$defs/BaseComponent" }],
+      "properties": {
+        "component": { "const": "Button" },
+        "text": { "$ref": "#/$defs/DynamicString" },
+        "variant": {
+          "type": "string",
+          "enum": ["primary", "secondary", "ghost", "danger"],
+          "default": "primary"
+        },
+        "icon": { "type": "string", "description": "Optional leading icon name." },
+        "disabled": { "$ref": "#/$defs/DynamicBoolean" },
+        "action": { "$ref": "#/$defs/Action" }
+      },
+      "required": ["text"]
+    },
+
+    "TextField": {
+      "description": "Single-line text input with two-way data binding and optional validation.",
+      "allOf": [{ "$ref": "#/$defs/BaseComponent" }],
+      "properties": {
+        "component": { "const": "TextField" },
+        "label": { "type": "string" },
+        "placeholder": { "type": "string" },
+        "value": { "$ref": "#/$defs/DynamicString" },
+        "variant": {
+          "type": "string",
+          "enum": ["text", "email", "password", "number", "url", "search"],
+          "default": "text"
+        },
+        "disabled": { "$ref": "#/$defs/DynamicBoolean" },
+        "checks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ValidationCheck" }
+        }
+      }
+    },
+
+    "TextArea": {
+      "description": "Multi-line text input with two-way data binding.",
+      "allOf": [{ "$ref": "#/$defs/BaseComponent" }],
+      "properties": {
+        "component": { "const": "TextArea" },
+        "label": { "type": "string" },
+        "placeholder": { "type": "string" },
+        "value": { "$ref": "#/$defs/DynamicString" },
+        "rows": { "type": "integer", "minimum": 1, "default": 4 },
+        "disabled": { "$ref": "#/$defs/DynamicBoolean" },
+        "checks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ValidationCheck" }
+        }
+      }
+    },
+
+    "CheckBox": {
+      "description": "Boolean toggle with two-way data binding.",
+      "allOf": [{ "$ref": "#/$defs/BaseComponent" }],
+      "properties": {
+        "component": { "const": "CheckBox" },
+        "label": { "type": "string" },
+        "value": { "$ref": "#/$defs/DynamicBoolean" },
+        "disabled": { "$ref": "#/$defs/DynamicBoolean" }
+      }
+    },
+
+    "ChoicePicker": {
+      "description": "Single- or multi-select from a list of options.",
+      "allOf": [{ "$ref": "#/$defs/BaseComponent" }],
+      "properties": {
+        "component": { "const": "ChoicePicker" },
+        "label": { "type": "string" },
+        "value": {
+          "description": "Selected option id (singleSelect) or array of ids (multiSelect).",
+          "oneOf": [
+            { "$ref": "#/$defs/DynamicString" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        },
+        "variant": {
+          "type": "string",
+          "enum": ["singleSelect", "multiSelect", "radio", "checklist"],
+          "default": "singleSelect"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" }
+            },
+            "required": ["id", "label"]
+          }
+        }
+      },
+      "required": ["options"]
+    },
+
+    "Column": {
+      "description": "Vertical layout container. Children are stacked top to bottom.",
+      "allOf": [{ "$ref": "#/$defs/BaseComponent" }],
+      "properties": {
+        "component": { "const": "Column" },
+        "children": { "$ref": "#/$defs/ChildList" },
+        "gap": { "type": "integer", "minimum": 0, "default": 8, "description": "Pixels between children (snap to 4px grid)." },
+        "justify": { "type": "string", "enum": ["start", "center", "end", "between", "around"] },
+        "align": { "type": "string", "enum": ["start", "center", "end", "stretch"] }
+      },
+      "required": ["children"]
+    },
+
+    "Row": {
+      "description": "Horizontal layout container. Children are laid out left to right.",
+      "allOf": [{ "$ref": "#/$defs/BaseComponent" }],
+      "properties": {
+        "component": { "const": "Row" },
+        "children": { "$ref": "#/$defs/ChildList" },
+        "gap": { "type": "integer", "minimum": 0, "default": 8 },
+        "justify": { "type": "string", "enum": ["start", "center", "end", "between", "around"] },
+        "align": { "type": "string", "enum": ["start", "center", "end", "stretch"] },
+        "wrap": { "type": "boolean", "default": false }
+      },
+      "required": ["children"]
+    },
+
+    "Card": {
+      "description": "Styled container with surface background and optional title/subtitle.",
+      "allOf": [{ "$ref": "#/$defs/BaseComponent" }],
+      "properties": {
+        "component": { "const": "Card" },
+        "child": { "$ref": "#/$defs/ComponentId" },
+        "title": { "$ref": "#/$defs/DynamicString" },
+        "subtitle": { "$ref": "#/$defs/DynamicString" },
+        "variant": { "type": "string", "enum": ["elevated", "outlined", "ghost"], "default": "elevated" }
+      },
+      "required": ["child"]
+    },
+
+    "List": {
+      "description": "Scrollable list container. Supports template iteration via children={path, componentId}.",
+      "allOf": [{ "$ref": "#/$defs/BaseComponent" }],
+      "properties": {
+        "component": { "const": "List" },
+        "children": { "$ref": "#/$defs/ChildList" },
+        "gap": { "type": "integer", "minimum": 0, "default": 8 },
+        "maxHeight": { "type": "integer", "minimum": 0, "description": "Scroll after this pixel height (snap to 4px grid)." }
+      },
+      "required": ["children"]
+    },
+
+    "Divider": {
+      "description": "Horizontal visual separator line.",
+      "allOf": [{ "$ref": "#/$defs/BaseComponent" }],
+      "properties": {
+        "component": { "const": "Divider" },
+        "variant": { "type": "string", "enum": ["solid", "dashed"], "default": "solid" }
+      }
+    },
+
+    "Icon": {
+      "description": "System icon by name. Icon name must be in the host icon set.",
+      "allOf": [{ "$ref": "#/$defs/BaseComponent" }],
+      "properties": {
+        "component": { "const": "Icon" },
+        "name": { "type": "string" },
+        "size": { "type": "integer", "minimum": 8, "maximum": 128, "default": 16 },
+        "color": { "type": "string", "description": "Named theme color (accent, muted, text, danger, success, info)." }
+      },
+      "required": ["name"]
+    },
+
+    "Image": {
+      "description": "Image from URL or data URI. Supports zoom/pan in the inline surface renderer.",
+      "allOf": [{ "$ref": "#/$defs/BaseComponent" }],
+      "properties": {
+        "component": { "const": "Image" },
+        "src": { "$ref": "#/$defs/DynamicString" },
+        "alt": { "type": "string" },
+        "caption": { "$ref": "#/$defs/DynamicString" },
+        "fit": { "type": "string", "enum": ["contain", "cover", "fill", "none"], "default": "contain" },
+        "width": { "type": "integer" },
+        "height": { "type": "integer" }
+      },
+      "required": ["src"]
+    },
+
+    "Chart": {
+      "description": "Aurora Chat extension: recharts-backed line/bar/area/pie chart. Data shape matches the existing ChartRenderer props.",
+      "allOf": [{ "$ref": "#/$defs/BaseComponent" }],
+      "properties": {
+        "component": { "const": "Chart" },
+        "kind": { "type": "string", "enum": ["line", "bar", "area", "pie"], "default": "line" },
+        "data": {
+          "description": "Row-shaped data array, or a JSON pointer to it.",
+          "oneOf": [
+            { "type": "array", "items": { "type": "object" } },
+            { "$ref": "#/$defs/JsonPointer" }
+          ]
+        },
+        "xKey": { "type": "string", "default": "name" },
+        "series": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": { "type": "string" },
+              "label": { "type": "string" },
+              "color": { "type": "string" }
+            },
+            "required": ["key"]
+          }
+        },
+        "title": { "$ref": "#/$defs/DynamicString" },
+        "yLabel": { "type": "string" },
+        "stacked": { "type": "boolean", "default": false }
+      },
+      "required": ["data"]
+    },
+
+    "Map": {
+      "description": "Aurora Chat extension: react-leaflet map with permissive marker position parsing.",
+      "allOf": [{ "$ref": "#/$defs/BaseComponent" }],
+      "properties": {
+        "component": { "const": "Map" },
+        "center": {
+          "oneOf": [
+            { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 },
+            { "type": "object" },
+            { "$ref": "#/$defs/JsonPointer" }
+          ]
+        },
+        "zoom": { "type": "integer", "minimum": 0, "maximum": 20 },
+        "markers": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": { "type": "object" }
+            },
+            { "$ref": "#/$defs/JsonPointer" }
+          ]
+        },
+        "geojson": {
+          "oneOf": [
+            { "type": "object" },
+            { "$ref": "#/$defs/JsonPointer" }
+          ]
+        },
+        "tiles": { "type": "string", "description": "'dark', 'light', 'osm', or a custom tile URL template." }
+      }
+    },
+
+    "Mermaid": {
+      "description": "Aurora Chat extension: mermaid.js diagram (flowchart, sequence, gantt, state, class, ER, pie).",
+      "allOf": [{ "$ref": "#/$defs/BaseComponent" }],
+      "properties": {
+        "component": { "const": "Mermaid" },
+        "diagram": { "$ref": "#/$defs/DynamicString" }
+      },
+      "required": ["diagram"]
+    },
+
+    "Table": {
+      "description": "Aurora Chat extension: themed HTML table with columns + rows.",
+      "allOf": [{ "$ref": "#/$defs/BaseComponent" }],
+      "properties": {
+        "component": { "const": "Table" },
+        "columns": {
+          "oneOf": [
+            { "type": "array", "items": { "type": "string" } },
+            { "$ref": "#/$defs/JsonPointer" }
+          ]
+        },
+        "rows": {
+          "oneOf": [
+            { "type": "array", "items": { "type": "array" } },
+            { "$ref": "#/$defs/JsonPointer" }
+          ]
+        }
+      },
+      "required": ["columns", "rows"]
+    },
+
+    "Logs": {
+      "description": "Aurora Chat extension: level-colored log viewer.",
+      "allOf": [{ "$ref": "#/$defs/BaseComponent" }],
+      "properties": {
+        "component": { "const": "Logs" },
+        "lines": {
+          "oneOf": [
+            { "type": "array" },
+            { "$ref": "#/$defs/JsonPointer" }
+          ]
+        }
+      },
+      "required": ["lines"]
+    },
+
+    "Markdown": {
+      "description": "Aurora Chat extension: full markdown document renderer (distinct from Text variant=body with markdown=true, which is a single paragraph).",
+      "allOf": [{ "$ref": "#/$defs/BaseComponent" }],
+      "properties": {
+        "component": { "const": "Markdown" },
+        "content": { "$ref": "#/$defs/DynamicString" }
+      },
+      "required": ["content"]
+    },
+
+    "HtmlEmbed": {
+      "description": "Aurora Chat extension: inline HTML rendered inside a sandboxed iframe srcDoc. Use for bespoke HTML snippets that don't fit a typed component. Prefer McpApp for anything complex.",
+      "allOf": [{ "$ref": "#/$defs/BaseComponent" }],
+      "properties": {
+        "component": { "const": "HtmlEmbed" },
+        "html": { "$ref": "#/$defs/DynamicString" },
+        "height": { "type": "integer", "minimum": 16, "default": 300 }
+      },
+      "required": ["html"]
+    },
+
+    "IframeEmbed": {
+      "description": "Aurora Chat extension: external URL rendered in a sandboxed iframe. Subject to Aurora Chat's CSP + Tauri security model.",
+      "allOf": [{ "$ref": "#/$defs/BaseComponent" }],
+      "properties": {
+        "component": { "const": "IframeEmbed" },
+        "url": { "$ref": "#/$defs/DynamicString" },
+        "height": { "type": "integer", "minimum": 16, "default": 400 }
+      },
+      "required": ["url"]
+    },
+
+    "McpApp": {
+      "description": "Aurora Chat extension: MCP Apps sandboxed iframe component. Hosts a full MCP App (HTML + JS bundle) with postMessage bridge for tool calls. Use as escape hatch for anything that doesn't fit a native catalog component.",
+      "allOf": [{ "$ref": "#/$defs/BaseComponent" }],
+      "properties": {
+        "component": { "const": "McpApp" },
+        "resourceUri": {
+          "type": "string",
+          "pattern": "^ui://",
+          "description": "MCP Apps ui:// resource URI served by the owning MCP server."
+        },
+        "server": {
+          "type": "string",
+          "description": "Logical name of the MCP server that owns this resource (for routing tools/call back to the right MCP instance)."
+        },
+        "height": { "type": "integer", "minimum": 100, "default": 500 },
+        "toolInput": {
+          "description": "Optional input to push to the app via ui/notifications/tool-input.",
+          "type": "object"
+        }
+      },
+      "required": ["resourceUri", "server"]
+    }
+  },
+
+  "functions": {
+
+    "required": {
+      "description": "Validates that a value is non-empty.",
+      "args": {
+        "type": "object",
+        "properties": {
+          "value": { "oneOf": [{ "type": "string" }, { "$ref": "#/$defs/JsonPointer" }] }
+        },
+        "required": ["value"]
+      },
+      "returns": "boolean"
+    },
+
+    "email": {
+      "description": "Validates that a value looks like an email address.",
+      "args": {
+        "type": "object",
+        "properties": {
+          "value": { "oneOf": [{ "type": "string" }, { "$ref": "#/$defs/JsonPointer" }] }
+        },
+        "required": ["value"]
+      },
+      "returns": "boolean"
+    },
+
+    "regex": {
+      "description": "Validates that a value matches a regular expression.",
+      "args": {
+        "type": "object",
+        "properties": {
+          "value": { "oneOf": [{ "type": "string" }, { "$ref": "#/$defs/JsonPointer" }] },
+          "pattern": { "type": "string" }
+        },
+        "required": ["value", "pattern"]
+      },
+      "returns": "boolean"
+    },
+
+    "minLength": {
+      "description": "Validates that a string meets a minimum length.",
+      "args": {
+        "type": "object",
+        "properties": {
+          "value": { "oneOf": [{ "type": "string" }, { "$ref": "#/$defs/JsonPointer" }] },
+          "length": { "type": "integer", "minimum": 0 }
+        },
+        "required": ["value", "length"]
+      },
+      "returns": "boolean"
+    },
+
+    "maxLength": {
+      "description": "Validates that a string does not exceed a maximum length.",
+      "args": {
+        "type": "object",
+        "properties": {
+          "value": { "oneOf": [{ "type": "string" }, { "$ref": "#/$defs/JsonPointer" }] },
+          "length": { "type": "integer", "minimum": 0 }
+        },
+        "required": ["value", "length"]
+      },
+      "returns": "boolean"
+    },
+
+    "formatString": {
+      "description": "String interpolation. Template uses ${expression} syntax with optional data bindings.",
+      "args": {
+        "type": "object",
+        "properties": {
+          "template": { "type": "string" },
+          "values": { "type": "object" }
+        },
+        "required": ["template"]
+      },
+      "returns": "string"
+    },
+
+    "formatDate": {
+      "description": "Formats an ISO 8601 timestamp as a human-readable date.",
+      "args": {
+        "type": "object",
+        "properties": {
+          "value": { "oneOf": [{ "type": "string" }, { "$ref": "#/$defs/JsonPointer" }] },
+          "format": { "type": "string", "description": "e.g. 'YYYY-MM-DD', 'relative'." }
+        },
+        "required": ["value"]
+      },
+      "returns": "string"
+    },
+
+    "formatNumber": {
+      "description": "Formats a number with locale-aware separators, optional precision, and optional unit.",
+      "args": {
+        "type": "object",
+        "properties": {
+          "value": { "oneOf": [{ "type": "number" }, { "$ref": "#/$defs/JsonPointer" }] },
+          "precision": { "type": "integer" },
+          "unit": { "type": "string" }
+        },
+        "required": ["value"]
+      },
+      "returns": "string"
+    },
+
+    "openUrl": {
+      "description": "Local action that opens a URL in the host (browser or Tauri opener).",
+      "args": {
+        "type": "object",
+        "properties": {
+          "url": { "oneOf": [{ "type": "string" }, { "$ref": "#/$defs/JsonPointer" }] }
+        },
+        "required": ["url"]
+      },
+      "returns": "void"
+    },
+
+    "copyToClipboard": {
+      "description": "Local action that copies a value to the system clipboard.",
+      "args": {
+        "type": "object",
+        "properties": {
+          "value": { "oneOf": [{ "type": "string" }, { "$ref": "#/$defs/JsonPointer" }] }
+        },
+        "required": ["value"]
+      },
+      "returns": "void"
+    }
+  }
+}

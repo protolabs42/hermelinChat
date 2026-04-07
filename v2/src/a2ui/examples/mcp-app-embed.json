@@ -1,0 +1,71 @@
+{
+  "_description": "MCP Apps escape hatch inside an A2UI surface. The header and caption are native Aurora Chat components; the actual 3D viewer is an MCP Apps iframe loaded from a separate MCP server. Demonstrates the 'mix both protocols in one UI' model.",
+  "messages": [
+    {
+      "version": "v0.9",
+      "createSurface": {
+        "surfaceId": "three_d_model_viewer",
+        "catalogId": "https://aurora-chat.dev/catalog/v0.1.json"
+      }
+    },
+    {
+      "version": "v0.9",
+      "updateComponents": {
+        "surfaceId": "three_d_model_viewer",
+        "components": [
+          {
+            "id": "root",
+            "component": "Card",
+            "title": "Engine assembly",
+            "subtitle": "Click-drag to rotate, wheel to zoom",
+            "variant": "outlined",
+            "child": "body_col"
+          },
+          {
+            "id": "body_col",
+            "component": "Column",
+            "gap": 12,
+            "children": ["desc_text", "viewer", "actions_row"]
+          },
+          {
+            "id": "desc_text",
+            "component": "Text",
+            "variant": "caption",
+            "text": "Loaded via MCP Apps from the threejs-server example. The iframe runs in a sandbox with deny-by-default CSP; pointer events pass through but scripts cannot access this window."
+          },
+          {
+            "id": "viewer",
+            "component": "McpApp",
+            "resourceUri": "ui://threejs-viewer/scene.html",
+            "server": "threejs-server",
+            "height": 500,
+            "toolInput": {
+              "modelUrl": "https://example.com/models/engine.glb"
+            }
+          },
+          {
+            "id": "actions_row",
+            "component": "Row",
+            "gap": 8,
+            "justify": "end",
+            "children": ["reset_btn", "export_btn"]
+          },
+          {
+            "id": "reset_btn",
+            "component": "Button",
+            "text": "Reset view",
+            "variant": "ghost",
+            "action": { "event": { "name": "resetViewer" } }
+          },
+          {
+            "id": "export_btn",
+            "component": "Button",
+            "text": "Export PNG",
+            "variant": "primary",
+            "action": { "event": { "name": "exportViewer", "context": { "format": "png" } } }
+          }
+        ]
+      }
+    }
+  ]
+}

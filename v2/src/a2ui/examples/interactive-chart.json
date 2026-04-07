@@ -1,0 +1,100 @@
+{
+  "_description": "Mixed surface: Aurora Chat Chart component with click-to-drill-down button. Exercises Card, Column, Text, Chart (Aurora extension), Row, Button with action context.",
+  "messages": [
+    {
+      "version": "v0.9",
+      "createSurface": {
+        "surfaceId": "sales_by_region",
+        "catalogId": "https://aurora-chat.dev/catalog/v0.1.json",
+        "sendDataModel": false
+      }
+    },
+    {
+      "version": "v0.9",
+      "updateComponents": {
+        "surfaceId": "sales_by_region",
+        "components": [
+          {
+            "id": "root",
+            "component": "Card",
+            "title": "Q1 sales by region",
+            "subtitle": "Click a bar to drill down",
+            "child": "body_col"
+          },
+          {
+            "id": "body_col",
+            "component": "Column",
+            "gap": 16,
+            "children": ["summary_text", "sales_chart", "drilldown_row"]
+          },
+          {
+            "id": "summary_text",
+            "component": "Text",
+            "variant": "body",
+            "text": "Europe leads with 42% of total revenue. Americas and APAC are close behind."
+          },
+          {
+            "id": "sales_chart",
+            "component": "Chart",
+            "kind": "bar",
+            "xKey": "region",
+            "title": "Revenue ($M)",
+            "yLabel": "USD millions",
+            "data": [
+              { "region": "Europe", "q1": 12.4 },
+              { "region": "Americas", "q1": 9.8 },
+              { "region": "APAC", "q1": 6.2 },
+              { "region": "MEA", "q1": 1.1 }
+            ],
+            "series": [
+              { "key": "q1", "label": "Q1 2026" }
+            ]
+          },
+          {
+            "id": "drilldown_row",
+            "component": "Row",
+            "gap": 8,
+            "justify": "start",
+            "children": ["europe_btn", "americas_btn", "apac_btn"]
+          },
+          {
+            "id": "europe_btn",
+            "component": "Button",
+            "text": "Drill: Europe",
+            "variant": "secondary",
+            "action": {
+              "event": {
+                "name": "drillRegion",
+                "context": { "region": "Europe" }
+              }
+            }
+          },
+          {
+            "id": "americas_btn",
+            "component": "Button",
+            "text": "Drill: Americas",
+            "variant": "secondary",
+            "action": {
+              "event": {
+                "name": "drillRegion",
+                "context": { "region": "Americas" }
+              }
+            }
+          },
+          {
+            "id": "apac_btn",
+            "component": "Button",
+            "text": "Drill: APAC",
+            "variant": "secondary",
+            "action": {
+              "event": {
+                "name": "drillRegion",
+                "context": { "region": "APAC" }
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

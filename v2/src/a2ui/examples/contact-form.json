@@ -1,0 +1,127 @@
+{
+  "_description": "Contact form example — basic A2UI components only. Exercises Card, Column, Text, TextField, TextArea, CheckBox, Button, and data-bound form state.",
+  "messages": [
+    {
+      "version": "v0.9",
+      "createSurface": {
+        "surfaceId": "contact_form_demo",
+        "catalogId": "https://aurora-chat.dev/catalog/v0.1.json",
+        "sendDataModel": true
+      }
+    },
+    {
+      "version": "v0.9",
+      "updateComponents": {
+        "surfaceId": "contact_form_demo",
+        "components": [
+          {
+            "id": "root",
+            "component": "Card",
+            "title": "Contact us",
+            "subtitle": "We'll get back within 24 hours.",
+            "variant": "elevated",
+            "child": "form_col"
+          },
+          {
+            "id": "form_col",
+            "component": "Column",
+            "gap": 16,
+            "children": ["name_field", "email_field", "message_field", "newsletter_check", "submit_row"]
+          },
+          {
+            "id": "name_field",
+            "component": "TextField",
+            "label": "Name",
+            "placeholder": "Ada Lovelace",
+            "value": { "path": "/form/name" },
+            "checks": [
+              {
+                "call": "required",
+                "args": { "value": { "path": "/form/name" } },
+                "message": "Name is required."
+              }
+            ]
+          },
+          {
+            "id": "email_field",
+            "component": "TextField",
+            "label": "Email",
+            "placeholder": "you@example.com",
+            "variant": "email",
+            "value": { "path": "/form/email" },
+            "checks": [
+              {
+                "call": "required",
+                "args": { "value": { "path": "/form/email" } },
+                "message": "Email is required."
+              },
+              {
+                "call": "email",
+                "args": { "value": { "path": "/form/email" } },
+                "message": "Please enter a valid email address."
+              }
+            ]
+          },
+          {
+            "id": "message_field",
+            "component": "TextArea",
+            "label": "Message",
+            "rows": 5,
+            "value": { "path": "/form/message" }
+          },
+          {
+            "id": "newsletter_check",
+            "component": "CheckBox",
+            "label": "Sign me up for the newsletter",
+            "value": { "path": "/form/newsletter" }
+          },
+          {
+            "id": "submit_row",
+            "component": "Row",
+            "gap": 8,
+            "justify": "end",
+            "children": ["cancel_btn", "submit_btn"]
+          },
+          {
+            "id": "cancel_btn",
+            "component": "Button",
+            "text": "Cancel",
+            "variant": "ghost",
+            "action": { "event": { "name": "cancelForm" } }
+          },
+          {
+            "id": "submit_btn",
+            "component": "Button",
+            "text": "Send",
+            "variant": "primary",
+            "action": {
+              "event": {
+                "name": "submitForm",
+                "context": {
+                  "name": { "path": "/form/name" },
+                  "email": { "path": "/form/email" },
+                  "message": { "path": "/form/message" },
+                  "newsletter": { "path": "/form/newsletter" }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "version": "v0.9",
+      "updateDataModel": {
+        "surfaceId": "contact_form_demo",
+        "value": {
+          "form": {
+            "name": "",
+            "email": "",
+            "message": "",
+            "newsletter": false
+          }
+        }
+      }
+    }
+  ]
+}
