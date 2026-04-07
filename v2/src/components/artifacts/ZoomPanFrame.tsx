@@ -13,7 +13,8 @@
  * Controls are wired through an imperative ref instead of the render prop.
  */
 
-import { useCallback, useRef, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import {
   TransformWrapper,
   TransformComponent,
@@ -43,13 +44,40 @@ export default function ZoomPanFrame({
   background,
 }: ZoomPanFrameProps) {
   const ref = useRef<ReactZoomPanPinchRef | null>(null)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const [toolbarPos, setToolbarPos] = useState<{ left: number; top: number } | null>(null)
 
   const onZoomIn = useCallback(() => ref.current?.zoomIn(), [])
   const onZoomOut = useCallback(() => ref.current?.zoomOut(), [])
   const onReset = useCallback(() => ref.current?.resetTransform(), [])
 
+  // Track the container's screen position so the portaled toolbar can hug
+  // its bottom-right corner. ResizeObserver covers panel resize, scroll
+  // listeners cover the user dragging the artifact panel divider.
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const update = () => {
+      const r = el.getBoundingClientRect()
+      // Toolbar is 28+28+28 = 84px wide-ish, plus padding/borders. Anchor
+      // to bottom-right with a 12px inset.
+      setToolbarPos({ left: r.right - 12, top: r.bottom - 12 })
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    window.addEventListener('resize', update)
+    window.addEventListener('scroll', update, true)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', update)
+      window.removeEventListener('scroll', update, true)
+    }
+  }, [])
+
   return (
     <div
+      ref={containerRef}
       style={{
         position: 'relative',
         height: '100%',
@@ -90,48 +118,54 @@ export default function ZoomPanFrame({
         </TransformComponent>
       </TransformWrapper>
 
-      {/* Floating toolbar — sibling of TransformWrapper, not a child.
-          Native events on the toolbar can no longer bubble into the
-          wrapper's pointer handlers, so the buttons stay clickable. */}
-      <div
-        style={{
-          position: 'absolute',
-          right: 12,
-          bottom: 12,
-          display: 'flex',
-          gap: 4,
-          padding: 4,
-          background: 'color-mix(in srgb, var(--color-elevated) 85%, transparent)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 8,
-          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
-          backdropFilter: 'blur(8px)',
-          WebkitBackdropFilter: 'blur(8px)',
-          zIndex: 10,
-        }}
-      >
-        <ZoomButton onClick={onZoomOut} title="Zoom out (wheel down)">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </ZoomButton>
-        <ZoomButton onClick={onZoomIn} title="Zoom in (wheel up)">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </ZoomButton>
-        <ZoomButton
-          onClick={onReset}
-          title="Reset (double-click)"
-          style={{ marginLeft: 4, paddingLeft: 8, borderLeft: '1px solid var(--color-border)' }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 12a9 9 0 1 0 3-6.7" />
-            <polyline points="3 4 3 10 9 10" />
-          </svg>
-        </ZoomButton>
-      </div>
+      {/* Toolbar is portaled to document.body so it lives outside the
+          TransformWrapper subtree entirely — no chance of native pointer
+          events being captured by the pan/zoom handler. */}
+      {toolbarPos &&
+        createPortal(
+          <div
+            style={{
+              position: 'fixed',
+              left: toolbarPos.left,
+              top: toolbarPos.top,
+              transform: 'translate(-100%, -100%)',
+              display: 'flex',
+              gap: 4,
+              padding: 4,
+              background: 'color-mix(in srgb, var(--color-elevated) 88%, transparent)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 8,
+              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.4)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              zIndex: 9999,
+              pointerEvents: 'auto',
+            }}
+          >
+            <ZoomButton onClick={onZoomOut} title="Zoom out (wheel down)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </ZoomButton>
+            <ZoomButton onClick={onZoomIn} title="Zoom in (wheel up)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </ZoomButton>
+            <ZoomButton
+              onClick={onReset}
+              title="Reset (double-click)"
+              style={{ marginLeft: 4, paddingLeft: 8, borderLeft: '1px solid var(--color-border)' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 12a9 9 0 1 0 3-6.7" />
+                <polyline points="3 4 3 10 9 10" />
+              </svg>
+            </ZoomButton>
+          </div>,
+          document.body
+        )}
     </div>
   )
 }
