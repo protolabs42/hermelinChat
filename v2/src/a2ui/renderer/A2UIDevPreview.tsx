@@ -11,9 +11,10 @@
  * get them as plain strings and parse at runtime — no extra build config.
  */
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import A2UISurface, { foldMessages } from './A2UISurface'
 import { ThemeProvider } from '../../theme'
+import type { ActionMessage, ErrorMessage } from '../types'
 
 // Vite ?raw imports so the examples ship as string literals and we parse
 // at module-load time. No network, no filesystem.
@@ -47,6 +48,13 @@ const EXAMPLES: Example[] = [
   parse(mcpAppEmbedRaw, 'mcp-app-embed.json'),
 ]
 
+interface LoggedEvent {
+  at: string
+  kind: 'action' | 'error'
+  surface: string
+  payload: ActionMessage | ErrorMessage
+}
+
 export default function A2UIDevPreview() {
   const surfaces = useMemo(
     () =>
@@ -56,6 +64,30 @@ export default function A2UIDevPreview() {
       })),
     []
   )
+
+  const [log, setLog] = useState<LoggedEvent[]>([])
+
+  const onAction = (payload: ActionMessage) =>
+    setLog((prev) => {
+      const entry: LoggedEvent = {
+        at: new Date().toISOString(),
+        kind: 'action',
+        surface: payload.action.surfaceId,
+        payload,
+      }
+      return [entry, ...prev].slice(0, 10)
+    })
+
+  const onError = (payload: ErrorMessage) =>
+    setLog((prev) => {
+      const entry: LoggedEvent = {
+        at: new Date().toISOString(),
+        kind: 'error',
+        surface: payload.error.surfaceId,
+        payload,
+      }
+      return [entry, ...prev].slice(0, 10)
+    })
 
   return (
     <ThemeProvider>
@@ -143,6 +175,36 @@ export default function A2UIDevPreview() {
             </p>
           </header>
 
+          {log.length > 0 && (
+            <section
+              style={{
+                padding: 16,
+                borderRadius: 12,
+                background: 'var(--color-elevated)',
+                border: '1px solid var(--color-border)',
+                fontFamily: 'var(--font-mono, monospace)',
+                fontSize: 12,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+              }}
+            >
+              <div style={{ color: 'var(--color-accent)', fontWeight: 600 }}>
+                Action log ({log.length})
+              </div>
+              {log.map((ev, i) => (
+                <div key={i} style={{ color: ev.kind === 'error' ? 'var(--color-danger)' : 'var(--color-text)' }}>
+                  <span style={{ color: 'var(--color-muted)' }}>{ev.at.slice(11, 19)} </span>
+                  <span style={{ color: 'var(--color-accent)' }}>[{ev.kind}] </span>
+                  <span>{ev.surface}: </span>
+                  <code style={{ color: 'var(--color-text-bright)' }}>
+                    {JSON.stringify(ev.payload).slice(0, 160)}
+                  </code>
+                </div>
+              ))}
+            </section>
+          )}
+
           {surfaces.map(({ example, surface }) => (
             <section
               key={example.name}
@@ -174,7 +236,7 @@ export default function A2UIDevPreview() {
               </div>
 
               {surface ? (
-                <A2UISurface surface={surface} />
+                <A2UISurface surface={surface} onAction={onAction} onError={onError} />
               ) : (
                 <div style={{ color: 'var(--color-danger)', fontFamily: 'var(--font-mono, monospace)', fontSize: 12 }}>
                   Failed to fold messages into a SurfaceState.

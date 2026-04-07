@@ -20,6 +20,7 @@ import type {
   DynamicBoolean,
   FunctionCall,
   JsonPointer,
+  ValidationCheck,
 } from '../types'
 
 /** Type guard: JSON Pointer binding `{path: "/..."}`. */
@@ -233,4 +234,151 @@ export function resolveDynamicBoolean(
 /** Resolve a field that can be a binding or a literal of any JS type. */
 export function resolveAnyField(v: unknown, dataModel: unknown): unknown {
   return resolveAny(v, dataModel)
+}
+
+/* =============================================================================
+ * Phase 3: writing bindings, action context resolution, validation runner
+ * ============================================================================= */
+
+/**
+ * Write a value into a data model at a JSON Pointer path. Returns a new
+ * data model object (immutable update) so React can detect the change.
+ * Intermediate objects are created as needed — writing to `/form/email`
+ * when `form` doesn't exist creates `{form: {email: value}}`.
+ */
+export function writePointer(
+  pointer: string,
+  value: unknown,
+  dataModel: unknown
+): unknown {
+  if (pointer === '' || pointer === '/') return value
+
+  const segments = pointer
+    .slice(1)
+    .split('/')
+    .map((s) => s.replace(/~1/g, '/').replace(/~0/g, '~'))
+
+  // Shallow clone as we descend so we never mutate the source object
+  const root = (dataModel && typeof dataModel === 'object' ? { ...dataModel } : {}) as Record<string, unknown>
+  let cursor: Record<string, unknown> = root
+
+  for (let i = 0; i < segments.length - 1; i++) {
+    const key = segments[i]
+    const next = cursor[key]
+    cursor[key] = next && typeof next === 'object' ? { ...(next as Record<string, unknown>) } : {}
+    cursor = cursor[key] as Record<string, unknown>
+  }
+  cursor[segments[segments.length - 1]] = value
+  return root
+}
+
+/**
+ * Resolve every `{path}` or `{call}` inside an action's context object to
+ * concrete values using the current data model. Used when a Button's click
+ * handler fires and we need to serialize the current state into an action
+ * message.
+ *
+ * Mirrors A2UI v0.9 semantics: context values that are bindings resolve
+ * to their current value at the moment the action is dispatched.
+ */
+export function resolveActionContext(
+  context: Record<string, unknown> | undefined,
+  dataModel: unknown
+): Record<string, unknown> {
+  if (!context) return {}
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(context)) {
+    out[k] = resolveAny(v, dataModel)
+  }
+  return out
+}
+
+/**
+ * Run a single validation check against the current data model. Returns
+ * `null` if the check passes, or the configured error message if it fails.
+ * Unknown check functions pass (graceful degradation — we don't want
+ * unknown validators to block form submission).
+ */
+export function runCheck(
+  check: ValidationCheck,
+  dataModel: unknown
+): string | null {
+  const args = (check.args || {}) as Record<string, unknown>
+  // The resolved value the check is about
+  const value = resolveAny(args.value, dataModel)
+
+  const pass = evalCheck(check.call, value, args, dataModel)
+  return pass ? null : check.message
+}
+
+function evalCheck(
+  name: string,
+  value: unknown,
+  args: Record<string, unknown>,
+  dataModel: unknown
+): boolean {
+  switch (name) {
+    case 'required': {
+      if (value == null) return false
+      if (typeof value === 'string' && value.trim() === '') return false
+      if (Array.isArray(value) && value.length === 0) return false
+      return true
+    }
+
+    case 'email': {
+      if (value == null || value === '') return true // empty → required handles it
+      // Conservative RFC-5322-lite pattern
+      return typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+    }
+
+    case 'regex': {
+      if (value == null) return true
+      const pattern = String(args.pattern ?? '')
+      if (!pattern) return true
+      try {
+        return new RegExp(pattern).test(String(value))
+      } catch {
+        return true
+      }
+    }
+
+    case 'minLength': {
+      if (value == null) return true
+      const len = Number(args.length ?? 0)
+      return String(value).length >= len
+    }
+
+    case 'maxLength': {
+      if (value == null) return true
+      const len = Number(args.length ?? Infinity)
+      return String(value).length <= len
+    }
+
+    default:
+      // Unknown check — don't block. Log in dev so the developer notices.
+      if (typeof process === 'undefined' || process.env.NODE_ENV !== 'production') {
+        // eslint-disable-next-line no-console
+        console.warn(`[A2UI] unknown validation check "${name}"`)
+      }
+      // Reference dataModel so TS doesn't flag it as unused in this branch
+      void dataModel
+      return true
+  }
+}
+
+/**
+ * Run every check on a list and return the first failing message, or null
+ * if all pass. Returning only the first error keeps the inline UI simple —
+ * the user sees one actionable message per field.
+ */
+export function runChecks(
+  checks: ValidationCheck[] | undefined,
+  dataModel: unknown
+): string | null {
+  if (!checks) return null
+  for (const check of checks) {
+    const err = runCheck(check, dataModel)
+    if (err) return err
+  }
+  return null
 }
