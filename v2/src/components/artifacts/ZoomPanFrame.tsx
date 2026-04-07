@@ -56,7 +56,9 @@ export default function ZoomPanFrame({
         minScale={minScale}
         maxScale={maxScale}
         centerOnInit={centerOnInit}
-        wheel={{ step: 0.15 }}
+        // step is a per-event multiplier — smooth-scroll wheels fire many
+        // events per rotation, so anything above ~0.05 jumps straight to max.
+        wheel={{ step: 0.05 }}
         pinch={{ step: 5 }}
         doubleClick={{ mode: 'reset' }}
         limitToBounds={false}
@@ -80,8 +82,15 @@ export default function ZoomPanFrame({
               {children}
             </TransformComponent>
 
-            {/* Floating toolbar — bottom right */}
+            {/* Floating toolbar — bottom right.
+                stopPropagation on the toolbar itself is the belt-and-suspenders
+                guard so any stray drag-start on padding or gap regions doesn't
+                hit TransformWrapper either. */}
             <div
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onWheel={(e) => e.stopPropagation()}
               style={{
                 position: 'absolute',
                 right: 12,
@@ -138,9 +147,18 @@ function ZoomButton({
   children: ReactNode
   style?: React.CSSProperties
 }) {
+  // Stop pointer events from bubbling up to TransformWrapper, which would
+  // otherwise interpret them as a drag start and consume the click.
+  const stop = (e: React.SyntheticEvent) => e.stopPropagation()
   return (
     <button
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick()
+      }}
+      onPointerDown={stop}
+      onMouseDown={stop}
+      onTouchStart={stop}
       title={title}
       style={{
         width: 28,
@@ -150,8 +168,8 @@ function ZoomButton({
         justifyContent: 'center',
         background: 'transparent',
         border: 0,
-        borderRadius: 6,
-        color: 'var(--color-muted)',
+        borderRadius: 4,
+        color: 'var(--color-text)',
         cursor: 'pointer',
         ...style,
       }}
@@ -161,7 +179,7 @@ function ZoomButton({
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = 'transparent'
-        e.currentTarget.style.color = 'var(--color-muted)'
+        e.currentTarget.style.color = 'var(--color-text)'
       }}
     >
       {children}
