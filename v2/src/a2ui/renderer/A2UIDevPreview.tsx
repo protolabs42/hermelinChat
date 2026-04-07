@@ -144,9 +144,9 @@ export default function A2UIDevPreview() {
               </button>
             </div>
             <h1 style={{ fontSize: 24, margin: 0, color: 'var(--color-text-bright)' }}>
-              Phase 2 verification
+              Phase 3 verification
             </h1>
-            <p style={{ fontSize: 13, color: 'var(--color-muted)', margin: 0, lineHeight: 1.5 }}>
+            <p style={{ fontSize: 12, color: 'var(--color-muted)', margin: 0, lineHeight: 1.5 }}>
               Every example surface from{' '}
               <code
                 style={{
@@ -171,7 +171,9 @@ export default function A2UIDevPreview() {
               >
                 A2UISurface
               </code>{' '}
-              component. Render-only for now — interactivity arrives in Phase 3.
+              component. Inputs write to the data model live, validation runs on
+              every keystroke, and Button clicks emit A2UI ActionMessages through
+              the onAction callback (shown in the Action log panel above).
             </p>
           </header>
 
