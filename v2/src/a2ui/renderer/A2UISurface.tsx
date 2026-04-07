@@ -5,26 +5,33 @@
  * updateDataModel messages) and renders the component tree starting at the
  * component with id="root".
  *
- * Phase 3 behaviour:
+ * Phase 3 + 4 behaviour:
  *
  *   - Owns the MUTABLE data model + error state via useState. The initial
- *     data model comes from the prop; subsequent writes (from TextField
- *     changes, CheckBox toggles, etc.) update local state and re-render
- *     the tree.
+ *     data model comes from the prop; user writes (from TextField changes,
+ *     CheckBox toggles, etc.) update local state and re-render the tree.
+ *
+ *   - **Remote updates sync cleanly** (Phase 4 fix): when hermes pushes an
+ *     updateDataModel into an already-mounted surface, the prop's
+ *     `dataModel` changes AND `surface.revision` (a monotonic counter
+ *     bumped by the store on every remote message) ticks. A useEffect
+ *     watches the revision and re-seeds local state. Without this, remote
+ *     updates would silently vanish behind the initial useState snapshot.
  *
  *   - Provides A2UISurfaceContext to all children, exposing setBinding /
  *     emitAction / emitError and the validation errors map.
  *
  *   - Exposes `onAction` and `onError` callbacks so the parent can wire
  *     the A2UI client→server messages to whatever transport is active
- *     (dev preview logs to console; Phase 4 will wire it to hermes ACP).
+ *     (dev preview logs to console; Phase 4 wires it to hermes via the
+ *     a2ui action envelope sent as a user turn).
  *
  * Wraps the whole surface in an ErrorBoundary so a crash in any component
  * can't kill the chat. Runs the runtime validator in development builds
  * and surfaces any schema errors inline as a red banner.
  */
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   ActionMessage,
   ErrorMessage,
@@ -53,6 +60,19 @@ export default function A2UISurface({
   // create a new object so React re-renders components that bind to paths
   // under the changed branch.
   const [dataModel, setDataModel] = useState<unknown>(surface.dataModel)
+
+  // Re-seed local state when the surface's revision counter ticks. The store
+  // bumps `revision` on every remote message (createSurface, updateComponents,
+  // updateDataModel). We track the last revision we consumed so local user
+  // edits don't get clobbered by stable re-renders of the same surface.
+  const lastRevision = useRef<number>(surface.revision ?? 0)
+  useEffect(() => {
+    const current = surface.revision ?? 0
+    if (current !== lastRevision.current) {
+      lastRevision.current = current
+      setDataModel(surface.dataModel)
+    }
+  }, [surface.revision, surface.dataModel])
 
   // Validation errors keyed by JSON Pointer path. Empty string = no error.
   const [errors, setErrors] = useState<Record<string, string>>({})

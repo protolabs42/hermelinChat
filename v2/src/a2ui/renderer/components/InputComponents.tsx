@@ -145,7 +145,14 @@ const ButtonRender = ({ component, surface }: RenderProps) => {
   const handleClick = () => {
     if (disabled || !c.action) return
 
-    // Server action → build A2UI ActionMessage, resolve context from data model
+    // Server action → build A2UI ActionMessage, resolve context from data model.
+    //
+    // NOTE: A2UI v0.9 treats full data-model echoes as transport metadata,
+    // not as a field of `action`. We nest it here as an Aurora-local shim
+    // for Phase 4 so the agent gets the whole model in one round-trip over
+    // the marker-prompt transport. When we promote actions to a first-class
+    // ACP event (Phase 7+), the dataModel moves to the envelope and this
+    // branch goes back to spec-pure `{action: {...}}`. Keep clearly marked.
     if ('event' in c.action) {
       const server = c.action as ServerAction
       const message: ActionMessage = {
@@ -155,7 +162,6 @@ const ButtonRender = ({ component, surface }: RenderProps) => {
           sourceComponentId: c.id,
           timestamp: new Date().toISOString(),
           context: resolveActionContext(server.event.context, dataModel),
-          // Only include full data model if the surface was created with sendDataModel=true
           ...(surface.sendDataModel ? { dataModel } : {}),
         },
       }

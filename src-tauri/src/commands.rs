@@ -79,6 +79,11 @@ pub fn list_artifacts() -> Vec<crate::artifacts::Artifact> {
     crate::artifacts::list_current_artifacts()
 }
 
+#[tauri::command]
+pub fn list_a2ui_batches() -> Vec<crate::artifacts::SurfaceBatch> {
+    crate::artifacts::list_current_a2ui_batches()
+}
+
 #[derive(serde::Serialize)]
 pub struct VersionInfo {
     pub current: Option<String>,

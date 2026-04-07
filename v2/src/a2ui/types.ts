@@ -358,4 +358,25 @@ export interface SurfaceState {
   components: Record<ComponentId, Component>
   /** Mutable data model, patched by updateDataModel and user input. */
   dataModel: Record<string, unknown>
+  /**
+   * Monotonic counter bumped by the store every time a remote A2UI message
+   * is folded into this surface. The renderer watches this to re-seed its
+   * local data model state on remote updateDataModel pushes. Phase 4.
+   */
+  revision?: number
 }
+
+/* =============================================================================
+ * Phase 4: explicit data-model patch ops
+ * ============================================================================= */
+
+/**
+ * Patch operation for update_data_model tool calls. Explicit `op` lets
+ * Aurora distinguish "unset" from "set to null" without ambiguity — LLMs
+ * tend to emit null when they mean "remove", and a bare {path, value} shape
+ * would make that unrecoverable. Inspired by RFC 6902 but narrowed to the
+ * two ops we actually need right now.
+ */
+export type DataModelPatch =
+  | { op: 'set'; path: string; value: unknown }
+  | { op: 'remove'; path: string }

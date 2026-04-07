@@ -3,6 +3,7 @@ import { markdownToHtml } from '../utils/markdown'
 import ThinkingBlock from './chat/ThinkingBlock'
 import ToolCallBlock from './chat/ToolCallBlock'
 import DiffView from './chat/DiffView'
+import SurfaceAnchor from './chat/SurfaceAnchor'
 
 interface Props {
   message: ChatMessage
@@ -18,6 +19,10 @@ export default function MessageBubble({ message }: Props) {
       return <DiffView message={message} />
     }
     return <ToolCallBlock message={message} />
+  }
+
+  if (message.role === 'surface' && message.surfaceId) {
+    return <SurfaceAnchor surfaceId={message.surfaceId} />
   }
 
   if (message.role === 'system') {

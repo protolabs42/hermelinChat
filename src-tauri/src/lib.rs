@@ -24,6 +24,7 @@ pub fn run() {
             }
 
             artifacts::start_watcher(&app.handle());
+            artifacts::start_a2ui_watcher(&app.handle());
 
             Ok(())
         })
@@ -37,6 +38,7 @@ pub fn run() {
             commands::list_sessions,
             commands::get_session_messages,
             commands::list_artifacts,
+            commands::list_a2ui_batches,
             commands::set_window_title,
             commands::check_hermes_update,
         ])

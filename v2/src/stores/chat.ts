@@ -40,7 +40,7 @@ function bufferText(text: string, role: 'assistant' | 'thinking', set: (fn: (s: 
 
 export interface ChatMessage {
   id: string
-  role: 'user' | 'assistant' | 'thinking' | 'tool' | 'system'
+  role: 'user' | 'assistant' | 'thinking' | 'tool' | 'system' | 'surface'
   content: string
   timestamp: number
   toolId?: string
@@ -50,6 +50,8 @@ export interface ChatMessage {
   diffPath?: string
   diffOld?: string | null
   diffNew?: string
+  /** For role='surface': id of the A2UI surface to render inline here. */
+  surfaceId?: string
 }
 
 export interface UsageInfo {
@@ -68,6 +70,8 @@ export interface ChatStore {
   cwd: string | null
 
   addUserMessage: (text: string) => void
+  /** Inject a surface anchor into the chat stream. Phase 4. */
+  addSurfaceAnchor: (surfaceId: string) => void
   handleAcpEvent: (event: AcpEvent) => void
   setSessionId: (id: string) => void
   setPendingPrompt: (text: string | null) => void
@@ -97,6 +101,30 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       }],
       isStreaming: true,
     }))
+  },
+
+  addSurfaceAnchor: (surfaceId: string) => {
+    set((s) => {
+      // Don't double-anchor the same surface — re-renders from the store's
+      // revision bump already live-update the mounted component.
+      if (s.messages.some((m) => m.role === 'surface' && m.surfaceId === surfaceId)) {
+        return {}
+      }
+      // Flush any pending streaming text first so the surface anchors
+      // below whatever Aurora just said, not inside a half-built bubble.
+      if (_textBuffer) {
+        flushTextBuffer(set)
+      }
+      return {
+        messages: [...s.messages, {
+          id: genId(),
+          role: 'surface' as const,
+          content: '',
+          timestamp: Date.now(),
+          surfaceId,
+        }],
+      }
+    })
   },
 
   handleAcpEvent: (event: AcpEvent) => {
