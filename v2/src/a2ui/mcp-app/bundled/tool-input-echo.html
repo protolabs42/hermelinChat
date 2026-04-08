@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>MCP App: Tool Input Echo</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: var(--color-bg, #0a0a0a);
+        --fg: var(--color-text, #e5e5e5);
+        --accent: var(--color-accent, #5eead4);
+        --muted: var(--color-muted, #737373);
+        --elevated: var(--color-elevated, #1a1a1a);
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: var(--font-mono, monospace);
+        font-size: 12px;
+        padding: 24px;
+      }
+      h1 {
+        margin: 0 0 16px 0;
+        color: var(--accent);
+        font-size: 16px;
+        font-weight: 600;
+      }
+      pre {
+        background: var(--elevated);
+        padding: 16px;
+        border-radius: 8px;
+        overflow: auto;
+        color: var(--fg);
+      }
+      .label {
+        color: var(--muted);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        margin-bottom: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>tool-input echo</h1>
+    <div class="label">ui/notifications/tool-input.params</div>
+    <pre id="out">(awaiting ui/notifications/tool-input)</pre>
+    <script>
+      let nextId = 1
+      window.parent.postMessage({
+        jsonrpc: '2.0',
+        id: nextId++,
+        method: 'ui/initialize',
+        params: {
+          appCapabilities: {},
+          clientInfo: { name: 'aurora-echo-demo', version: '0.1.0' },
+          protocolVersion: '2026-01-26',
+        },
+      }, '*')
+
+      window.addEventListener('message', (e) => {
+        const m = e.data
+        if (!m || typeof m !== 'object') return
+
+        // Apply hostContext theme variables from ui/initialize response
+        if (m.id === 1 && m.result && m.result.hostContext && m.result.hostContext.styles && m.result.hostContext.styles.variables) {
+          const vars = m.result.hostContext.styles.variables
+          for (const [k, v] of Object.entries(vars)) {
+            document.documentElement.style.setProperty(k, v)
+          }
+        }
+
+        // Echo tool input
+        if (m.method === 'ui/notifications/tool-input') {
+          document.getElementById('out').textContent = JSON.stringify(m.params, null, 2)
+        }
+      })
+    </script>
+  </body>
+</html>

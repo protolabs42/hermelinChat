@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>MCP App: Counter</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: var(--color-bg, #0a0a0a);
+        --fg: var(--color-text, #e5e5e5);
+        --accent: var(--color-accent, #5eead4);
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: var(--font-sans, system-ui, sans-serif);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 16px;
+        height: 100vh;
+      }
+      .count { font-size: 48px; font-weight: 600; color: var(--accent); }
+      button {
+        background: var(--accent);
+        color: var(--bg);
+        border: none;
+        border-radius: 8px;
+        padding: 12px 24px;
+        font-size: 16px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="count" id="count">0</div>
+    <button id="btn">Increment</button>
+    <script>
+      let nextId = 1
+      let count = 0
+      const countEl = document.getElementById('count')
+      const btn = document.getElementById('btn')
+
+      // 1. Send ui/initialize on load
+      function initialize() {
+        const id = nextId++
+        window.parent.postMessage({
+          jsonrpc: '2.0',
+          id,
+          method: 'ui/initialize',
+          params: {
+            appCapabilities: {},
+            clientInfo: { name: 'aurora-counter-demo', version: '0.1.0' },
+            protocolVersion: '2026-01-26',
+          },
+        }, '*')
+      }
+
+      // 2. Listen for host messages
+      window.addEventListener('message', (e) => {
+        const msg = e.data
+        if (!msg || typeof msg !== 'object') return
+
+        // a) ui/initialize response → apply hostContext theme variables
+        if (msg.id === 1 && msg.result && msg.result.hostContext && msg.result.hostContext.styles && msg.result.hostContext.styles.variables) {
+          const vars = msg.result.hostContext.styles.variables
+          for (const [k, v] of Object.entries(vars)) {
+            document.documentElement.style.setProperty(k, v)
+          }
+        }
+
+        // b) ui/notifications/tool-input → reset count to startAt if provided
+        if (msg.method === 'ui/notifications/tool-input') {
+          const start = msg.params && msg.params.arguments && msg.params.arguments.startAt
+          if (typeof start === 'number') {
+            count = start
+            countEl.textContent = String(count)
+          }
+        }
+      })
+
+      // 3. Increment locally
+      btn.addEventListener('click', () => {
+        count += 1
+        countEl.textContent = String(count)
+      })
+
+      initialize()
+    </script>
+  </body>
+</html>

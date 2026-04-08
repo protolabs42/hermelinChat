@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>MCP App: Clock</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: var(--color-bg, #0a0a0a);
+        --fg: var(--color-text, #e5e5e5);
+        --accent: var(--color-accent, #5eead4);
+        --muted: var(--color-muted, #737373);
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: var(--font-sans, system-ui, sans-serif);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 8px;
+        height: 100vh;
+      }
+      .time {
+        font-family: var(--font-mono, monospace);
+        font-size: 56px;
+        font-weight: 600;
+        color: var(--accent);
+        letter-spacing: 0.04em;
+      }
+      .label {
+        color: var(--muted);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .swatches { display: flex; gap: 8px; margin-top: 16px; }
+      .sw {
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        border: 1px solid var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="label">Aurora theme bridge</div>
+    <div class="time" id="time">--:--:--</div>
+    <div class="swatches">
+      <div class="sw" style="background:var(--color-bg)"></div>
+      <div class="sw" style="background:var(--color-surface)"></div>
+      <div class="sw" style="background:var(--color-elevated)"></div>
+      <div class="sw" style="background:var(--color-accent)"></div>
+      <div class="sw" style="background:var(--color-text)"></div>
+    </div>
+    <script>
+      let nextId = 1
+      window.parent.postMessage({
+        jsonrpc: '2.0',
+        id: nextId++,
+        method: 'ui/initialize',
+        params: {
+          appCapabilities: {},
+          clientInfo: { name: 'aurora-clock-demo', version: '0.1.0' },
+          protocolVersion: '2026-01-26',
+        },
+      }, '*')
+
+      // Apply hostContext.styles.variables when the host responds to ui/initialize
+      window.addEventListener('message', (e) => {
+        const m = e.data
+        if (m && m.id === 1 && m.result && m.result.hostContext && m.result.hostContext.styles && m.result.hostContext.styles.variables) {
+          const vars = m.result.hostContext.styles.variables
+          for (const [k, v] of Object.entries(vars)) {
+            document.documentElement.style.setProperty(k, v)
+          }
+        }
+      })
+
+      const el = document.getElementById('time')
+      const tick = () => { el.textContent = new Date().toLocaleTimeString('en-GB') }
+      tick()
+      setInterval(tick, 1000)
+    </script>
+  </body>
+</html>
