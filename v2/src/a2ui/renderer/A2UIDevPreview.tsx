@@ -11,16 +11,19 @@
  * get them as plain strings and parse at runtime — no extra build config.
  */
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import A2UISurface, { foldMessages } from './A2UISurface'
 import { ThemeProvider } from '../../theme'
 import type { ActionMessage, ErrorMessage } from '../types'
+import { useMcpClientStore } from '../../stores/mcpClients'
+import { loadConfiguredServers } from '../mcp-app/mcp-config'
 
 // Vite ?raw imports so the examples ship as string literals and we parse
 // at module-load time. No network, no filesystem.
 import contactFormRaw from '../examples/contact-form.json?raw'
 import interactiveChartRaw from '../examples/interactive-chart.json?raw'
 import mcpAppEmbedRaw from '../examples/mcp-app-embed.json?raw'
+import threeComponentRaw from '../examples/three-component.json?raw'
 
 interface ExampleFile {
   _description?: string
@@ -46,6 +49,7 @@ const EXAMPLES: Example[] = [
   parse(contactFormRaw, 'contact-form.json'),
   parse(interactiveChartRaw, 'interactive-chart.json'),
   parse(mcpAppEmbedRaw, 'mcp-app-embed.json'),
+  parse(threeComponentRaw, 'three-component.json'),
 ]
 
 interface LoggedEvent {
@@ -64,6 +68,22 @@ export default function A2UIDevPreview() {
       })),
     []
   )
+
+  // Dev preview replaces the normal app shell, so SettingsPanel never mounts
+  // and the mcpClients store would be empty. Hydrate it from the same
+  // localStorage config SettingsPanel reads so MCP App test surfaces render
+  // without requiring a two-launch dance.
+  const mcpServers = useMcpClientStore((s) => s.servers)
+  const addServer = useMcpClientStore((s) => s.addServer)
+  useEffect(() => {
+    const persisted = loadConfiguredServers()
+    for (const cfg of persisted) {
+      if (!useMcpClientStore.getState().servers[cfg.name]) {
+        void addServer(cfg)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const [log, setLog] = useState<LoggedEvent[]>([])
 
@@ -176,6 +196,47 @@ export default function A2UIDevPreview() {
               the onAction callback (shown in the Action log panel above).
             </p>
           </header>
+
+          {Object.values(mcpServers).length > 0 && (
+            <section
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 12,
+                padding: 12,
+                background: 'var(--color-elevated)',
+                borderRadius: 8,
+                border: '1px solid var(--color-border)',
+                fontFamily: 'var(--font-mono, monospace)',
+                fontSize: 11,
+                alignItems: 'center',
+              }}
+            >
+              <div style={{ color: 'var(--color-accent)', fontWeight: 600 }}>
+                MCP servers:
+              </div>
+              {Object.values(mcpServers).map((entry) => (
+                <div key={entry.config.name} style={{ color: 'var(--color-text)' }}>
+                  <span
+                    style={{
+                      color:
+                        entry.state === 'connected'
+                          ? 'var(--color-success)'
+                          : entry.state === 'connecting'
+                            ? 'var(--color-warning)'
+                            : 'var(--color-danger)',
+                    }}
+                  >
+                    ●
+                  </span>{' '}
+                  {entry.config.name}{' '}
+                  <span style={{ color: 'var(--color-muted)' }}>
+                    ({entry.state})
+                  </span>
+                </div>
+              ))}
+            </section>
+          )}
 
           {log.length > 0 && (
             <section
