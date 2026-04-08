@@ -1,283 +1,153 @@
-# Phase 5: MCP Apps Iframe Adapter — Implementation Plan
+# Phase 5: MCP Apps Iframe Adapter — Implementation Plan (v2)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the placeholder `McpApp` component with a real sandboxed iframe + postMessage JSON-RPC 2.0 bridge implementing the MCP Apps protocol (spec `2026-01-26`), so A2UI surfaces can host arbitrary HTML/JS apps as an escape hatch from the catalog.
+> **v1 → v2:** Original plan scoped real-world MCP App compatibility out of Phase 5 ("escape hatch" only talks to bundled HTML). User overrode: real-world compat is the actual acceptance bar — "100% fully compatible." All three tiers (simple / backchannel / visually-rich) must run against real MCP servers in the wild before we close `hermelinChat-afp`.
 
-**Architecture:** Add a new module `v2/src/a2ui/mcp-app/` containing a React `AppHost` component that resolves a `ui://` resource to HTML, builds a deny-by-default sandboxed iframe with declared CSP, and wires the official `@modelcontextprotocol/ext-apps/app-bridge` `AppBridge` (with `null` MCP client — we relay through Aurora's existing action channel). MCP App messages flow back to Aurora via the same `[[A2UI_ACTION]]` envelope used by Phase 3 `Button` actions, so Aurora's existing prompt-handling can route them. Ship 3 bundled demo apps under `v2/src/a2ui/mcp-app/bundled/` that prove the handshake + tool input + tool result + open-link paths work end-to-end.
+**Goal:** Ship a spec-compliant MCP Apps host inside Aurora Chat such that any MCP App that runs in the ext-apps `basic-host` reference implementation also runs in Aurora Chat with zero client-side modifications. Three real-world test targets must pass: `get-time` (resource + tool result), `qr-server` (tools/call backchannel), and `threejs-server` (external CSP resources, visually rich).
+
+**Architecture:** Aurora Chat owns its own `@modelcontextprotocol/sdk` MCP client connections (Option C-A — the "fast path" before we migrate MCP client ownership to hermes in the deferred Phase 5.1). A new `stores/mcpClients.ts` zustand connection manager holds one `Client` instance per configured server, keyed by server name. When an A2UI surface contains an `McpApp` component with `server: "qrcode-server"`, `AppHost` looks up that client and passes it to `AppBridge`. `AppBridge` then auto-proxies `resources/read` (for the `ui://` resource HTML) and `tools/call` (for the iframe's backchannel) through the paired client — **no custom routing code needed**, the SDK handles it. Aurora Chat's role is: connection management, iframe sandboxing, CSP construction, theme bridging, and wiring `AppBridge` to the right `Client`.
 
 **Tech Stack:**
-- `@modelcontextprotocol/ext-apps@^1.5.0` (host-side `AppBridge` + `PostMessageTransport`)
-- `@modelcontextprotocol/sdk` (transitive dep of ext-apps)
-- React 18 + Vite ?raw imports for bundled HTML
-- Existing zustand `chat` store for `acp_send_prompt` routing
-- Existing Aurora `--color-*` theme system pushed via `hostContext.styles.variables`
+- `@modelcontextprotocol/sdk@^1.29.0` (MCP `Client` + `StreamableHTTPClientTransport`)
+- `@modelcontextprotocol/ext-apps@^1.5.0` (`AppBridge` + `PostMessageTransport`)
+- React 18 + zustand (existing)
+- Tauri 2 (existing, for config persistence via `localStorage` or a Rust-side store)
 
-**TDD Pragmatics:** v2/ has no test runner today (Phases 1–4 used `validate-examples.ts` + dev preview + manual UAT). Adding vitest is its own phase. This plan extends `validate-examples.ts` with a small "MCP App resource integrity" check and relies on dev preview + live UAT for verification, matching the project pattern. Where pure logic warrants confidence (CSP builder, resolver), we add inline test scripts runnable via `tsx`.
+**TDD Pragmatics:** v2/ has no test runner. Phases 1–4 used examples + `validate-examples.ts` + dev preview + live UAT. This plan follows that pattern: inline `tsx`-runnable scripts under `mcp-app/__tests__/` for pure logic (resolver, CSP, config parser), and real-world E2E validation via running the three ext-apps servers locally and verifying in dev preview. Adding vitest is explicitly out of scope.
 
-**Spec source of truth:**
+**Spec sources:**
 - Local: `docs/a2ui-and-mcp-apps-spec-notes.md` (865 lines, fetched 2026-04-07)
-- Upstream: <https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx>
-- Note: the local doc says the handshake method is `initialize` — the actual upstream spec uses **`ui/initialize`**. Trust the upstream.
+- Upstream spec: <https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx>
+- Upstream examples: <https://github.com/modelcontextprotocol/ext-apps/tree/main/examples>
+- Note: local doc simplifies the handshake method as `initialize` — upstream uses `ui/initialize`. Trust upstream. Corrigendum lands in Task 17.
 
 ---
 
 ## File Structure
 
-| File | Action | Responsibility |
-|---|---|---|
-| `v2/src/a2ui/mcp-app/resolver.ts` | Create | Resolve `ui://` URI → HTML string. v1 supports `ui://aurora-bundled/<name>` only |
-| `v2/src/a2ui/mcp-app/csp.ts` | Create | Build a sandbox-iframe Content-Security-Policy from declared `_meta.ui.csp` domains |
-| `v2/src/a2ui/mcp-app/theme-bridge.ts` | Create | Read computed `--color-*` CSS vars + package as `hostContext.styles.variables` |
-| `v2/src/a2ui/mcp-app/AppHost.tsx` | Create | React component: iframe + AppBridge + lifecycle |
-| `v2/src/a2ui/mcp-app/types.ts` | Create | Local types (CSPDeclared, HostContext, etc.) — keep narrow, reuse SDK types where possible |
-| `v2/src/a2ui/mcp-app/__tests__/csp.test.ts` | Create | Pure unit test for `buildCsp`, runnable via `tsx` |
-| `v2/src/a2ui/mcp-app/__tests__/resolver.test.ts` | Create | Pure unit test for `resolveUiResource`, runnable via `tsx` |
-| `v2/src/a2ui/mcp-app/bundled/counter.html` | Create | Demo: increment button + tool input echo (smallest sane MCP App) |
-| `v2/src/a2ui/mcp-app/bundled/clock.html` | Create | Demo: live clock + theme color preview (proves theme bridge works) |
-| `v2/src/a2ui/mcp-app/bundled/tool-input-echo.html` | Create | Demo: pretty-prints whatever toolInput it receives (proves ui/notifications/tool-input wire) |
-| `v2/src/a2ui/renderer/components/EmbedComponents.tsx` | Modify | Replace `McpAppRender` placeholder body with `<AppHost {...c} />` |
-| `v2/src/a2ui/examples/mcp-app-embed.json` | Modify | Point `resourceUri` at `ui://aurora-bundled/tool-input-echo.html` so the example renders a real bundled app |
-| `v2/src/a2ui/renderer/A2UIDevPreview.tsx` | Modify | Add `three-component.json` import (carry-over from Phase 4); confirm mcp-app-embed renders an iframe |
-| `v2/src/a2ui/validate-examples.ts` | Modify | Extend with a `validateMcpAppResources` pass that checks every `McpApp` component's `resourceUri` resolves cleanly |
-| `v2/package.json` | Modify | Add `@modelcontextprotocol/ext-apps` and `@modelcontextprotocol/sdk` deps + `a2ui:test` script |
-| `docs/a2ui-and-mcp-apps-spec-notes.md` | Modify | One-line corrigendum: handshake method is `ui/initialize`, not `initialize` |
+### New files
+
+| File | Responsibility |
+|---|---|
+| `v2/src/a2ui/mcp-app/resolver.ts` | Resolve `ui://` → HTML. Bundled path (Vite ?raw or node fs) + remote path (MCP client `resources/read`). |
+| `v2/src/a2ui/mcp-app/csp.ts` | Build spec-compliant CSP from declared `_meta.ui.csp` domains. Widens `script-src`, `style-src`, `img-src`, `font-src`, `media-src` on `resourceDomains`. |
+| `v2/src/a2ui/mcp-app/theme-bridge.ts` | Snapshot Aurora `--color-*` vars → `hostContext.styles.variables`. |
+| `v2/src/a2ui/mcp-app/mcp-config.ts` | MCP server config: parse from `localStorage` + env var, persist on change. |
+| `v2/src/a2ui/mcp-app/AppHost.tsx` | React component: iframe + AppBridge + MCP client lookup + lifecycle. |
+| `v2/src/a2ui/mcp-app/bundled/counter.html` | Smoke test demo (vanilla postMessage, full ui/initialize protocol). |
+| `v2/src/a2ui/mcp-app/bundled/clock.html` | Smoke test demo (theme bridge verification). |
+| `v2/src/a2ui/mcp-app/bundled/tool-input-echo.html` | Smoke test demo (ui/notifications/tool-input display). |
+| `v2/src/a2ui/mcp-app/__tests__/resolver.test.ts` | Pure unit test, runnable via `tsx`. |
+| `v2/src/a2ui/mcp-app/__tests__/csp.test.ts` | Pure unit test, runnable via `tsx`. |
+| `v2/src/a2ui/mcp-app/__tests__/mcp-config.test.ts` | Pure unit test for config parser. |
+| `v2/src/stores/mcpClients.ts` | zustand store managing per-server MCP `Client` instances. |
+| `v2/src/components/settings/McpServerSettings.tsx` | Settings panel section: add/remove/list MCP servers with connection status. |
+| `docs/phase5-test-servers.md` | How to clone + run the three ext-apps servers for local testing. |
+
+### Modified files
+
+| File | Change |
+|---|---|
+| `v2/src/a2ui/renderer/components/EmbedComponents.tsx` | Replace placeholder `McpAppRender` with `<AppHost {...} />`. |
+| `v2/src/a2ui/examples/mcp-app-embed.json` | Point at `ui://aurora-bundled/tool-input-echo.html` (swapping the fictional `threejs-viewer` URI). |
+| `v2/src/a2ui/renderer/A2UIDevPreview.tsx` | Add `three-component.json` (Phase 4 carryover) + an MCP App test section. |
+| `v2/src/a2ui/validate-examples.ts` | Walk `McpApp` components + verify `resourceUri` resolves (bundled check only). |
+| `v2/src/components/SettingsPanel.tsx` | Mount the new `McpServerSettings` section. |
+| `v2/package.json` | Add `@modelcontextprotocol/sdk` + `@modelcontextprotocol/ext-apps` + `a2ui:test` script. |
+| `docs/a2ui-and-mcp-apps-spec-notes.md` | One-line corrigendum: handshake method is `ui/initialize`. |
 
 ---
 
 ## Tasks
 
-### Task 1: Add SDK dependency and verify
+### Task 1: Install SDKs and verify constructor shapes
 
-**Files:**
-- Modify: `v2/package.json`
+**Files:** `v2/package.json`
 
 - [ ] **Step 1: Install both packages**
 
 ```bash
-cd v2 && npm install @modelcontextprotocol/ext-apps@^1.5.0 @modelcontextprotocol/sdk
+cd v2 && npm install @modelcontextprotocol/sdk@^1.29.0 @modelcontextprotocol/ext-apps@^1.5.0
 ```
 
-Expected: clean install, both packages added to `dependencies`.
+Expected: clean install.
 
-- [ ] **Step 2: Sanity-check the AppBridge import + constructor signatures**
+- [ ] **Step 2: Constructor shape sanity-check**
 
-Create a temporary file `v2/src/a2ui/mcp-app/__import_check.ts`:
+Create `v2/src/a2ui/mcp-app/__import_check.ts`:
 
 ```typescript
 // Temporary — deleted at end of Task 1.
-// Verifies BOTH the import resolves AND the constructor shapes the plan
-// uses in Task 6 actually compile. If this fails, fix Task 6 BEFORE Task 6.
+// Verifies BOTH imports resolve AND the constructor shapes the plan uses
+// actually compile. If this fails, fix the downstream tasks BEFORE starting
+// them — don't discover the SDK mismatch in Task 8.
+import { Client } from '@modelcontextprotocol/sdk/client/index.js'
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { AppBridge, PostMessageTransport } from '@modelcontextprotocol/ext-apps/app-bridge'
 
-// AppBridge constructor: 4 args, null as MCP client allowed
-const _bridge: AppBridge = new AppBridge(
+// Client constructor
+const _client = new Client({ name: 'aurora-chat', version: '0.1.0' })
+void _client
+
+// StreamableHTTPClientTransport constructor
+const _transport = new StreamableHTTPClientTransport(new URL('http://localhost:3001/mcp'))
+void _transport
+
+// AppBridge constructor — 4 args, accepts Client OR null
+const _bridgeNull = new AppBridge(
   null,
   { name: 'aurora-chat', version: '0.1.0' },
   { openLinks: {}, logging: {} },
   { hostContext: { theme: 'dark', styles: { variables: {} }, displayMode: 'inline' } as any }
 )
-void _bridge
+void _bridgeNull
 
-// PostMessageTransport constructor: figure out the real signature.
-// The plan assumes (source, target). If the SDK uses a different shape
-// (single window arg, options bag), THIS LINE WILL FAIL TYPECHECK and
-// you must fix Task 6 Step 1 to match before continuing.
+const _bridgeReal = new AppBridge(
+  _client,
+  { name: 'aurora-chat', version: '0.1.0' },
+  { openLinks: {}, serverTools: {}, serverResources: {}, logging: {} },
+  { hostContext: { theme: 'dark', styles: { variables: {} }, displayMode: 'inline' } as any }
+)
+void _bridgeReal
+
+// PostMessageTransport — plan assumes (source, target)
 declare const fakeWin: Window
-const _t: PostMessageTransport = new PostMessageTransport(fakeWin, fakeWin)
-void _t
+const _pmt = new PostMessageTransport(fakeWin, fakeWin)
+void _pmt
 ```
 
 Run: `cd v2 && npx tsc --noEmit src/a2ui/mcp-app/__import_check.ts`
-Expected: PASS. **If it fails on the constructor shape, read the SDK's `.d.ts` for `AppBridge` and `PostMessageTransport`, update Task 6 Step 1's component code to match, and re-run before deleting this file.**
+Expected: PASS.
 
-- [ ] **Step 3: Delete the import check, commit**
+**If ANY of these fail**, read the relevant `.d.ts` file in `node_modules/@modelcontextprotocol/` and update the plan's downstream tasks to match the actual signatures BEFORE continuing. This is the plan's single SDK compatibility gate.
+
+- [ ] **Step 3: Delete the check, commit**
 
 ```bash
 rm v2/src/a2ui/mcp-app/__import_check.ts
 git add v2/package.json v2/package-lock.json
-git commit -m "feat(a2ui): add @modelcontextprotocol/ext-apps SDK for Phase 5"
+git commit -m "feat(a2ui): add @modelcontextprotocol/sdk + ext-apps SDKs for Phase 5"
 ```
 
 ---
 
-### Task 2: ui:// resource resolver with bundled apps
+### Task 2: CSP builder (spec-compliant)
 
-**Files:**
-- Create: `v2/src/a2ui/mcp-app/resolver.ts`
-- Create: `v2/src/a2ui/mcp-app/__tests__/resolver.test.ts`
-- Create: `v2/src/a2ui/mcp-app/bundled/counter.html` (skeleton — full content in Task 4)
-- Create: `v2/src/a2ui/mcp-app/bundled/clock.html` (skeleton)
-- Create: `v2/src/a2ui/mcp-app/bundled/tool-input-echo.html` (skeleton)
-- Modify: `v2/package.json` (add `a2ui:test` script)
+**Files:** `v2/src/a2ui/mcp-app/csp.ts`, `v2/src/a2ui/mcp-app/__tests__/csp.test.ts`, `v2/package.json` (add `a2ui:test` script)
 
-- [ ] **Step 1: Create skeleton bundled HTML files**
+Doing CSP first — no deps, pure logic, sets up the test infra for the remaining tasks.
 
-Three files at `v2/src/a2ui/mcp-app/bundled/`. Each is just `<!doctype html><html><body>placeholder</body></html>` for now — Task 4 fills in the real content. We need them to exist so the resolver tests have something to import.
-
-- [ ] **Step 2: Write the failing resolver test**
-
-`v2/src/a2ui/mcp-app/__tests__/resolver.test.ts`:
-
-```typescript
-/**
- * Resolver smoke test — runnable via `npm run a2ui:test`.
- * Uses tsx, no vitest. Asserts return values via plain assert.
- */
-import assert from 'node:assert/strict'
-import { resolveUiResource, isUiUri } from '../resolver'
-
-async function main() {
-  // Bundled URI resolves to non-empty HTML
-  const html = await resolveUiResource('ui://aurora-bundled/counter.html')
-  assert.ok(html.includes('<html'), 'counter.html should contain <html>')
-
-  // Unknown bundled name throws
-  await assert.rejects(
-    () => resolveUiResource('ui://aurora-bundled/does-not-exist.html'),
-    /not found/i
-  )
-
-  // Non-aurora-bundled scheme throws (Phase 5.1 work)
-  await assert.rejects(
-    () => resolveUiResource('ui://threejs-server/scene.html'),
-    /unsupported/i
-  )
-
-  // Non-ui URI throws
-  await assert.rejects(
-    () => resolveUiResource('https://example.com/x.html'),
-    /not a ui/i
-  )
-
-  // isUiUri sanity
-  assert.equal(isUiUri('ui://aurora-bundled/counter.html'), true)
-  assert.equal(isUiUri('https://example.com'), false)
-
-  console.log('✓ resolver tests passed')
-}
-
-main().catch((e) => {
-  console.error(e)
-  process.exit(1)
-})
-```
-
-- [ ] **Step 3: Add the test script to package.json**
-
-In `v2/package.json` `scripts`:
+- [ ] **Step 1: Add test script to package.json**
 
 ```json
-"a2ui:test": "tsx src/a2ui/mcp-app/__tests__/resolver.test.ts && tsx src/a2ui/mcp-app/__tests__/csp.test.ts"
-```
-
-(`csp.test.ts` is created in Task 3 — keep both in the script from the start.)
-
-- [ ] **Step 4: Run the test to confirm it fails**
-
-Run: `cd v2 && npm run a2ui:test`
-Expected: FAIL with `Cannot find module '../resolver'`.
-
-- [ ] **Step 5: Implement the dual-mode resolver**
-
-The resolver runs in TWO contexts: the production Vite browser build (which can use `?raw` imports) AND the `tsx` node test (which can't). One file, two code paths, same return value.
-
-`v2/src/a2ui/mcp-app/resolver.ts`:
-
-```typescript
-/**
- * Resolve a ui:// URI to HTML.
- *
- * Phase 5 v1 supports only `ui://aurora-bundled/<name>` — local HTML files
- * shipped with Aurora Chat under v2/src/a2ui/mcp-app/bundled/. Future
- * iterations (Phase 5.1+) will resolve other schemes via hermes.
- *
- * Dual-mode: browser builds use Vite ?raw imports (synchronous string),
- * node test mode falls back to fs reads. Both populate the same cache.
- */
-
-// Vite ?raw imports — at runtime the browser bundler inlines these as strings.
-// In node + tsx, the ?raw suffix is stripped and these imports throw, which
-// is why they're wrapped in a try/catch initialize block below.
-const BUNDLED_CACHE = new Map<string, string>()
-
-async function ensureBundledCache(): Promise<void> {
-  if (BUNDLED_CACHE.size > 0) return
-
-  // Browser path: import each ?raw module. Wrapped in try because
-  // node-tsx can't resolve the ?raw suffix and will throw.
-  try {
-    const [counter, clock, echo] = await Promise.all([
-      import('./bundled/counter.html?raw'),
-      import('./bundled/clock.html?raw'),
-      import('./bundled/tool-input-echo.html?raw'),
-    ])
-    BUNDLED_CACHE.set('counter.html', (counter as { default: string }).default)
-    BUNDLED_CACHE.set('clock.html', (clock as { default: string }).default)
-    BUNDLED_CACHE.set('tool-input-echo.html', (echo as { default: string }).default)
-    return
-  } catch {
-    // Fall through to node path
-  }
-
-  // Node test path: read from disk via import.meta.url
-  if (typeof process !== 'undefined' && process.versions?.node) {
-    const { readFile } = await import('node:fs/promises')
-    const { fileURLToPath } = await import('node:url')
-    for (const name of ['counter.html', 'clock.html', 'tool-input-echo.html']) {
-      const path = fileURLToPath(new URL('./bundled/' + name, import.meta.url))
-      BUNDLED_CACHE.set(name, await readFile(path, 'utf8'))
-    }
-  }
-}
-
-const AURORA_BUNDLED_PREFIX = 'ui://aurora-bundled/'
-
-export function isUiUri(uri: string): boolean {
-  return typeof uri === 'string' && uri.startsWith('ui://')
-}
-
-export async function resolveUiResource(uri: string): Promise<string> {
-  if (!isUiUri(uri)) {
-    throw new Error(`Not a ui:// URI: ${uri}`)
-  }
-  if (uri.startsWith(AURORA_BUNDLED_PREFIX)) {
-    await ensureBundledCache()
-    const name = uri.slice(AURORA_BUNDLED_PREFIX.length)
-    const html = BUNDLED_CACHE.get(name)
-    if (!html) {
-      throw new Error(`Bundled MCP App not found: ${name}`)
-    }
-    return html
-  }
-  throw new Error(`Unsupported ui:// scheme (Phase 5 only resolves aurora-bundled): ${uri}`)
+"scripts": {
+  ...
+  "a2ui:test": "tsx src/a2ui/mcp-app/__tests__/csp.test.ts && tsx src/a2ui/mcp-app/__tests__/resolver.test.ts && tsx src/a2ui/mcp-app/__tests__/mcp-config.test.ts"
 }
 ```
 
-- [ ] **Step 6: Run the test, confirm pass**
-
-Run: `cd v2 && npm run a2ui:test`
-Expected: `✓ resolver tests passed`. csp.test.ts will fail (not yet written) — ignore that line until Task 3.
-
-- [ ] **Step 7: Commit**
-
-```bash
-git add v2/src/a2ui/mcp-app/resolver.ts \
-  v2/src/a2ui/mcp-app/__tests__/resolver.test.ts \
-  v2/src/a2ui/mcp-app/bundled/ \
-  v2/package.json
-git commit -m "feat(a2ui): MCP App ui:// resolver with bundled apps"
-```
-
----
-
-### Task 3: CSP builder
-
-**Files:**
-- Create: `v2/src/a2ui/mcp-app/csp.ts`
-- Create: `v2/src/a2ui/mcp-app/__tests__/csp.test.ts`
-
-- [ ] **Step 1: Write the failing CSP test**
+- [ ] **Step 2: Write failing test**
 
 `v2/src/a2ui/mcp-app/__tests__/csp.test.ts`:
 
@@ -285,44 +155,58 @@ git commit -m "feat(a2ui): MCP App ui:// resolver with bundled apps"
 /**
  * CSP builder smoke test — runnable via `npm run a2ui:test`.
  *
- * Verifies the deny-by-default baseline matches the spec and that declared
- * domains widen the policy correctly without weakening defaults.
+ * Spec reference: https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx
+ * Default CSP from spec §"Default Content-Security-Policy".
+ * resourceDomains maps to script-src, style-src, img-src, font-src, media-src per spec.
  */
 import assert from 'node:assert/strict'
 import { buildCsp, DEFAULT_CSP } from '../csp'
 
 function has(csp: string, directive: string, source: string): boolean {
-  // crude: split into directive blocks and look for the source under it
   return csp.split(';').some((d) => d.trim().startsWith(directive + ' ') && d.includes(source))
 }
 
 function main() {
-  // Default (deny-by-default) matches spec exactly
-  const def = buildCsp(undefined)
-  assert.equal(def, DEFAULT_CSP, 'undefined declared should return DEFAULT_CSP')
-  assert.match(def, /default-src 'none'/)
-  assert.match(def, /script-src 'self' 'unsafe-inline'/)
-  assert.match(def, /connect-src 'none'/)
+  // Default (deny-by-default)
+  assert.match(DEFAULT_CSP, /default-src 'none'/)
+  assert.match(DEFAULT_CSP, /script-src 'self' 'unsafe-inline'/)
+  assert.match(DEFAULT_CSP, /style-src 'self' 'unsafe-inline'/)
+  assert.match(DEFAULT_CSP, /img-src 'self' data:/)
+  assert.match(DEFAULT_CSP, /media-src 'self' data:/)
+  assert.match(DEFAULT_CSP, /connect-src 'none'/)
 
-  // Empty object also returns default
+  // undefined → default
+  assert.equal(buildCsp(undefined), DEFAULT_CSP)
+  // empty object → default
   assert.equal(buildCsp({}), DEFAULT_CSP)
 
   // connectDomains widens connect-src
-  const withConnect = buildCsp({ connectDomains: ['https://api.example.com'] })
-  assert.ok(has(withConnect, 'connect-src', 'https://api.example.com'))
+  const c = buildCsp({ connectDomains: ['https://api.weather.com', 'wss://realtime.service.com'] })
+  assert.ok(has(c, 'connect-src', 'https://api.weather.com'))
+  assert.ok(has(c, 'connect-src', 'wss://realtime.service.com'))
 
-  // resourceDomains widens script-src AND img-src AND style-src AND font-src
-  const withRes = buildCsp({ resourceDomains: ['https://cdn.example.com'] })
-  assert.ok(has(withRes, 'script-src', 'https://cdn.example.com'))
-  assert.ok(has(withRes, 'img-src', 'https://cdn.example.com'))
+  // resourceDomains widens script-src + style-src + img-src + font-src + media-src per spec
+  const r = buildCsp({ resourceDomains: ['https://cdn.jsdelivr.net'] })
+  for (const dir of ['script-src', 'style-src', 'img-src', 'font-src', 'media-src']) {
+    assert.ok(has(r, dir, 'https://cdn.jsdelivr.net'), `${dir} should include cdn.jsdelivr.net`)
+  }
 
   // frameDomains widens frame-src
-  const withFrame = buildCsp({ frameDomains: ['https://embed.example.com'] })
-  assert.ok(has(withFrame, 'frame-src', 'https://embed.example.com'))
+  const f = buildCsp({ frameDomains: ['https://www.youtube.com'] })
+  assert.ok(has(f, 'frame-src', 'https://www.youtube.com'))
 
   // baseUriDomains widens base-uri
-  const withBase = buildCsp({ baseUriDomains: ['https://app.example.com'] })
-  assert.ok(has(withBase, 'base-uri', 'https://app.example.com'))
+  const b = buildCsp({ baseUriDomains: ['https://app.example.com'] })
+  assert.ok(has(b, 'base-uri', 'https://app.example.com'))
+
+  // Three.js CDN compound case (Tier 3 realism)
+  const three = buildCsp({
+    resourceDomains: ['https://unpkg.com', 'https://cdn.jsdelivr.net'],
+    connectDomains: ['https://threejs.org'],
+  })
+  assert.ok(has(three, 'script-src', 'https://unpkg.com'))
+  assert.ok(has(three, 'script-src', 'https://cdn.jsdelivr.net'))
+  assert.ok(has(three, 'connect-src', 'https://threejs.org'))
 
   console.log('✓ csp tests passed')
 }
@@ -330,14 +214,12 @@ function main() {
 main()
 ```
 
-- [ ] **Step 2: Run, confirm fail**
+- [ ] **Step 3: Run test, confirm fail**
 
 Run: `cd v2 && npm run a2ui:test`
-Expected: csp.test.ts fails with `Cannot find module '../csp'`.
+Expected: `Cannot find module '../csp'`.
 
-- [ ] **Step 3: Implement buildCsp**
-
-`v2/src/a2ui/mcp-app/csp.ts`:
+- [ ] **Step 4: Implement csp.ts**
 
 ```typescript
 /**
@@ -346,7 +228,10 @@ Expected: csp.test.ts fails with `Cannot find module '../csp'`.
  * Applies the deny-by-default baseline from the MCP Apps spec
  * (2026-01-26, §"Default Content-Security-Policy") and widens individual
  * directives based on the declared `_meta.ui.csp` domains. Hosts MUST NOT
- * allow undeclared domains, so this is the only widening path.
+ * allow undeclared domains — widening is the only path.
+ *
+ * resourceDomains maps to script-src, style-src, img-src, font-src, media-src
+ * per spec, which is how the Three.js demo can load from unpkg.com.
  */
 
 export interface DeclaredCsp {
@@ -369,12 +254,6 @@ export function buildCsp(declared?: DeclaredCsp): string {
     return DEFAULT_CSP
   }
 
-  const { connectDomains, resourceDomains, frameDomains, baseUriDomains } = declared
-
-  // Start from the base directives (mirror DEFAULT_CSP exactly) then widen.
-  // font-src is intentionally omitted: the spec default falls through to
-  // default-src 'none', and Phase 5 demos don't load custom fonts. Add
-  // back when a real demo needs it.
   const directives: Record<string, string[]> = {
     'default-src': ["'none'"],
     'script-src': ["'self'", "'unsafe-inline'"],
@@ -384,19 +263,22 @@ export function buildCsp(declared?: DeclaredCsp): string {
     'connect-src': ["'none'"],
   }
 
-  if (connectDomains?.length) {
-    directives['connect-src'] = ["'self'", ...connectDomains]
+  if (declared.connectDomains?.length) {
+    directives['connect-src'] = ["'self'", ...declared.connectDomains]
   }
-  if (resourceDomains?.length) {
-    directives['script-src'].push(...resourceDomains)
-    directives['style-src'].push(...resourceDomains)
-    directives['img-src'].push(...resourceDomains)
+  if (declared.resourceDomains?.length) {
+    // Spec: resourceDomains maps to script-src, style-src, img-src, font-src, media-src
+    directives['script-src'].push(...declared.resourceDomains)
+    directives['style-src'].push(...declared.resourceDomains)
+    directives['img-src'].push(...declared.resourceDomains)
+    directives['font-src'] = ["'self'", 'data:', ...declared.resourceDomains]
+    directives['media-src'].push(...declared.resourceDomains)
   }
-  if (frameDomains?.length) {
-    directives['frame-src'] = ["'self'", ...frameDomains]
+  if (declared.frameDomains?.length) {
+    directives['frame-src'] = ["'self'", ...declared.frameDomains]
   }
-  if (baseUriDomains?.length) {
-    directives['base-uri'] = ["'self'", ...baseUriDomains]
+  if (declared.baseUriDomains?.length) {
+    directives['base-uri'] = ["'self'", ...declared.baseUriDomains]
   }
 
   return Object.entries(directives)
@@ -405,337 +287,499 @@ export function buildCsp(declared?: DeclaredCsp): string {
 }
 ```
 
-- [ ] **Step 4: Run, confirm pass**
+- [ ] **Step 5: Run test, confirm pass**
 
 Run: `cd v2 && npm run a2ui:test`
-Expected: `✓ resolver tests passed` then `✓ csp tests passed`.
+Expected: `✓ csp tests passed` (resolver + mcp-config still fail — expected).
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add v2/src/a2ui/mcp-app/csp.ts v2/src/a2ui/mcp-app/__tests__/csp.test.ts
-git commit -m "feat(a2ui): MCP App CSP builder with deny-by-default baseline"
+git add v2/src/a2ui/mcp-app/csp.ts v2/src/a2ui/mcp-app/__tests__/csp.test.ts v2/package.json
+git commit -m "feat(a2ui): MCP App CSP builder (spec-compliant resourceDomains widening)"
 ```
 
 ---
 
-### Task 4: Bundled demo MCP Apps
+### Task 3: MCP client store
 
-**Files:**
-- Modify: `v2/src/a2ui/mcp-app/bundled/counter.html`
-- Modify: `v2/src/a2ui/mcp-app/bundled/clock.html`
-- Modify: `v2/src/a2ui/mcp-app/bundled/tool-input-echo.html`
+**Files:** `v2/src/stores/mcpClients.ts`
 
-Each demo uses **vanilla postMessage** (no SDK import in the iframe — keeps the bundled apps zero-dependency and easy to audit).
+The zustand store owns per-server `Client` instances. Components look up a client by server name; the store handles connect/reconnect/disconnect lifecycle.
 
-- [ ] **Step 1: Write counter.html**
-
-```html
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>MCP App: Counter</title>
-    <style>
-      :root {
-        color-scheme: light dark;
-        --bg: var(--color-bg, #0a0a0a);
-        --fg: var(--color-text, #e5e5e5);
-        --accent: var(--color-accent, #5eead4);
-      }
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--fg);
-        font-family: var(--font-sans, system-ui, sans-serif);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-        gap: 16px;
-        height: 100vh;
-      }
-      .count { font-size: 48px; font-weight: 600; color: var(--accent); }
-      button {
-        background: var(--accent);
-        color: var(--bg);
-        border: none;
-        border-radius: 8px;
-        padding: 12px 24px;
-        font-size: 16px;
-        cursor: pointer;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="count" id="count">0</div>
-    <button id="btn">Increment</button>
-    <script>
-      let nextId = 1
-      let count = 0
-      const countEl = document.getElementById('count')
-      const btn = document.getElementById('btn')
-
-      // 1. Send ui/initialize on load
-      function initialize() {
-        const id = nextId++
-        window.parent.postMessage({
-          jsonrpc: '2.0',
-          id,
-          method: 'ui/initialize',
-          params: {
-            appCapabilities: {},
-            clientInfo: { name: 'aurora-counter-demo', version: '0.1.0' },
-            protocolVersion: '2026-01-26',
-          },
-        }, '*')
-      }
-
-      // 2. Listen for tool-input notifications and reset count
-      window.addEventListener('message', (e) => {
-        const msg = e.data
-        if (msg && msg.method === 'ui/notifications/tool-input') {
-          const start = msg.params?.arguments?.startAt
-          if (typeof start === 'number') {
-            count = start
-            countEl.textContent = String(count)
-          }
-        }
-      })
-
-      // 3. Increment locally
-      btn.addEventListener('click', () => {
-        count += 1
-        countEl.textContent = String(count)
-      })
-
-      initialize()
-    </script>
-  </body>
-</html>
-```
-
-- [ ] **Step 2: Write clock.html**
-
-```html
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>MCP App: Clock</title>
-    <style>
-      :root {
-        color-scheme: light dark;
-        --bg: var(--color-bg, #0a0a0a);
-        --fg: var(--color-text, #e5e5e5);
-        --accent: var(--color-accent, #5eead4);
-        --muted: var(--color-muted, #737373);
-      }
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--fg);
-        font-family: var(--font-sans, system-ui, sans-serif);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-        gap: 8px;
-        height: 100vh;
-      }
-      .time {
-        font-family: var(--font-mono, monospace);
-        font-size: 56px;
-        font-weight: 600;
-        color: var(--accent);
-        letter-spacing: 0.04em;
-      }
-      .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
-      .swatches { display: flex; gap: 8px; margin-top: 16px; }
-      .sw { width: 24px; height: 24px; border-radius: 4px; border: 1px solid var(--muted); }
-    </style>
-  </head>
-  <body>
-    <div class="label">Aurora theme bridge</div>
-    <div class="time" id="time">--:--:--</div>
-    <div class="swatches">
-      <div class="sw" style="background:var(--color-bg)"></div>
-      <div class="sw" style="background:var(--color-surface)"></div>
-      <div class="sw" style="background:var(--color-elevated)"></div>
-      <div class="sw" style="background:var(--color-accent)"></div>
-      <div class="sw" style="background:var(--color-text)"></div>
-    </div>
-    <script>
-      let nextId = 1
-      window.parent.postMessage({
-        jsonrpc: '2.0', id: nextId++, method: 'ui/initialize',
-        params: { appCapabilities: {}, clientInfo: { name: 'aurora-clock-demo', version: '0.1.0' }, protocolVersion: '2026-01-26' },
-      }, '*')
-      const el = document.getElementById('time')
-      const tick = () => { el.textContent = new Date().toLocaleTimeString('en-GB') }
-      tick(); setInterval(tick, 1000)
-    </script>
-  </body>
-</html>
-```
-
-- [ ] **Step 3: Write tool-input-echo.html**
-
-```html
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>MCP App: Tool Input Echo</title>
-    <style>
-      :root {
-        color-scheme: light dark;
-        --bg: var(--color-bg, #0a0a0a);
-        --fg: var(--color-text, #e5e5e5);
-        --accent: var(--color-accent, #5eead4);
-      }
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--fg);
-        font-family: var(--font-mono, monospace);
-        font-size: 12px;
-        padding: 24px;
-      }
-      h1 { margin: 0 0 16px 0; color: var(--accent); font-size: 16px; font-weight: 600; }
-      pre { background: var(--color-elevated, #1a1a1a); padding: 16px; border-radius: 8px; overflow: auto; }
-    </style>
-  </head>
-  <body>
-    <h1>tool-input echo</h1>
-    <pre id="out">(awaiting ui/notifications/tool-input)</pre>
-    <script>
-      let nextId = 1
-      window.parent.postMessage({
-        jsonrpc: '2.0', id: nextId++, method: 'ui/initialize',
-        params: { appCapabilities: {}, clientInfo: { name: 'aurora-echo-demo', version: '0.1.0' }, protocolVersion: '2026-01-26' },
-      }, '*')
-      window.addEventListener('message', (e) => {
-        const m = e.data
-        if (m && m.method === 'ui/notifications/tool-input') {
-          document.getElementById('out').textContent = JSON.stringify(m.params, null, 2)
-        }
-      })
-    </script>
-  </body>
-</html>
-```
-
-- [ ] **Step 4: Re-run resolver test to confirm files load**
-
-Run: `cd v2 && npm run a2ui:test`
-Expected: still passes — the resolver test only checks the file is non-empty `<html>`.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add v2/src/a2ui/mcp-app/bundled/
-git commit -m "feat(a2ui): bundled MCP App demos (counter, clock, tool-input echo)"
-```
-
----
-
-### Task 5: Theme bridge — push Aurora theme into iframe hostContext
-
-**Files:**
-- Create: `v2/src/a2ui/mcp-app/theme-bridge.ts`
-
-- [ ] **Step 1: Implement getThemeContext**
+- [ ] **Step 1: Implement the store**
 
 ```typescript
 /**
- * Theme bridge: snapshot Aurora's --color-* CSS custom properties from the
- * document root and package them as McpUi hostContext.styles.variables, so
- * bundled MCP Apps can theme themselves to match Aurora.
+ * MCP client store — manages connections to configured MCP servers.
+ *
+ * One Client per server, keyed by a logical name that matches the `server`
+ * field in A2UI McpApp components. AppHost looks up the Client at iframe
+ * mount time and hands it to AppBridge for automatic tools/call +
+ * resources/read proxying.
+ *
+ * Phase 5 Option C-A: Aurora Chat owns these connections directly.
+ * Phase 5.1 will migrate ownership to hermes and this store becomes
+ * a thin view over hermes' MCP layer.
  */
 
-const THEME_VAR_NAMES = [
-  '--color-bg',
-  '--color-surface',
-  '--color-elevated',
-  '--color-text',
-  '--color-text-bright',
-  '--color-muted',
-  '--color-border',
-  '--color-accent',
-  '--color-danger',
-  '--color-success',
-  '--color-warning',
-  '--font-sans',
-  '--font-mono',
-] as const
+import { create } from 'zustand'
+import { Client } from '@modelcontextprotocol/sdk/client/index.js'
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 
-export interface HostContext {
-  theme: 'light' | 'dark'
-  styles: {
-    variables: Record<string, string>
-  }
-  displayMode: 'inline'
-  containerDimensions?: { width?: number; maxHeight?: number }
+export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error'
+
+export interface McpServerConfig {
+  /** Logical name — must match the `server` field in McpApp components. */
+  name: string
+  /** HTTP URL of the MCP server (e.g. http://localhost:3001/mcp). */
+  url: string
 }
 
-export function getThemeContext(opts?: { width?: number; maxHeight?: number }): HostContext {
-  const styles: Record<string, string> = {}
-  if (typeof window !== 'undefined') {
-    const computed = getComputedStyle(document.documentElement)
-    for (const name of THEME_VAR_NAMES) {
-      const v = computed.getPropertyValue(name).trim()
-      if (v) styles[name] = v
+export interface McpServerEntry {
+  config: McpServerConfig
+  state: ConnectionState
+  error?: string
+  client?: Client
+}
+
+interface McpClientStore {
+  servers: Record<string, McpServerEntry>
+  /** Add a server and attempt to connect immediately. */
+  addServer(config: McpServerConfig): Promise<void>
+  /** Remove + disconnect a server. */
+  removeServer(name: string): Promise<void>
+  /** Force reconnect an existing server. */
+  reconnect(name: string): Promise<void>
+  /** Look up a connected client by server name. Returns null if not connected. */
+  getClient(name: string): Client | null
+}
+
+async function connect(config: McpServerConfig): Promise<Client> {
+  const client = new Client({ name: 'aurora-chat', version: '0.1.0' })
+  const transport = new StreamableHTTPClientTransport(new URL(config.url))
+  await client.connect(transport)
+  return client
+}
+
+export const useMcpClientStore = create<McpClientStore>((set, get) => ({
+  servers: {},
+
+  addServer: async (config) => {
+    set((s) => ({
+      servers: {
+        ...s.servers,
+        [config.name]: { config, state: 'connecting' },
+      },
+    }))
+    try {
+      const client = await connect(config)
+      set((s) => ({
+        servers: {
+          ...s.servers,
+          [config.name]: { config, state: 'connected', client },
+        },
+      }))
+    } catch (e) {
+      set((s) => ({
+        servers: {
+          ...s.servers,
+          [config.name]: { config, state: 'error', error: (e as Error).message },
+        },
+      }))
     }
-  }
-  // Crude theme detection: check the bg lightness. Cheap and good enough.
-  const bg = styles['--color-bg'] ?? ''
-  const isDark = /^#?[0-3]/.test(bg.replace(/^#/, '')) || bg.includes('rgb(0') || bg === ''
-  return {
-    theme: isDark ? 'dark' : 'light',
-    styles: { variables: styles },
-    displayMode: 'inline',
-    containerDimensions: opts,
-  }
-}
+  },
+
+  removeServer: async (name) => {
+    const entry = get().servers[name]
+    if (entry?.client) {
+      try {
+        await entry.client.close()
+      } catch {
+        /* best effort */
+      }
+    }
+    set((s) => {
+      const next = { ...s.servers }
+      delete next[name]
+      return { servers: next }
+    })
+  },
+
+  reconnect: async (name) => {
+    const entry = get().servers[name]
+    if (!entry) return
+    await get().removeServer(name)
+    await get().addServer(entry.config)
+  },
+
+  getClient: (name) => {
+    const entry = get().servers[name]
+    return entry?.state === 'connected' ? entry.client ?? null : null
+  },
+}))
 ```
 
 - [ ] **Step 2: Type-check**
 
 Run: `cd v2 && npx tsc --noEmit`
-Expected: PASS (the new file is wired into nothing yet, but should type-check standalone).
+Expected: PASS.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add v2/src/a2ui/mcp-app/theme-bridge.ts
-git commit -m "feat(a2ui): MCP App theme bridge — snapshot --color-* into hostContext"
+git add v2/src/stores/mcpClients.ts
+git commit -m "feat(a2ui): MCP client store — zustand connection manager per server"
 ```
 
 ---
 
-### Task 6: AppHost React component
+### Task 4: MCP config parser + persistence
 
-**Files:**
-- Create: `v2/src/a2ui/mcp-app/AppHost.tsx`
+**Files:** `v2/src/a2ui/mcp-app/mcp-config.ts`, `v2/src/a2ui/mcp-app/__tests__/mcp-config.test.ts`
 
-- [ ] **Step 1: Implement AppHost**
+Persists the list of configured servers across sessions via `localStorage`, with env var fallback for dev convenience.
+
+- [ ] **Step 1: Write failing test**
+
+```typescript
+/**
+ * MCP config parser test.
+ */
+import assert from 'node:assert/strict'
+import { parseMcpServers, STORAGE_KEY } from '../mcp-config'
+
+function main() {
+  // Valid JSON array
+  const a = parseMcpServers('[{"name":"x","url":"http://localhost:3001/mcp"}]')
+  assert.equal(a.length, 1)
+  assert.equal(a[0].name, 'x')
+  assert.equal(a[0].url, 'http://localhost:3001/mcp')
+
+  // Empty array
+  assert.deepEqual(parseMcpServers('[]'), [])
+
+  // Null / empty string / undefined → []
+  assert.deepEqual(parseMcpServers(null), [])
+  assert.deepEqual(parseMcpServers(''), [])
+  assert.deepEqual(parseMcpServers(undefined), [])
+
+  // Malformed JSON → []
+  assert.deepEqual(parseMcpServers('not json'), [])
+
+  // Missing required field → entry skipped
+  const b = parseMcpServers('[{"name":"x"},{"name":"y","url":"http://y/mcp"}]')
+  assert.equal(b.length, 1)
+  assert.equal(b[0].name, 'y')
+
+  // Constant
+  assert.equal(typeof STORAGE_KEY, 'string')
+  assert.ok(STORAGE_KEY.length > 0)
+
+  console.log('✓ mcp-config tests passed')
+}
+
+main()
+```
+
+- [ ] **Step 2: Run, confirm fail**
+
+Run: `cd v2 && npm run a2ui:test`
+Expected: mcp-config test fails.
+
+- [ ] **Step 3: Implement mcp-config.ts**
+
+```typescript
+/**
+ * MCP server config: parse, persist, hydrate.
+ *
+ * Sources in priority order:
+ *   1. localStorage[STORAGE_KEY] — set by settings UI
+ *   2. import.meta.env.VITE_AURORA_MCP_SERVERS — dev convenience
+ *
+ * Both are JSON arrays of McpServerConfig.
+ */
+
+import type { McpServerConfig } from '../../stores/mcpClients'
+
+export const STORAGE_KEY = 'aurora.mcp-servers'
+
+export function parseMcpServers(
+  raw: string | null | undefined
+): McpServerConfig[] {
+  if (!raw) return []
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return []
+  }
+  if (!Array.isArray(parsed)) return []
+  return parsed
+    .filter(
+      (x): x is McpServerConfig =>
+        !!x &&
+        typeof x === 'object' &&
+        typeof (x as McpServerConfig).name === 'string' &&
+        typeof (x as McpServerConfig).url === 'string'
+    )
+    .map((x) => ({ name: x.name, url: x.url }))
+}
+
+export function loadConfiguredServers(): McpServerConfig[] {
+  // Browser path only — this module isn't imported in node tests
+  if (typeof localStorage === 'undefined') return []
+  const fromStorage = parseMcpServers(localStorage.getItem(STORAGE_KEY))
+  if (fromStorage.length > 0) return fromStorage
+  // Fallback to env var (Vite inlines at build time)
+  const fromEnv = parseMcpServers(
+    (import.meta.env?.VITE_AURORA_MCP_SERVERS as string | undefined) ?? null
+  )
+  return fromEnv
+}
+
+export function saveConfiguredServers(servers: McpServerConfig[]): void {
+  if (typeof localStorage === 'undefined') return
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(servers))
+}
+```
+
+- [ ] **Step 4: Run test, confirm pass**
+
+Run: `cd v2 && npm run a2ui:test`
+Expected: `✓ mcp-config tests passed`.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add v2/src/a2ui/mcp-app/mcp-config.ts v2/src/a2ui/mcp-app/__tests__/mcp-config.test.ts
+git commit -m "feat(a2ui): MCP server config parser + localStorage persistence"
+```
+
+---
+
+### Task 5: Bundled HTML demo apps (3)
+
+**Files:** `v2/src/a2ui/mcp-app/bundled/counter.html`, `clock.html`, `tool-input-echo.html`
+
+Smoke tests for offline development + CI. Each implements the REAL ui/initialize protocol (not a shortcut) so they stress the same code paths as external MCP Apps. Vanilla postMessage, zero dependencies — keeps the bundled set auditable.
+
+- [ ] **Step 1: counter.html**
+
+Full implementation in plan v1 Task 4 Step 1 — reuse that verbatim. Key: listens for `ui/notifications/tool-input` and resets count to `arguments.startAt` if provided.
+
+- [ ] **Step 2: clock.html**
+
+Full implementation in plan v1 Task 4 Step 2 — reuse verbatim. Renders theme swatches using `var(--color-*)` fallback chain so it works before AND after hostContext arrives.
+
+- [ ] **Step 3: tool-input-echo.html**
+
+Full implementation in plan v1 Task 4 Step 3 — reuse verbatim. Pretty-prints whatever `ui/notifications/tool-input` it receives.
+
+**Patch for all three:** each demo should ALSO listen for the `ui/initialize` response and apply `hostContext.styles.variables` to `document.documentElement` so they theme correctly. Add at the end of each `<script>`:
+
+```javascript
+// Apply hostContext.styles.variables when the host responds to ui/initialize
+window.addEventListener('message', (e) => {
+  const m = e.data
+  if (m && m.id === 1 && m.result?.hostContext?.styles?.variables) {
+    const vars = m.result.hostContext.styles.variables
+    for (const [k, v] of Object.entries(vars)) {
+      document.documentElement.style.setProperty(k, v)
+    }
+  }
+})
+```
+
+(The `id === 1` match assumes ui/initialize is the first request. If `nextId` starts at 1, that's true.)
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add v2/src/a2ui/mcp-app/bundled/
+git commit -m "feat(a2ui): bundled MCP App smoke tests with hostContext theme apply"
+```
+
+---
+
+### Task 6: ui:// resource resolver
+
+**Files:** `v2/src/a2ui/mcp-app/resolver.ts`, `v2/src/a2ui/mcp-app/__tests__/resolver.test.ts`
+
+Dual-mode resolver: bundled `ui://aurora-bundled/*` paths (Vite ?raw in browser, fs in node test), OR remote `ui://*` paths via an injected MCP client's `resources/read`.
+
+- [ ] **Step 1: Failing test**
+
+```typescript
+import assert from 'node:assert/strict'
+import { resolveUiResource, isUiUri } from '../resolver'
+
+async function main() {
+  // Bundled
+  const html = await resolveUiResource('ui://aurora-bundled/counter.html')
+  assert.ok(html.includes('<html'))
+
+  // Unknown bundled name
+  await assert.rejects(
+    () => resolveUiResource('ui://aurora-bundled/does-not-exist.html'),
+    /not found/i
+  )
+
+  // Non-aurora-bundled scheme WITHOUT a client → throws
+  await assert.rejects(
+    () => resolveUiResource('ui://threejs-server/scene.html'),
+    /no mcp client/i
+  )
+
+  // Non-ui URI
+  await assert.rejects(() => resolveUiResource('https://example.com'), /not a ui/i)
+
+  // isUiUri sanity
+  assert.equal(isUiUri('ui://a/b'), true)
+  assert.equal(isUiUri('https://x'), false)
+
+  console.log('✓ resolver tests passed')
+}
+
+main().catch((e) => {
+  console.error(e)
+  process.exit(1)
+})
+```
+
+- [ ] **Step 2: Run, confirm fail**
+
+- [ ] **Step 3: Implement resolver**
+
+```typescript
+/**
+ * Resolve a ui:// URI to HTML.
+ *
+ * Two paths:
+ *  1. `ui://aurora-bundled/<name>` — local HTML shipped with Aurora Chat.
+ *     Vite ?raw imports in browser build, fs fallback in node tests.
+ *  2. `ui://<anything-else>` — fetched from an MCP client via resources/read.
+ *     Caller must supply the client (paired by server name at call site).
+ */
+
+import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
+
+const AURORA_BUNDLED_PREFIX = 'ui://aurora-bundled/'
+const BUNDLED_CACHE = new Map<string, string>()
+
+async function ensureBundledCache(): Promise<void> {
+  if (BUNDLED_CACHE.size > 0) return
+
+  // Browser path: Vite ?raw imports
+  try {
+    const [counter, clock, echo] = await Promise.all([
+      import('./bundled/counter.html?raw'),
+      import('./bundled/clock.html?raw'),
+      import('./bundled/tool-input-echo.html?raw'),
+    ])
+    BUNDLED_CACHE.set('counter.html', (counter as { default: string }).default)
+    BUNDLED_CACHE.set('clock.html', (clock as { default: string }).default)
+    BUNDLED_CACHE.set('tool-input-echo.html', (echo as { default: string }).default)
+    return
+  } catch {
+    /* fall through to node path */
+  }
+
+  // Node test path: fs reads
+  if (typeof process !== 'undefined' && process.versions?.node) {
+    const { readFile } = await import('node:fs/promises')
+    const { fileURLToPath } = await import('node:url')
+    for (const name of ['counter.html', 'clock.html', 'tool-input-echo.html']) {
+      const path = fileURLToPath(new URL('./bundled/' + name, import.meta.url))
+      BUNDLED_CACHE.set(name, await readFile(path, 'utf8'))
+    }
+  }
+}
+
+export function isUiUri(uri: string): boolean {
+  return typeof uri === 'string' && uri.startsWith('ui://')
+}
+
+export async function resolveUiResource(uri: string, client?: Client | null): Promise<string> {
+  if (!isUiUri(uri)) {
+    throw new Error(`Not a ui:// URI: ${uri}`)
+  }
+
+  if (uri.startsWith(AURORA_BUNDLED_PREFIX)) {
+    await ensureBundledCache()
+    const name = uri.slice(AURORA_BUNDLED_PREFIX.length)
+    const html = BUNDLED_CACHE.get(name)
+    if (!html) throw new Error(`Bundled MCP App not found: ${name}`)
+    return html
+  }
+
+  // Remote path — delegate to the caller's MCP client
+  if (!client) {
+    throw new Error(`No MCP client available to resolve: ${uri}`)
+  }
+  const result = await client.readResource({ uri })
+  // Find the first content item with text (HTML bundle)
+  const text = result.contents.find((c: { text?: string }) => typeof c.text === 'string')?.text
+  if (typeof text !== 'string') {
+    throw new Error(`MCP resource ${uri} returned no text content`)
+  }
+  return text
+}
+```
+
+- [ ] **Step 4: Run test, confirm pass**
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add v2/src/a2ui/mcp-app/resolver.ts v2/src/a2ui/mcp-app/__tests__/resolver.test.ts
+git commit -m "feat(a2ui): dual-mode MCP App resolver (bundled + MCP client remote)"
+```
+
+---
+
+### Task 7: Theme bridge
+
+**Files:** `v2/src/a2ui/mcp-app/theme-bridge.ts`
+
+- [ ] **Step 1: Implement** (same as plan v1 Task 5, unchanged)
+
+See plan v1 Task 5 for full code. Snapshots `--color-*` and `--font-*` vars from `document.documentElement`, returns `HostContext` matching the MCP Apps spec shape.
+
+- [ ] **Step 2: Type-check + commit**
+
+```bash
+npx tsc --noEmit && git add v2/src/a2ui/mcp-app/theme-bridge.ts && git commit -m "feat(a2ui): MCP App theme bridge — --color-* into hostContext"
+```
+
+---
+
+### Task 8: AppHost React component
+
+**Files:** `v2/src/a2ui/mcp-app/AppHost.tsx`
+
+The meat of Phase 5. Pulls an MCP `Client` from the store by the McpApp component's `server` field, resolves the HTML (bundled or via the client), constructs the iframe with CSP meta-tag, wires `AppBridge`, and handles the full lifecycle.
+
+- [ ] **Step 1: Implement**
 
 ```tsx
 /**
  * AppHost — sandboxed iframe + MCP Apps bridge for a single McpApp component.
  *
  * Lifecycle:
- *  1. On mount: resolve resourceUri → HTML string via the resolver.
- *  2. Inject HTML into a sandboxed iframe via srcDoc + Content-Security-Policy
- *     meta tag (sandbox attr is the strong wall, CSP is defense-in-depth).
- *  3. Once the iframe loads, instantiate AppBridge with a null MCP client and
- *     a PostMessageTransport pointing at the iframe's contentWindow.
- *  4. Hook bridge.oninitialized → bridge.sendToolInput(toolInput).
- *  5. Hook bridge.onsizechange → resize the iframe.
- *  6. Hook bridge.onmessage / onopenlink / onloggingmessage → relay through
- *     A2UI action channel as a structured 'mcp-app-message' action.
- *  7. On unmount: bridge.teardownResource and remove iframe.
+ *  1. On mount: look up MCP Client for the component's `server` field from
+ *     the mcpClients store. If `server === 'aurora-bundled'`, no client needed.
+ *  2. Resolve resourceUri → HTML via resolveUiResource(uri, client).
+ *  3. Inject CSP meta tag into <head> based on the component's csp prop (or
+ *     the resource's _meta.ui.csp if we ever plumb it through — Phase 5.1).
+ *  4. Render iframe with sandbox="allow-scripts" + srcDoc.
+ *  5. On iframe load: instantiate AppBridge with the real Client (auto-proxies
+ *     tools/call + resources/read), PostMessageTransport, and current theme as
+ *     hostContext. When client is null (bundled-only), pass null to AppBridge
+ *     and the bundled demo's postMessage handlers will no-op for backchannel.
+ *  6. Hook bridge.oninitialized → bridge.sendToolInput(toolInput).
+ *  7. Hook bridge.onsizechange → resize iframe.
+ *  8. On unmount: teardownResource, clear refs.
  */
 
 import { useEffect, useRef, useState } from 'react'
@@ -743,6 +787,7 @@ import { AppBridge, PostMessageTransport } from '@modelcontextprotocol/ext-apps/
 import { resolveUiResource } from './resolver'
 import { buildCsp, type DeclaredCsp } from './csp'
 import { getThemeContext } from './theme-bridge'
+import { useMcpClientStore } from '../../stores/mcpClients'
 import { useA2UI } from '../renderer/context'
 
 interface AppHostProps {
@@ -754,6 +799,8 @@ interface AppHostProps {
   toolInput?: Record<string, unknown>
   csp?: DeclaredCsp
 }
+
+const BUNDLED_SERVER_NAME = 'aurora-bundled'
 
 export default function AppHost({
   componentId,
@@ -770,16 +817,20 @@ export default function AppHost({
   const [error, setError] = useState<string | null>(null)
   const [iframeHeight, setIframeHeight] = useState<number>(height)
 
-  const ctx = useA2UI()
+  const a2uiCtx = useA2UI()
+  const getClient = useMcpClientStore((s) => s.getClient)
 
-  // 1. Resolve the ui:// resource → HTML
+  // 1 + 2 + 3: resolve HTML and inject CSP
   useEffect(() => {
     let cancelled = false
-    resolveUiResource(resourceUri)
+    const client = server === BUNDLED_SERVER_NAME ? null : getClient(server)
+    if (server !== BUNDLED_SERVER_NAME && !client) {
+      setError(`MCP server "${server}" is not connected. Add it in Settings → MCP Servers.`)
+      return
+    }
+    resolveUiResource(resourceUri, client)
       .then((raw) => {
         if (cancelled) return
-        // Inject the CSP meta tag into <head> so the iframe enforces it
-        // even though srcDoc has no Content-Security-Policy header.
         const cspText = buildCsp(csp)
         const cspMeta = `<meta http-equiv="Content-Security-Policy" content="${cspText.replace(/"/g, '&quot;')}">`
         const injected = raw.replace(/<head[^>]*>/i, (m) => m + cspMeta)
@@ -789,20 +840,21 @@ export default function AppHost({
     return () => {
       cancelled = true
     }
-  }, [resourceUri, csp])
+  }, [resourceUri, server, csp, getClient])
 
-  // 2. Wire AppBridge once the iframe finishes loading
+  // 5–7: wire AppBridge on iframe load
   const onIframeLoad = () => {
     const iframe = iframeRef.current
     if (!iframe || !iframe.contentWindow) return
 
+    const client = server === BUNDLED_SERVER_NAME ? null : getClient(server)
+
     const bridge = new AppBridge(
-      null, // no MCP client — Aurora relays via action channel
+      client,
       { name: 'aurora-chat', version: '0.1.0' },
-      {
-        openLinks: {},
-        logging: {},
-      },
+      client
+        ? { openLinks: {}, serverTools: {}, serverResources: {}, logging: {} }
+        : { openLinks: {}, logging: {} },
       { hostContext: getThemeContext({ maxHeight: height }) }
     )
 
@@ -812,12 +864,11 @@ export default function AppHost({
       }
     }
 
-    bridge.onsizechange = ({ height: h }) => {
+    bridge.onsizechange = ({ height: h }: { height?: number; width?: number }) => {
       if (h && h > 0) setIframeHeight(h)
     }
 
     bridge.onopenlink = async ({ url }: { url: string }) => {
-      // Defense in depth: only allow http/https
       if (!/^https?:\/\//.test(url)) return { isError: true }
       window.open(url, '_blank', 'noopener,noreferrer')
       return {}
@@ -825,13 +876,13 @@ export default function AppHost({
 
     bridge.onloggingmessage = ({ level, logger, data }: { level: string; logger: string; data: unknown }) => {
       // eslint-disable-next-line no-console
-      console[level === 'error' ? 'error' : 'log'](`[mcp-app:${logger}]`, data)
+      console[level === 'error' ? 'error' : 'log'](`[mcp-app:${server}:${logger}]`, data)
     }
 
+    // onmessage is for chat-bot style messages from the app. Relay to Aurora
+    // via the A2UI action channel for any agent-side handling.
     bridge.onmessage = async ({ role, content }: { role: string; content: unknown }) => {
-      // Route the app's chat-bot-style message back through Aurora's
-      // existing action channel as a structured 'mcp-app-message' action.
-      ctx.emitAction({
+      a2uiCtx.emitAction({
         action: {
           name: 'mcpAppMessage',
           surfaceId,
@@ -851,7 +902,7 @@ export default function AppHost({
     bridgeRef.current = bridge
   }
 
-  // 3. Tear down on unmount
+  // 8: teardown
   useEffect(() => {
     return () => {
       const bridge = bridgeRef.current
@@ -875,7 +926,9 @@ export default function AppHost({
           borderRadius: 8,
         }}
       >
-        Failed to load MCP App resource <code>{resourceUri}</code>: {error}
+        MCP App error: {error}
+        <br />
+        <code style={{ color: 'var(--color-muted)' }}>{resourceUri}</code>
       </div>
     )
   }
@@ -893,7 +946,7 @@ export default function AppHost({
           borderRadius: 8,
         }}
       >
-        Loading MCP App…
+        Loading MCP App from <code>{server}</code>…
       </div>
     )
   }
@@ -917,28 +970,25 @@ export default function AppHost({
 }
 ```
 
-- [ ] **Step 2: Type-check the new file**
+- [ ] **Step 2: Type-check**
 
 Run: `cd v2 && npx tsc --noEmit`
-Expected: PASS. The hook is named `useA2UI` (verified at `v2/src/a2ui/renderer/context.tsx:97`); the relative import from `mcp-app/AppHost.tsx` is `'../renderer/context'`.
+Expected: PASS.
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add v2/src/a2ui/mcp-app/AppHost.tsx
-git commit -m "feat(a2ui): MCP App host iframe + AppBridge wiring"
+git commit -m "feat(a2ui): AppHost — iframe + AppBridge with real MCP client"
 ```
 
 ---
 
-### Task 7: Wire AppHost into the EmbedComponents registry
+### Task 9: Wire AppHost into EmbedComponents + update example
 
-**Files:**
-- Modify: `v2/src/a2ui/renderer/components/EmbedComponents.tsx`
+**Files:** `v2/src/a2ui/renderer/components/EmbedComponents.tsx`, `v2/src/a2ui/examples/mcp-app-embed.json`
 
-- [ ] **Step 1: Replace the placeholder McpAppRender body**
-
-The current `McpAppRender` is a static placeholder div. Replace its body with `<AppHost ... />` that forwards every prop, plus `componentId` from `c.id` and `surfaceId` from `surface.surfaceId`. Keep the placeholder code commented out for one commit so the diff is reviewable, then strip in Task 11.
+- [ ] **Step 1: Replace placeholder** (same as v1 Task 7)
 
 ```typescript
 import AppHost from '../../mcp-app/AppHost'
@@ -958,270 +1008,618 @@ const McpAppRender = ({ component, surface }: RenderProps) => {
 }
 ```
 
-- [ ] **Step 2: Type-check**
+- [ ] **Step 2: Update example**
 
-Run: `cd v2 && npx tsc --noEmit`
-Expected: PASS.
+Edit `v2/src/a2ui/examples/mcp-app-embed.json`: change `resourceUri` → `ui://aurora-bundled/tool-input-echo.html`, `server` → `aurora-bundled`. Update `_description` and `toolInput` accordingly.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: Validator + commit**
 
 ```bash
-git add v2/src/a2ui/renderer/components/EmbedComponents.tsx
-git commit -m "feat(a2ui): replace McpApp placeholder with real AppHost"
+cd v2 && npm run a2ui:validate
+# expected: 4 examples, 29 components, 0 errors
+git add v2/src/a2ui/renderer/components/EmbedComponents.tsx v2/src/a2ui/examples/mcp-app-embed.json
+git commit -m "feat(a2ui): wire AppHost into McpApp render, bundled example"
 ```
 
 ---
 
-### Task 8: Update the mcp-app-embed example to use a bundled URI
+### Task 10: Extend validator with MCP App resource integrity check
 
-**Files:**
-- Modify: `v2/src/a2ui/examples/mcp-app-embed.json`
+**Files:** `v2/src/a2ui/validate-examples.ts`
 
-- [ ] **Step 1: Swap resourceUri**
-
-Change line 39 from `"ui://threejs-viewer/scene.html"` to `"ui://aurora-bundled/tool-input-echo.html"` and `server` from `"threejs-server"` to `"aurora-bundled"`. Update `toolInput` to a value that the echo demo will display nicely:
-
-```json
-"toolInput": {
-  "modelUrl": "https://example.com/models/engine.glb",
-  "renderer": "preview",
-  "demo": true
-}
-```
-
-Also update the `_description` to reflect that this is now using a bundled echo demo.
-
-- [ ] **Step 2: Run the validator**
-
-Run: `cd v2 && npm run a2ui:validate`
-Expected: 4 examples, 29 components, 0 errors.
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add v2/src/a2ui/examples/mcp-app-embed.json
-git commit -m "feat(a2ui): point mcp-app-embed example at bundled echo demo"
-```
-
----
-
-### Task 9: Extend validate-examples.ts with MCP App resource integrity check
-
-**Files:**
-- Modify: `v2/src/a2ui/validate-examples.ts`
-
-- [ ] **Step 1: Add MCP App URI verification pass**
-
-After the existing component validation loop, walk every example's components and for each `McpApp`, call `resolveUiResource` (the node-mode path) to confirm the URI loads. Fail the script if any returns an error.
-
-> **Note on top-level await:** `validate-examples.ts` runs under `tsx` against the v2/ tsconfig (`module: ESNext`, `target: ES2020+`), which supports top-level await. The new for-loop sits at module top-level alongside the existing sync loop — fine. If it errors with `Top-level await not supported`, wrap the new block in `async function checkMcpApps() { ... }; await checkMcpApps()` (also valid at module top level).
-
-```typescript
-import { resolveUiResource } from './mcp-app/resolver'
-
-// ... after the existing for-loop, before the summary log ...
-
-let mcpErrors = 0
-for (const file of files) {
-  const path = join(EXAMPLES_DIR, file)
-  const parsed = JSON.parse(readFileSync(path, 'utf8')) as ExampleFile
-  const mcpApps: Array<{ id: string; resourceUri: string }> = []
-  for (const msg of parsed.messages) {
-    if (isUpdateComponentsMessage(msg)) {
-      for (const comp of msg.updateComponents.components) {
-        if ((comp as { component?: string }).component === 'McpApp') {
-          mcpApps.push(comp as never)
-        }
-      }
-    }
-  }
-  for (const m of mcpApps) {
-    try {
-      await resolveUiResource(m.resourceUri)
-    } catch (e) {
-      console.error(`❌ ${file}: McpApp ${m.id} resourceUri ${m.resourceUri} — ${(e as Error).message}`)
-      mcpErrors++
-    }
-  }
-}
-
-if (mcpErrors > 0) {
-  totalErrors += mcpErrors
-  console.error(`\n${mcpErrors} MCP App resource error(s)`)
-}
-```
-
-- [ ] **Step 2: Run validator**
-
-Run: `cd v2 && npm run a2ui:validate`
-Expected: all 4 examples valid, no MCP App resource errors.
-
-- [ ] **Step 3: Commit**
+Only checks bundled URIs (remote fetch requires a running MCP server, out of scope for a validator). Unchanged from v1 Task 9 — reuse that step verbatim.
 
 ```bash
 git add v2/src/a2ui/validate-examples.ts
-git commit -m "feat(a2ui): validator checks MCP App ui:// resources resolve"
+git commit -m "feat(a2ui): validator checks bundled McpApp URIs resolve"
 ```
 
 ---
 
-### Task 10: Update dev preview to load three-component.json + verify mcp-app-embed renders
+### Task 11: Settings UI for MCP servers
 
-**Files:**
-- Modify: `v2/src/a2ui/renderer/A2UIDevPreview.tsx`
+**Files:** `v2/src/components/settings/McpServerSettings.tsx`, `v2/src/components/SettingsPanel.tsx`
 
-- [ ] **Step 1: Add three-component import**
+Ultra-lightweight settings section. List + add form + remove button + connection status dot.
 
-Add the `?raw` import + push into the `EXAMPLES` array. This is carry-over from Phase 4 — `three-component.json` was added in commit `602a16d` but never wired into the dev preview.
+- [ ] **Step 1: Build the section component**
 
-```typescript
-import threeComponentRaw from '../examples/three-component.json?raw'
+```tsx
+/**
+ * MCP Servers settings panel section.
+ *
+ * Manages the list of MCP servers Aurora Chat connects to directly for
+ * MCP Apps resource fetching + tool calls. Persists to localStorage via
+ * mcp-config. Connection state lives in mcpClients store.
+ */
 
-const EXAMPLES: Example[] = [
-  parse(contactFormRaw, 'contact-form.json'),
-  parse(interactiveChartRaw, 'interactive-chart.json'),
-  parse(mcpAppEmbedRaw, 'mcp-app-embed.json'),
-  parse(threeComponentRaw, 'three-component.json'),
-]
+import { useEffect, useState } from 'react'
+import { useMcpClientStore } from '../../stores/mcpClients'
+import { loadConfiguredServers, saveConfiguredServers } from '../../a2ui/mcp-app/mcp-config'
+
+const dotColor: Record<string, string> = {
+  disconnected: 'var(--color-muted)',
+  connecting: 'var(--color-warning)',
+  connected: 'var(--color-success)',
+  error: 'var(--color-danger)',
+}
+
+export default function McpServerSettings() {
+  const { servers, addServer, removeServer, reconnect } = useMcpClientStore()
+  const [name, setName] = useState('')
+  const [url, setUrl] = useState('')
+
+  // Hydrate from persisted config on first mount
+  useEffect(() => {
+    for (const cfg of loadConfiguredServers()) {
+      if (!servers[cfg.name]) addServer(cfg)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!name || !url) return
+    await addServer({ name, url })
+    saveConfiguredServers(
+      [...Object.values(servers).map((s) => s.config), { name, url }].filter(
+        (c, i, arr) => arr.findIndex((c2) => c2.name === c.name) === i
+      )
+    )
+    setName('')
+    setUrl('')
+  }
+
+  const handleRemove = async (n: string) => {
+    await removeServer(n)
+    saveConfiguredServers(
+      Object.values(useMcpClientStore.getState().servers).map((s) => s.config)
+    )
+  }
+
+  return (
+    <section style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div
+        style={{
+          fontSize: 12,
+          fontWeight: 600,
+          textTransform: 'uppercase',
+          letterSpacing: '0.08em',
+          color: 'var(--color-accent)',
+        }}
+      >
+        MCP Servers
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--color-muted)', lineHeight: 1.5 }}>
+        Configure MCP Apps servers. Aurora Chat connects directly and renders{' '}
+        <code>McpApp</code> components from these servers inline.
+      </div>
+
+      {Object.values(servers).length === 0 && (
+        <div
+          style={{
+            padding: 12,
+            fontSize: 12,
+            color: 'var(--color-muted)',
+            fontFamily: 'var(--font-mono, monospace)',
+            background: 'var(--color-elevated)',
+            borderRadius: 8,
+            border: '1px dashed var(--color-border)',
+          }}
+        >
+          No MCP servers configured.
+        </div>
+      )}
+
+      {Object.values(servers).map((entry) => (
+        <div
+          key={entry.config.name}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: 12,
+            background: 'var(--color-elevated)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 8,
+            fontFamily: 'var(--font-mono, monospace)',
+            fontSize: 12,
+          }}
+        >
+          <div
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: dotColor[entry.state],
+              flexShrink: 0,
+            }}
+          />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ color: 'var(--color-text-bright)', fontWeight: 600 }}>
+              {entry.config.name}
+            </div>
+            <div style={{ color: 'var(--color-muted)' }}>{entry.config.url}</div>
+            {entry.error && <div style={{ color: 'var(--color-danger)' }}>{entry.error}</div>}
+          </div>
+          <button
+            onClick={() => reconnect(entry.config.name)}
+            style={{
+              background: 'transparent',
+              color: 'var(--color-accent)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 4,
+              padding: '4px 8px',
+              fontSize: 11,
+              cursor: 'pointer',
+            }}
+          >
+            reconnect
+          </button>
+          <button
+            onClick={() => handleRemove(entry.config.name)}
+            style={{
+              background: 'transparent',
+              color: 'var(--color-danger)',
+              border: '1px solid var(--color-danger)',
+              borderRadius: 4,
+              padding: '4px 8px',
+              fontSize: 11,
+              cursor: 'pointer',
+            }}
+          >
+            remove
+          </button>
+        </div>
+      ))}
+
+      <form
+        onSubmit={handleAdd}
+        style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}
+      >
+        <input
+          type="text"
+          placeholder="name (e.g. get-time-server)"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          style={{
+            flex: '1 1 180px',
+            padding: '8px 12px',
+            fontSize: 12,
+            fontFamily: 'var(--font-mono, monospace)',
+            background: 'var(--color-bg)',
+            color: 'var(--color-text)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 4,
+          }}
+        />
+        <input
+          type="text"
+          placeholder="http://localhost:3001/mcp"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          style={{
+            flex: '2 1 280px',
+            padding: '8px 12px',
+            fontSize: 12,
+            fontFamily: 'var(--font-mono, monospace)',
+            background: 'var(--color-bg)',
+            color: 'var(--color-text)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 4,
+          }}
+        />
+        <button
+          type="submit"
+          style={{
+            padding: '8px 16px',
+            background: 'var(--color-accent)',
+            color: 'var(--color-bg)',
+            border: 'none',
+            borderRadius: 4,
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          add
+        </button>
+      </form>
+    </section>
+  )
+}
 ```
 
-- [ ] **Step 2: Type-check**
+- [ ] **Step 2: Mount into SettingsPanel**
+
+Read `v2/src/components/SettingsPanel.tsx` first to find the right insertion point (near other settings sections). Add `import McpServerSettings from './settings/McpServerSettings'` and render `<McpServerSettings />` as a new section.
+
+- [ ] **Step 3: Type-check + commit**
+
+```bash
+npx tsc --noEmit
+git add v2/src/components/settings/McpServerSettings.tsx v2/src/components/SettingsPanel.tsx
+git commit -m "feat(a2ui): MCP servers settings panel section"
+```
+
+---
+
+### Task 12: Dev preview — hydrate MCP client store + load three-component
+
+**Files:** `v2/src/a2ui/renderer/A2UIDevPreview.tsx`
+
+Dev preview replaces the normal app shell entirely — it never mounts `SettingsPanel`, so the `mcpClients` store would otherwise be empty when the Tier 14/15/16 tests try to render MCP App surfaces. Fix: hydrate the store from persisted config on mount, same logic as `McpServerSettings` but headless.
+
+- [ ] **Step 1: Add three-component.json import** + push to EXAMPLES
+
+Same as v1 Task 10 — import via `?raw`, push into `EXAMPLES` array.
+
+- [ ] **Step 2: Hydrate MCP client store on mount**
+
+Add near the top of the `A2UIDevPreview` component body (before the existing `useMemo` for surfaces):
+
+```typescript
+import { useMcpClientStore } from '../../stores/mcpClients'
+import { loadConfiguredServers } from '../mcp-app/mcp-config'
+
+// ... inside A2UIDevPreview:
+const addServer = useMcpClientStore((s) => s.addServer)
+const servers = useMcpClientStore((s) => s.servers)
+
+useEffect(() => {
+  for (const cfg of loadConfiguredServers()) {
+    if (!servers[cfg.name]) {
+      addServer(cfg)
+    }
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [])
+```
+
+Add a small "MCP servers" status strip near the top of the dev preview (below the header), so the implementer can visually confirm which servers are connected before the tier tests render:
+
+```tsx
+{Object.values(servers).length > 0 && (
+  <section style={{
+    display: 'flex',
+    gap: 8,
+    padding: 12,
+    background: 'var(--color-elevated)',
+    borderRadius: 8,
+    border: '1px solid var(--color-border)',
+    fontFamily: 'var(--font-mono, monospace)',
+    fontSize: 11,
+    flexWrap: 'wrap',
+  }}>
+    <div style={{ color: 'var(--color-accent)', fontWeight: 600 }}>MCP servers:</div>
+    {Object.values(servers).map((entry) => (
+      <div key={entry.config.name} style={{ color: 'var(--color-text)' }}>
+        <span style={{ color: entry.state === 'connected' ? 'var(--color-success)' : 'var(--color-danger)' }}>●</span>{' '}
+        {entry.config.name} <span style={{ color: 'var(--color-muted)' }}>({entry.state})</span>
+      </div>
+    ))}
+  </section>
+)}
+```
+
+- [ ] **Step 3: Type-check**
 
 Run: `cd v2 && npx tsc --noEmit`
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add v2/src/a2ui/renderer/A2UIDevPreview.tsx
-git commit -m "feat(a2ui): dev preview loads three-component example"
+git commit -m "feat(a2ui): dev preview hydrates MCP client store + shows status strip"
+```
+
+**Prerequisite for tier tests:** Before running Tier 14/15/16, the implementer must open Aurora Chat in normal (non-dev) mode ONCE, go to Settings → MCP Servers, add all three test servers (get-time-server, qr-server, threejs-server with their URLs from Task 13). These are then persisted to `localStorage` and the dev preview picks them up automatically on its next launch.
+
+---
+
+### Task 13: Clone ext-apps repo + build test servers
+
+**Files:** `docs/phase5-test-servers.md` (documentation for test setup)
+
+This is prep work — no code changes in Aurora Chat yet, just spinning up the test targets.
+
+- [ ] **Step 1: Clone ext-apps somewhere stable**
+
+```bash
+mkdir -p ~/src && cd ~/src
+git clone https://github.com/modelcontextprotocol/ext-apps.git
+cd ext-apps && npm install
+```
+
+- [ ] **Step 2: Build + start `basic-host` (reference implementation)**
+
+```bash
+cd ~/src/ext-apps
+npm run examples:start  # or basic-host specifically per their README
+```
+
+Open `http://localhost:8080` in a browser. Confirm the reference implementation renders.
+
+- [ ] **Step 3: Start `get-time` (Tier 1 target)**
+
+```bash
+# In a second terminal
+cd ~/src/ext-apps/examples
+# If there's a get-time-server workspace, build + start it. The quickstart
+# guide at docs/quickstart.md has exact commands.
+# Expected: server listens on http://localhost:3001/mcp (or whatever the
+# quickstart sets).
+```
+
+Verify by configuring `basic-host` to point at this server (`SERVERS='["http://localhost:3001/mcp"]' npm run start` in basic-host) and confirming `get-time` renders there.
+
+- [ ] **Step 4: Start `qr-server` (Tier 2 target)**
+
+```bash
+cd ~/src/ext-apps
+npm run --workspace examples/qr-server build
+npm run --workspace examples/qr-server start
+# Expected: server on different port, likely http://localhost:3002/mcp
+```
+
+Verify in basic-host.
+
+- [ ] **Step 5: Start `threejs-server` (Tier 3 target)**
+
+```bash
+cd ~/src/ext-apps
+npm run --workspace examples/threejs-server build
+npm run --workspace examples/threejs-server start
+# Expected: server on http://localhost:3003/mcp or similar
+```
+
+Verify in basic-host — if Three.js scene renders there, we have a known-good baseline.
+
+- [ ] **Step 6: Document setup in docs/phase5-test-servers.md**
+
+Short file listing: test target names, their URLs, how to start/stop each, which tier they validate. Future runs reference this instead of re-learning ext-apps layout.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add docs/phase5-test-servers.md
+git commit -m "docs(a2ui): Phase 5 test server setup (get-time, qr-server, threejs-server)"
 ```
 
 ---
 
-### Task 11: Build, run, manual UAT
+### Task 14: Tier 1 live test — get-time
 
-**Files:** none (build artifacts only)
-
-- [ ] **Step 1: Run unit + validator + build**
+- [ ] **Step 1: Build Aurora Chat**
 
 ```bash
-cd v2 && npm run a2ui:test && npm run a2ui:validate && npm run build
+cd v2 && npm run build && cd .. && cargo build --manifest-path src-tauri/Cargo.toml --release
 ```
 
-Expected:
-- `✓ resolver tests passed`
-- `✓ csp tests passed`
-- `Validating 4 example surface(s)... 0 error(s)`
-- `vite build` produces a clean `dist/`
-
-- [ ] **Step 2: Cargo build**
-
-```bash
-cargo build --manifest-path src-tauri/Cargo.toml --release
-```
-
-Expected: clean release binary at `target/release/aurora-chat`. (Rust unchanged for Phase 5 — sanity build only.)
-
-- [ ] **Step 3: Launch dev preview, visually inspect**
+- [ ] **Step 2: Launch Aurora Chat and configure get-time server**
 
 ```bash
 aurora-chat
 ```
 
-Then in F12 devtools console:
+Open Settings → MCP Servers. Add:
+- name: `get-time-server`
+- url: `http://localhost:3001/mcp` (whatever the quickstart uses)
+
+Expected: status dot turns green ("connected").
+
+- [ ] **Step 3: Create test surface via dev preview**
+
+Alternative to asking Aurora: use the dev preview to render a hardcoded surface. Add a one-off test example `v2/src/a2ui/examples/tier1-get-time.json`:
+
+```json
+{
+  "_description": "Tier 1 compatibility test: get-time MCP server from ext-apps quickstart. Should render the get-time app UI inline.",
+  "messages": [
+    {
+      "version": "v0.9",
+      "createSurface": {
+        "surfaceId": "tier1_get_time",
+        "catalogId": "aurora-chat://catalog/v0.1.json"
+      }
+    },
+    {
+      "version": "v0.9",
+      "updateComponents": {
+        "surfaceId": "tier1_get_time",
+        "components": [
+          { "id": "root", "component": "Card", "title": "Tier 1: get-time", "child": "body" },
+          { "id": "body", "component": "Column", "gap": 16, "children": ["desc", "app"] },
+          { "id": "desc", "component": "Text", "variant": "caption", "text": "MCP App from get-time-server via quickstart" },
+          {
+            "id": "app",
+            "component": "McpApp",
+            "resourceUri": "ui://get-time/mcp-app.html",
+            "server": "get-time-server",
+            "height": 300
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+Add the import to `A2UIDevPreview.tsx` EXAMPLES array.
+
+- [ ] **Step 4: Verify in dev preview**
 
 ```js
 localStorage.setItem('a2ui-dev', '1'); location.reload()
 ```
 
-Expected: 4 example surfaces stacked. mcp-app-embed shows a real iframe (not the placeholder div) rendering the tool-input-echo demo. The echo `<pre>` displays the toolInput JSON. Check console for `[mcp-app:*]` log lines and zero CSP violations.
+Expected:
+- Surface renders
+- iframe loads the `get-time` HTML (fetched via MCP client)
+- ui/initialize handshake completes (check F12 console for `[mcp-app:get-time-server:*]` logs)
+- Tool result (the current time) renders inside the iframe
+- No CSP violations
+- Surface looks indistinguishable from how it renders in basic-host
 
-- [ ] **Step 4: Live UAT — ask Aurora to render**
-
-Exit dev preview. In a real chat session:
-
-> Create an A2UI surface that contains a heading text "MCP App live test" and an MCP App component with `resourceUri: "ui://aurora-bundled/clock.html"`, `server: "aurora-bundled"`, `height: 240`. Wrap them in a Card with a Column.
-
-Expected: Aurora calls `create_surface`, the iframe renders the clock demo with theme-aware swatches, the time updates every second.
-
-- [ ] **Step 5: Commit any binary updates if needed**
+- [ ] **Step 5: Commit the test surface**
 
 ```bash
-git status   # only target/ changes — do NOT commit those
+git add v2/src/a2ui/examples/tier1-get-time.json v2/src/a2ui/renderer/A2UIDevPreview.tsx
+git commit -m "test(a2ui): Tier 1 compat — get-time MCP App live render"
 ```
-
-If there are no source changes, skip the commit.
 
 ---
 
-### Task 12: Strip placeholder code, update docs, close beads
+### Task 15: Tier 2 live test — qr-server with tools/call backchannel
 
-**Files:**
-- Modify: `v2/src/a2ui/renderer/components/EmbedComponents.tsx` (remove header comment about placeholder, update file-level docstring)
-- Modify: `docs/a2ui-and-mcp-apps-spec-notes.md` (one-line corrigendum)
+- [ ] **Step 1: Configure qr-server in Aurora Chat settings**
 
-- [ ] **Step 1: Update EmbedComponents docstring**
+- [ ] **Step 2: Create Tier 2 test surface** `v2/src/a2ui/examples/tier2-qr-server.json`
 
-Replace the file-level comment about "Phase 5 placeholder" with the new reality: McpApp is now real, lives in `mcp-app/AppHost.tsx`, EmbedComponents just dispatches.
+Same shape as Tier 1 but pointing at the qr-server's UI resource. `toolInput` should include the initial QR text.
 
-- [ ] **Step 2: Add corrigendum to spec notes**
+- [ ] **Step 3: Dev preview render + interact**
 
-Insert near the MCP Apps "Methods" subsection:
+Expected:
+- QR UI renders
+- Typing into the text field + clicking "Generate" fires `tools/call` → AppBridge routes it through the MCP client → qr-server returns the QR data URL → pushed back to the iframe via `ui/notifications/tool-result` → QR renders
+- **This is the full bidirectional real-world test.** If backchannel works here, our compatibility is proven.
 
-```markdown
-> **Spec note (added 2026-04-08):** This summary uses `initialize` for the
-> View→Host handshake for brevity. The actual upstream method name is
-> `ui/initialize` (see <https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx>).
-> Aurora Chat's `AppHost` uses the upstream form.
+- [ ] **Step 4: If Tier 2 fails**
+
+Debug priorities:
+1. Is `AppBridge` auto-proxying? Check F12 for tools/call log lines
+2. Is the Client reaching the server? Check network tab
+3. Is `bridge.sendToolResult` being called? Add a log line
+4. Compare behavior against basic-host rendering the same app
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add v2/src/a2ui/examples/tier2-qr-server.json v2/src/a2ui/renderer/A2UIDevPreview.tsx
+git commit -m "test(a2ui): Tier 2 compat — qr-server tools/call backchannel"
 ```
 
-- [ ] **Step 3: Final build sanity**
+---
+
+### Task 16: Tier 3 live test — threejs-server (CSP for external resources)
+
+- [ ] **Step 1: Configure threejs-server in Aurora Chat settings**
+
+- [ ] **Step 2: Create Tier 3 test surface** `v2/src/a2ui/examples/tier3-threejs-server.json`
+
+Include a `csp` prop on the McpApp component that declares the CDN domains Three.js needs (e.g. `https://unpkg.com`, `https://cdn.jsdelivr.net`).
+
+- [ ] **Step 3: Dev preview**
+
+Expected:
+- Three.js CDN scripts load (CSP allows unpkg.com/cdn.jsdelivr.net)
+- 3D scene renders inside the iframe
+- Rotation animation runs
+- Zero CSP violations in console
+- Looks identical to rendering in basic-host
+
+- [ ] **Step 4: If Tier 3 fails**
+
+Most likely failure: CSP too strict. Check F12 for "Refused to load the script" messages. If so, the resource's `_meta.ui.csp.resourceDomains` isn't being plumbed through. Note that currently the plan reads `csp` from the McpApp component prop, not from the fetched resource's `_meta.ui.csp`. **If tests reveal this gap, add a Phase 5 sub-task:** plumb `_meta.ui.csp` from the `resources/read` response through to AppHost's CSP construction.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add v2/src/a2ui/examples/tier3-threejs-server.json v2/src/a2ui/renderer/A2UIDevPreview.tsx
+git commit -m "test(a2ui): Tier 3 compat — threejs-server CSP external resources"
+```
+
+---
+
+### Task 17: Strip placeholder, corrigendum, docs, close
+
+- [ ] **Step 1: Clean up placeholder-era comments** in `EmbedComponents.tsx`
+
+- [ ] **Step 2: Corrigendum** in `docs/a2ui-and-mcp-apps-spec-notes.md`
+
+```markdown
+> **Spec note (added 2026-04-08):** This summary uses `initialize` as the
+> View→Host handshake method for brevity. The actual upstream method name
+> is `ui/initialize` — Aurora Chat's `AppHost` and the bundled demos use
+> the upstream form. See
+> <https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx>
+```
+
+- [ ] **Step 3: Final green sweep**
 
 ```bash
 cd v2 && npm run a2ui:test && npm run a2ui:validate && npm run build && cd .. && cargo build --manifest-path src-tauri/Cargo.toml --release
 ```
 
-Expected: all green.
-
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Commit docs**
 
 ```bash
 git add v2/src/a2ui/renderer/components/EmbedComponents.tsx docs/a2ui-and-mcp-apps-spec-notes.md
-git commit -m "docs(a2ui): Phase 5 — strip placeholder, add ui/initialize corrigendum"
+git commit -m "docs(a2ui): Phase 5 cleanup — strip placeholder, ui/initialize corrigendum"
 ```
 
 - [ ] **Step 5: Update chorus memory + emit signal**
 
-Update `memory:83s91ho70mxs10dwndtj` so a fresh session knows Phase 5 is done. Emit a `sense` signal under `dev` role summarizing the bidirectional MCP Apps loop.
+Update `memory:83s91ho70mxs10dwndtj` — Phase 5 done, all three tiers passed, Phase 6 ready. Emit `sense` signal under `dev` role summarizing the compatibility wins + file Phase 5.1 (migrate MCP client ownership to hermes).
 
-- [ ] **Step 6: Close beads issue**
+- [ ] **Step 6: File Phase 5.1 follow-up**
 
 ```bash
-bd close hermelinChat-afp --reason="Phase 5 shipped: MCP Apps iframe adapter live with sandboxed iframe + ui/initialize handshake + AppBridge wiring + bundled demo apps + CSP builder + theme bridge. mcp-app-embed.json renders the bundled tool-input-echo demo. hermelinChat-z1n (Phase 6) now ready."
+bd create --title="Phase 5.1: Migrate MCP client ownership from Aurora Chat to hermes" \
+  --description="Phase 5 Option C-A ships Aurora Chat owning its own @modelcontextprotocol/sdk MCP client connections. This was the fast path — Phase 5.1 migrates ownership to hermes as the architecturally-correct single MCP host. Aurora Chat becomes a thin client that asks hermes for resources + tool calls via ACP. See docs/superpowers/plans/2026-04-08-phase5-mcp-apps.md for the architecture rationale." \
+  --type=task --priority=2
+bd update <new-id> --parent=hermelinChat-j1q
+```
+
+- [ ] **Step 7: Close Phase 5**
+
+```bash
+bd close hermelinChat-afp --reason="Phase 5 shipped Option C-A: Aurora Chat hosts MCP Apps with full spec compliance. Three real-world test targets pass live: get-time (Tier 1, resource + tool result), qr-server (Tier 2, tools/call backchannel), threejs-server (Tier 3, CSP external resources). Equivalent rendering to basic-host reference implementation confirmed. Phase 5.1 (hermes MCP client ownership migration) filed as follow-up."
 ```
 
 ---
 
 ## Verification checklist (paste into final commit message)
 
-- [ ] All 4 examples validate (`npm run a2ui:validate`)
-- [ ] Resolver + CSP unit tests pass (`npm run a2ui:test`)
-- [ ] `vite build` clean
-- [ ] `cargo build --release` clean
-- [ ] Dev preview shows real iframe for mcp-app-embed
-- [ ] Console: zero CSP violations, `[mcp-app]` logs visible
-- [ ] Live UAT: Aurora can render `ui://aurora-bundled/clock.html`
-- [ ] tool-input-echo displays the toolInput JSON in the iframe
-- [ ] No placeholder text remains in EmbedComponents.tsx
+- [ ] `npm run a2ui:test` — csp + resolver + mcp-config pass
+- [ ] `npm run a2ui:validate` — 7 examples, 0 errors (4 originals + three-component + 3 tier tests)
+- [ ] `npm run build` — clean
+- [ ] `cargo build --release` — clean
+- [ ] **Tier 1 (get-time):** iframe renders, tool result displays
+- [ ] **Tier 2 (qr-server):** tools/call backchannel works, QR regenerates on input change
+- [ ] **Tier 3 (threejs-server):** Three.js CDN loads under declared CSP, 3D scene animates
+- [ ] Zero CSP violations across all three tiers
+- [ ] basic-host equivalence: same app, same behavior, no client-side changes
 
 ## Out of scope (deferred to Phase 5.1+)
 
-- Real `ui://`-from-MCP-server resource fetching (currently only `ui://aurora-bundled/*`)
-- Tools/call backchannel routing to real MCP servers (currently relayed as `mcpAppMessage` action through hermes)
-- Three.js / large bundled demos (counter + clock + echo are sufficient for v1)
-- vitest / proper test runner setup (currently inline `tsx` scripts)
-- @modelcontextprotocol/ext-apps SDK update path / version pinning
-- Display modes beyond `inline` (`fullscreen`, `pip`)
-- Permission policy (camera/mic/geolocation) — placeholder only
-- Persistence of MCP App state across session reload (covered by `hermelinChat-1h2`)
+- **Phase 5.1:** Migrate MCP client ownership from Aurora Chat to hermes (architectural correctness — Aurora becomes a thin client over hermes MCP)
+- **Phase 5.2:** Plumb `_meta.ui.csp` from the fetched resource's metadata through to AppHost's CSP construction (currently CSP comes from the McpApp component prop only — Tier 3 might reveal this gap, file sub-task if so)
+- **Phase 5.3:** Permission policy — iframe `allow` attribute from `_meta.ui.permissions` (camera/mic/geolocation)
+- **Phase 5.4:** Display modes beyond `inline` (`fullscreen`, `pip`)
+- **Phase 5.5:** `basic-server-*` starter templates mirrored as Aurora-bundled for zero-dependency iteration
+- MCP App persistence across session reload (covered by `hermelinChat-1h2`)
+- Multi-server tool name collision handling
+- OAuth / authenticated MCP server connections
