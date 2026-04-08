@@ -117,10 +117,12 @@ const _pmt = new PostMessageTransport(fakeWin, fakeWin)
 void _pmt
 ```
 
-Run: `cd v2 && npx tsc --noEmit src/a2ui/mcp-app/__import_check.ts`
+Run: `cd v2 && npx tsc --noEmit`
 Expected: PASS.
 
-**If ANY of these fail**, read the relevant `.d.ts` file in `node_modules/@modelcontextprotocol/` and update the plan's downstream tasks to match the actual signatures BEFORE continuing. This is the plan's single SDK compatibility gate.
+> **Gotcha:** Do NOT pass the filename to `tsc` (`npx tsc --noEmit src/.../__import_check.ts`) — passing a filename makes tsc ignore the project tsconfig, which means `moduleResolution: bundler` isn't applied, which means subpath exports like `@modelcontextprotocol/ext-apps/app-bridge` fail to resolve, which looks like a fake SDK mismatch. Run without the filename so tsc uses `tsconfig.json` (which `include`s `src/`).
+
+**If the check actually fails** (after running tsc correctly), read the relevant `.d.ts` file in `node_modules/@modelcontextprotocol/` and update the plan's downstream tasks to match the actual signatures BEFORE continuing. This is the plan's single SDK compatibility gate.
 
 - [ ] **Step 3: Delete the check, commit**
 
