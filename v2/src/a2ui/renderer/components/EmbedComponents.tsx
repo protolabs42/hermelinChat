@@ -3,10 +3,9 @@
  *
  * HtmlEmbed renders an inline HTML snippet inside a sandboxed iframe via srcDoc.
  * IframeEmbed points at an external URL.
- * McpApp is a placeholder for Phase 2 — the full postMessage bridge lands in
- *   Phase 5 along with the A2UI action channel in Phase 3. For now it renders
- *   a branded "Phase 5" placeholder so the example surface still validates
- *   and lays out correctly.
+ * McpApp dispatches to the full MCP Apps host (v2/src/a2ui/mcp-app/AppHost.tsx)
+ *   which wires a sandboxed iframe + @modelcontextprotocol/ext-apps AppBridge
+ *   against the McpApp component's named MCP server (landed in Phase 5).
  */
 
 import type { RenderProps } from '../RenderNode'
@@ -16,6 +15,7 @@ import type {
   McpAppComponent,
 } from '../../types'
 import { resolveDynamicString } from '../resolve'
+import AppHost from '../../mcp-app/AppHost'
 
 const HtmlEmbedRender = ({ component, surface }: RenderProps) => {
   const c = component as HtmlEmbedComponent
@@ -55,40 +55,17 @@ const IframeEmbedRender = ({ component, surface }: RenderProps) => {
   )
 }
 
-const McpAppRender = ({ component }: RenderProps) => {
+const McpAppRender = ({ component, surface }: RenderProps) => {
   const c = component as McpAppComponent
-  // Placeholder body — Phase 5 replaces this with a real postMessage bridge
-  // to an MCP Apps server. For now we render a clearly-labeled stub so
-  // example surfaces validate and lay out.
   return (
-    <div
-      style={{
-        width: '100%',
-        height: c.height ?? 500,
-        padding: 24,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 12,
-        background: 'var(--color-elevated)',
-        border: '2px dashed var(--color-accent)',
-        borderRadius: 8,
-        color: 'var(--color-muted)',
-        fontFamily: 'var(--font-mono, monospace)',
-        fontSize: 12,
-      }}
-    >
-      <div style={{ color: 'var(--color-text-bright)', fontWeight: 600 }}>
-        MCP App (placeholder)
-      </div>
-      <div>Phase 5 will wire this up to a real postMessage bridge.</div>
-      <div style={{ marginTop: 8, fontSize: 12, textAlign: 'center' }}>
-        server: <code style={{ color: 'var(--color-accent)' }}>{c.server}</code>
-        <br />
-        resource: <code style={{ color: 'var(--color-accent)' }}>{c.resourceUri}</code>
-      </div>
-    </div>
+    <AppHost
+      componentId={c.id}
+      surfaceId={surface.surfaceId}
+      resourceUri={c.resourceUri}
+      server={c.server}
+      height={c.height}
+      toolInput={c.toolInput}
+    />
   )
 }
 

@@ -1,23 +1,23 @@
 {
-  "_description": "MCP Apps escape hatch inside an A2UI surface. The header and caption are native Aurora Chat components; the actual 3D viewer is an MCP Apps iframe loaded from a separate MCP server. Demonstrates the 'mix both protocols in one UI' model.",
+  "_description": "MCP Apps escape hatch inside an A2UI surface. The header and caption are native Aurora Chat components; the embedded viewer is a bundled Aurora MCP App that echoes the toolInput it receives. Proves the full AppBridge handshake + theme bridge + tool-input push path inline in chat. Real third-party MCP servers (get-time, qr-server, threejs-server) are tested separately in Phase 5 Tasks 14-16.",
   "messages": [
     {
       "version": "v0.9",
       "createSurface": {
-        "surfaceId": "three_d_model_viewer",
-        "catalogId": "https://aurora-chat.dev/catalog/v0.1.json"
+        "surfaceId": "mcp_app_smoke",
+        "catalogId": "aurora-chat://catalog/v0.1.json"
       }
     },
     {
       "version": "v0.9",
       "updateComponents": {
-        "surfaceId": "three_d_model_viewer",
+        "surfaceId": "mcp_app_smoke",
         "components": [
           {
             "id": "root",
             "component": "Card",
-            "title": "Engine assembly",
-            "subtitle": "Click-drag to rotate, wheel to zoom",
+            "title": "MCP App smoke test",
+            "subtitle": "Bundled tool-input-echo demo",
             "variant": "outlined",
             "child": "body_col"
           },
@@ -31,16 +31,18 @@
             "id": "desc_text",
             "component": "Text",
             "variant": "caption",
-            "text": "Loaded via MCP Apps from the threejs-server example. The iframe runs in a sandbox with deny-by-default CSP; pointer events pass through but scripts cannot access this window."
+            "text": "Loaded from the bundled aurora-bundled pseudo-server. The iframe runs in a sandbox with deny-by-default CSP; the AppBridge pushes our toolInput via ui/notifications/tool-input and the demo pretty-prints it."
           },
           {
             "id": "viewer",
             "component": "McpApp",
-            "resourceUri": "ui://threejs-viewer/scene.html",
-            "server": "threejs-server",
-            "height": 500,
+            "resourceUri": "ui://aurora-bundled/tool-input-echo.html",
+            "server": "aurora-bundled",
+            "height": 400,
             "toolInput": {
-              "modelUrl": "https://example.com/models/engine.glb"
+              "demo": "mcp-app-embed example",
+              "modelUrl": "https://example.com/models/engine.glb",
+              "renderer": "preview"
             }
           },
           {
