@@ -1,0 +1,52 @@
+{
+  "_description": "Phase 5 Tier 2 compatibility test — the ext-apps `qr-server` MCP App (Python/FastMCP). The UI contains form inputs + a generate button that fires tools/call via AppBridge backchannel to regenerate the QR code. THIS IS THE BIDIRECTIONAL TEST: typing and clicking generate inside the iframe must round-trip through AppBridge → MCP client → qr-server's generate_qr tool → back to the iframe as ui/notifications/tool-result. If this tier renders AND the QR changes on input, the full MCP Apps protocol is proven spec-compliant. Requires qr-server running on http://localhost:3002/mcp and a matching MCP server entry in Settings → MCP Servers named 'qr-server'.",
+  "messages": [
+    {
+      "version": "v0.9",
+      "createSurface": {
+        "surfaceId": "tier2_qr_server",
+        "catalogId": "aurora-chat://catalog/v0.1.json"
+      }
+    },
+    {
+      "version": "v0.9",
+      "updateComponents": {
+        "surfaceId": "tier2_qr_server",
+        "components": [
+          {
+            "id": "root",
+            "component": "Card",
+            "title": "Tier 2 · qr-server",
+            "subtitle": "tools/call backchannel round-trip",
+            "variant": "outlined",
+            "child": "body"
+          },
+          {
+            "id": "body",
+            "component": "Column",
+            "gap": 12,
+            "children": ["desc", "app"]
+          },
+          {
+            "id": "desc",
+            "component": "Text",
+            "variant": "caption",
+            "text": "Python MCP server on localhost:3002. The iframe's form calls generate_qr via AppBridge backchannel — if the QR regenerates when you type, the full bidirectional MCP Apps protocol is proven."
+          },
+          {
+            "id": "app",
+            "component": "McpApp",
+            "resourceUri": "ui://qr-server/view.html",
+            "server": "qr-server",
+            "height": 560,
+            "toolInput": {
+              "text": "https://aurora-chat.dev",
+              "error_correction": "M",
+              "box_size": 10
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

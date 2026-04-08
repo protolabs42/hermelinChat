@@ -1,0 +1,47 @@
+{
+  "_description": "Phase 5 Tier 3 compatibility test — the ext-apps `threejs-server` MCP App. Real-world 3D scene renderer built on Three.js. Tests the CSP pipeline with external resources: Three.js loads from a CDN (unpkg.com or cdn.jsdelivr.net depending on the app's bundle), which requires resourceDomains widening in the iframe CSP. If the 3D scene renders AND the theme bridge applies (background/text colors), Phase 5 passes the strictest compatibility bar. Requires threejs-server running on http://localhost:3003/mcp and a matching MCP server entry in Settings → MCP Servers named 'threejs-server'.",
+  "messages": [
+    {
+      "version": "v0.9",
+      "createSurface": {
+        "surfaceId": "tier3_threejs",
+        "catalogId": "aurora-chat://catalog/v0.1.json"
+      }
+    },
+    {
+      "version": "v0.9",
+      "updateComponents": {
+        "surfaceId": "tier3_threejs",
+        "components": [
+          {
+            "id": "root",
+            "component": "Card",
+            "title": "Tier 3 · threejs-server",
+            "subtitle": "CSP external resources + 3D rendering",
+            "variant": "outlined",
+            "child": "body"
+          },
+          {
+            "id": "body",
+            "component": "Column",
+            "gap": 12,
+            "children": ["desc", "app"]
+          },
+          {
+            "id": "desc",
+            "component": "Text",
+            "variant": "caption",
+            "text": "Node MCP server on localhost:3003. The view is a Three.js 3D scene renderer. Tests the strictest compatibility bar — sandbox CSP must allow the app's declared resource domains, and the theme bridge applies to any non-WebGL UI chrome."
+          },
+          {
+            "id": "app",
+            "component": "McpApp",
+            "resourceUri": "ui://threejs/mcp-app.html",
+            "server": "threejs-server",
+            "height": 600
+          }
+        ]
+      }
+    }
+  ]
+}

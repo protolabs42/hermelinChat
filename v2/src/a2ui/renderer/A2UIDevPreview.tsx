@@ -24,6 +24,9 @@ import contactFormRaw from '../examples/contact-form.json?raw'
 import interactiveChartRaw from '../examples/interactive-chart.json?raw'
 import mcpAppEmbedRaw from '../examples/mcp-app-embed.json?raw'
 import threeComponentRaw from '../examples/three-component.json?raw'
+import tier1GetTimeRaw from '../examples/tier1-get-time.json?raw'
+import tier2QrServerRaw from '../examples/tier2-qr-server.json?raw'
+import tier3ThreejsServerRaw from '../examples/tier3-threejs-server.json?raw'
 
 interface ExampleFile {
   _description?: string
@@ -50,6 +53,11 @@ const EXAMPLES: Example[] = [
   parse(interactiveChartRaw, 'interactive-chart.json'),
   parse(mcpAppEmbedRaw, 'mcp-app-embed.json'),
   parse(threeComponentRaw, 'three-component.json'),
+  // Phase 5 tier tests — require local MCP servers running + entries
+  // added via Settings → MCP Servers. See docs/phase5-test-servers.md.
+  parse(tier1GetTimeRaw, 'tier1-get-time.json'),
+  parse(tier2QrServerRaw, 'tier2-qr-server.json'),
+  parse(tier3ThreejsServerRaw, 'tier3-threejs-server.json'),
 ]
 
 interface LoggedEvent {

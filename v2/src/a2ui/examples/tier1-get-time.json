@@ -1,0 +1,47 @@
+{
+  "_description": "Phase 5 Tier 1 compatibility test — the ext-apps quickstart `get-time` MCP App running locally. Smallest possible real-world MCP App: a tool that returns the current time and a UI that displays it. Verifies resource fetching (resources/read) + ui/initialize handshake + tool result push path. No tools/call backchannel — the UI just displays what the host pushes. Requires the quickstart server running on http://localhost:3001/mcp and a matching MCP server entry in Settings → MCP Servers named 'quickstart'.",
+  "messages": [
+    {
+      "version": "v0.9",
+      "createSurface": {
+        "surfaceId": "tier1_get_time",
+        "catalogId": "aurora-chat://catalog/v0.1.json"
+      }
+    },
+    {
+      "version": "v0.9",
+      "updateComponents": {
+        "surfaceId": "tier1_get_time",
+        "components": [
+          {
+            "id": "root",
+            "component": "Card",
+            "title": "Tier 1 · get-time",
+            "subtitle": "ext-apps quickstart MCP App",
+            "variant": "outlined",
+            "child": "body"
+          },
+          {
+            "id": "body",
+            "component": "Column",
+            "gap": 12,
+            "children": ["desc", "app"]
+          },
+          {
+            "id": "desc",
+            "component": "Text",
+            "variant": "caption",
+            "text": "Resource fetched via MCP client.readResource from quickstart server on localhost:3001. Handshake, theme bridge, and tool-input push paths all exercised."
+          },
+          {
+            "id": "app",
+            "component": "McpApp",
+            "resourceUri": "ui://get-time/mcp-app.html",
+            "server": "quickstart",
+            "height": 320
+          }
+        ]
+      }
+    }
+  ]
+}
