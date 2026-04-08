@@ -9,7 +9,14 @@ import assert from 'node:assert/strict'
 import { buildCsp, DEFAULT_CSP } from '../csp'
 
 function has(csp: string, directive: string, source: string): boolean {
-  return csp.split(';').some((d) => d.trim().startsWith(directive + ' ') && d.includes(source))
+  // Split directive blocks on `;`, then check the source is in the block's
+  // whitespace-delimited token list (not just a substring — avoids false
+  // positives where one source is a substring of a malicious sibling, e.g.
+  // `https://cdn.example.com` vs `https://cdn.example.com.attacker.net`).
+  return csp.split(';').some((d) => {
+    const tokens = d.trim().split(/\s+/)
+    return tokens[0] === directive && tokens.slice(1).includes(source)
+  })
 }
 
 function main() {
