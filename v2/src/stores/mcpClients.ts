@@ -37,10 +37,16 @@ interface McpClientStore {
   addServer: (config: McpServerConfig) => Promise<void>
   /** Remove + disconnect a server. */
   removeServer: (name: string) => Promise<void>
-  /** Force reconnect an existing server. */
+  /**
+   * Force reconnect an existing server. Unlike removeServer→addServer,
+   * the entry stays in place (state flips to 'connecting') so the
+   * settings UI doesn't see the row vanish and reappear.
+   */
   reconnect: (name: string) => Promise<void>
   /** Look up a connected client by server name. Returns null if not connected. */
   getClient: (name: string) => Client | null
+  /** Close every connection + wipe the store. Mirrors the pattern in chat.ts / surfaces.ts for test teardown. */
+  reset: () => Promise<void>
 }
 
 async function connect(config: McpServerConfig): Promise<Client> {
@@ -102,12 +108,61 @@ export const useMcpClientStore = create<McpClientStore>((set, get) => ({
   reconnect: async (name: string) => {
     const entry = get().servers[name]
     if (!entry) return
-    await get().removeServer(name)
-    await get().addServer(entry.config)
+    // Close the old client if any, then flip the SAME entry to 'connecting'
+    // in-place (keeps the settings UI row stable instead of vanish/reappear).
+    if (entry.client) {
+      try {
+        await entry.client.close()
+      } catch {
+        /* best effort */
+      }
+    }
+    set((s) => ({
+      servers: {
+        ...s.servers,
+        [name]: { config: entry.config, state: 'connecting' },
+      },
+    }))
+    try {
+      const client = await connect(entry.config)
+      set((s) => ({
+        servers: {
+          ...s.servers,
+          [name]: { config: entry.config, state: 'connected', client },
+        },
+      }))
+    } catch (e) {
+      set((s) => ({
+        servers: {
+          ...s.servers,
+          [name]: {
+            config: entry.config,
+            state: 'error',
+            error: (e as Error).message,
+          },
+        },
+      }))
+    }
   },
 
   getClient: (name: string) => {
     const entry = get().servers[name]
     return entry?.state === 'connected' ? entry.client ?? null : null
+  },
+
+  reset: async () => {
+    const entries = Object.values(get().servers)
+    await Promise.all(
+      entries.map(async (entry) => {
+        if (entry.client) {
+          try {
+            await entry.client.close()
+          } catch {
+            /* best effort */
+          }
+        }
+      })
+    )
+    set({ servers: {} })
   },
 }))
