@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useSettingsStore } from '../stores/settings'
 import { useFontSizeStore } from '../stores/font-size'
 import { useTheme, THEMES } from '../theme'
+import McpServerSettings from './settings/McpServerSettings'
 
 type ApprovalMode = 'yolo' | 'smart' | 'manual'
 
@@ -304,6 +305,10 @@ export default function SettingsPanel() {
               via Hermes (ACP)
             </div>
           </div>
+
+          {/* Section: MCP Servers */}
+          <SectionLabel style={{ marginTop: 28 }}>MCP Servers</SectionLabel>
+          <McpServerSettings />
 
           {/* Section: About */}
           <SectionLabel style={{ marginTop: 28 }}>About</SectionLabel>
