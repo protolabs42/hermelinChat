@@ -13,6 +13,7 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { validateComponents } from './validate'
 import type { Component, UpdateComponentsMessage } from './types'
+import { resolveUiResource } from './mcp-app/resolver'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const EXAMPLES_DIR = join(HERE, 'examples')
@@ -81,6 +82,42 @@ for (const file of files) {
       console.log(`    ${err.path}: ${err.message}`)
     }
   }
+}
+
+// MCP App resource integrity pass — for every McpApp component in every
+// example, verify its resourceUri resolves cleanly. Only checks bundled
+// (ui://aurora-bundled/*) URIs, since remote MCP fetches would require a
+// live server (those are covered by Tasks 14-16 tier tests instead).
+let mcpErrors = 0
+for (const file of files) {
+  const path = join(EXAMPLES_DIR, file)
+  const parsed = JSON.parse(readFileSync(path, 'utf8')) as ExampleFile
+  const mcpApps: Array<{ id: string; resourceUri: string; server: string }> = []
+  for (const msg of parsed.messages) {
+    if (isUpdateComponentsMessage(msg)) {
+      for (const comp of msg.updateComponents.components) {
+        const c = comp as { id?: string; component?: string; resourceUri?: string; server?: string }
+        if (c.component === 'McpApp' && typeof c.resourceUri === 'string' && typeof c.server === 'string' && typeof c.id === 'string') {
+          mcpApps.push({ id: c.id, resourceUri: c.resourceUri, server: c.server })
+        }
+      }
+    }
+  }
+  for (const m of mcpApps) {
+    // Only check bundled URIs — remote fetches need a running MCP server
+    if (!m.resourceUri.startsWith('ui://aurora-bundled/')) continue
+    try {
+      await resolveUiResource(m.resourceUri)
+    } catch (e) {
+      console.error(`❌ ${file}: McpApp ${m.id} resourceUri ${m.resourceUri} — ${(e as Error).message}`)
+      mcpErrors++
+    }
+  }
+}
+
+if (mcpErrors > 0) {
+  totalErrors += mcpErrors
+  console.error(`\n${mcpErrors} MCP App resource error(s)`)
 }
 
 console.log(`\nSummary: ${totalFiles} file(s), ${totalComponents} components, ${totalErrors} error(s)\n`)
