@@ -1,0 +1,67 @@
+{
+  "_description": "Phase 4 verification surface — minimal text + button + chart in a card. Used as the live UAT for the Aurora Chat A2UI roundtrip.",
+  "messages": [
+    {
+      "version": "v0.9",
+      "createSurface": {
+        "surfaceId": "phase4_verify",
+        "catalogId": "https://aurora-chat.dev/catalog/v0.1.json",
+        "sendDataModel": false
+      }
+    },
+    {
+      "version": "v0.9",
+      "updateComponents": {
+        "surfaceId": "phase4_verify",
+        "components": [
+          {
+            "id": "root",
+            "component": "Card",
+            "title": "Phase 4 verification",
+            "subtitle": "Text + Button + Chart inline",
+            "child": "body_col"
+          },
+          {
+            "id": "body_col",
+            "component": "Column",
+            "gap": 16,
+            "children": ["headline_text", "verify_chart", "verify_btn"]
+          },
+          {
+            "id": "headline_text",
+            "component": "Text",
+            "variant": "heading2",
+            "text": "Three components, one surface."
+          },
+          {
+            "id": "verify_chart",
+            "component": "Chart",
+            "kind": "bar",
+            "xKey": "label",
+            "title": "Phase 4 readings",
+            "data": [
+              { "label": "Text", "value": 10 },
+              { "label": "Button", "value": 20 },
+              { "label": "Chart", "value": 30 }
+            ],
+            "series": [
+              { "key": "value", "label": "ok" }
+            ]
+          },
+          {
+            "id": "verify_btn",
+            "component": "Button",
+            "text": "Confirm Phase 4",
+            "variant": "primary",
+            "action": {
+              "event": {
+                "name": "phase4Confirm",
+                "context": { "ok": true }
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
