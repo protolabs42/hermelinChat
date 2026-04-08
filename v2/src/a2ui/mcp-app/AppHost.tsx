@@ -21,7 +21,6 @@ import { useEffect, useRef, useState } from 'react'
 import {
   AppBridge,
   PostMessageTransport,
-  type McpUiHostContext,
 } from '@modelcontextprotocol/ext-apps/app-bridge'
 import { resolveUiResource } from './resolver'
 import { buildCsp, type DeclaredCsp } from './csp'
@@ -88,12 +87,10 @@ export default function AppHost({
 
     const client = server === BUNDLED_SERVER_NAME ? null : getClient(server)
 
-    // theme-bridge returns Aurora's own CSS vars (--color-bg, etc.) which don't
-    // match the SDK's fixed McpUiStyleVariableKey enum. The SDK still forwards
-    // the vars to the view regardless — the index signature on McpUiHostContext
-    // permits extra keys. Cast through `unknown` to satisfy tsc without losing
-    // the structural shape. Phase 5.1 can map Aurora → spec keys properly.
-    const hostContext = getThemeContext({ maxHeight: height }) as unknown as McpUiHostContext
+    // theme-bridge now emits BOTH Aurora's original var names AND the SDK's
+    // canonical McpUiStyleVariableKey set (mapped via SPEC_KEY_MAPPING). Return
+    // type is McpUiHostContext — no cast needed.
+    const hostContext = getThemeContext({ maxHeight: height })
 
     const bridge = new AppBridge(
       client,
