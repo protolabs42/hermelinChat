@@ -1,32 +1,20 @@
 /**
- * Theme bridge: snapshot Aurora's --color-* / --font-* CSS custom properties
- * from document.documentElement and package them as an MCP Apps HostContext
- * that EVERY spec-compliant MCP App will understand.
+ * Theme bridge: read Aurora's internal --color-* / --font-* CSS custom
+ * properties from document.documentElement and emit them as an MCP Apps
+ * HostContext keyed by the spec's canonical McpUiStyleVariableKey enum.
  *
- * The MCP Apps spec (2026-01-26 §"Host Context") defines a canonical enum
- * of ~75 style variable keys (McpUiStyleVariableKey) that third-party
- * MCP Apps read at ui/initialize time. Aurora's internal variable names
- * (--color-bg, --color-text, --color-accent, etc) do NOT match this enum,
- * so a naive "push Aurora vars into hostContext.styles.variables" would
- * leave third-party apps rendering with their own defaults.
+ * The MCP Apps spec (2026-01-26 §"Host Context") defines a canonical ~75-key
+ * enum (McpUiStyleVariableKey) like --color-background-primary, --font-sans,
+ * --color-ring-primary. Third-party MCP Apps read THESE keys via CSS custom
+ * property fallbacks (e.g. `var(--color-background-primary, #171717)`), so
+ * they opt in to host theming on their own terms: apps that want to theme
+ * use the snapshot, apps that hardcode colors ignore it, apps that draw to
+ * canvas/WebGL are unaffected either way.
  *
- * Fix: this module reads Aurora's values from the DOM, then emits TWO
- * parallel sets into hostContext.styles.variables:
- *
- *   1. The spec's canonical keys (--color-background-primary, --font-sans,
- *      --color-text-primary, etc), mapped from Aurora's values via
- *      SPEC_KEY_MAPPING. This is what third-party MCP Apps read — the
- *      compatibility path the plan's Tier 2 + Tier 3 targets rely on.
- *
- *   2. Aurora's original keys (--color-bg, --color-accent, etc) alongside
- *      the canonical ones. This is what Aurora's bundled demos read —
- *      they were written before we knew about the canonical enum and it's
- *      cheap to keep them working.
- *
- * McpUiHostContext.styles has an index signature so both sets coexist
- * without type friction. Keys not present in AURORA_VAR_NAMES are silently
- * skipped rather than errored — a theme that doesn't define --color-accent
- * just gets an empty value in both --color-accent and --color-ring-primary.
+ * This bridge ONLY emits the canonical spec keys — no Aurora-specific
+ * aliases. The bundled Aurora demos (counter, clock, tool-input-echo)
+ * consume the same canonical keys as any third-party MCP App, so our
+ * code stays symmetric with the rest of the ecosystem.
  */
 
 import type {
@@ -151,22 +139,26 @@ export function getThemeContext(opts?: {
   // We build a plain record first and hand it off via cast — the type system
   // gets one contract, the runtime gets both key sets.
   const variables: Record<string, string> = {}
+  let auroraBgForDetect = ''
 
   if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     const computed = getComputedStyle(document.documentElement)
     for (const auroraName of AURORA_VAR_NAMES) {
       const value = computed.getPropertyValue(auroraName).trim()
       if (!value) continue
-      // Emit Aurora's original key (for bundled demos)
-      variables[auroraName] = value
-      // Emit every canonical spec key mapped from this Aurora var
+      // Emit ONLY the canonical spec keys mapped from this Aurora var.
+      // The theme bridge's contract is spec-only — Aurora's internal
+      // variable names never leak to MCP Apps.
       for (const specKey of SPEC_KEY_MAPPING[auroraName]) {
         variables[specKey] = value
+      }
+      if (auroraName === '--color-bg') {
+        auroraBgForDetect = value
       }
     }
   }
 
-  const theme = detectTheme(variables['--color-bg'] ?? '')
+  const theme = detectTheme(auroraBgForDetect)
 
   return {
     theme,

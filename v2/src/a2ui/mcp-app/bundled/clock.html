@@ -6,10 +6,11 @@
     <style>
       :root {
         color-scheme: light dark;
-        --bg: var(--color-bg, #0a0a0a);
-        --fg: var(--color-text, #e5e5e5);
-        --accent: var(--color-accent, #5eead4);
-        --muted: var(--color-muted, #737373);
+        /* Canonical MCP Apps spec keys from McpUiStyleVariableKey enum. */
+        --bg: var(--color-background-primary, #0a0a0a);
+        --fg: var(--color-text-primary, #e5e5e5);
+        --accent: var(--color-ring-primary, #5eead4);
+        --muted: var(--color-text-secondary, #737373);
       }
       body {
         margin: 0;
@@ -49,11 +50,11 @@
     <div class="label">Aurora theme bridge</div>
     <div class="time" id="time">--:--:--</div>
     <div class="swatches">
-      <div class="sw" style="background:var(--color-bg)"></div>
-      <div class="sw" style="background:var(--color-surface)"></div>
-      <div class="sw" style="background:var(--color-elevated)"></div>
-      <div class="sw" style="background:var(--color-accent)"></div>
-      <div class="sw" style="background:var(--color-text)"></div>
+      <div class="sw" style="background:var(--color-background-primary)"></div>
+      <div class="sw" style="background:var(--color-background-secondary)"></div>
+      <div class="sw" style="background:var(--color-background-tertiary)"></div>
+      <div class="sw" style="background:var(--color-ring-primary)"></div>
+      <div class="sw" style="background:var(--color-text-primary)"></div>
     </div>
     <script>
       let nextId = 1

@@ -6,11 +6,12 @@
     <style>
       :root {
         color-scheme: light dark;
-        --bg: var(--color-bg, #0a0a0a);
-        --fg: var(--color-text, #e5e5e5);
-        --accent: var(--color-accent, #5eead4);
-        --muted: var(--color-muted, #737373);
-        --elevated: var(--color-elevated, #1a1a1a);
+        /* Canonical MCP Apps spec keys from McpUiStyleVariableKey enum. */
+        --bg: var(--color-background-primary, #0a0a0a);
+        --fg: var(--color-text-primary, #e5e5e5);
+        --accent: var(--color-ring-primary, #5eead4);
+        --muted: var(--color-text-secondary, #737373);
+        --elevated: var(--color-background-tertiary, #1a1a1a);
       }
       body {
         margin: 0;

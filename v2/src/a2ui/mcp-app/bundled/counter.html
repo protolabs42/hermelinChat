@@ -6,9 +6,12 @@
     <style>
       :root {
         color-scheme: light dark;
-        --bg: var(--color-bg, #0a0a0a);
-        --fg: var(--color-text, #e5e5e5);
-        --accent: var(--color-accent, #5eead4);
+        /* Canonical MCP Apps spec keys from McpUiStyleVariableKey enum.
+           Host sets these in ui/initialize response; fallbacks apply when
+           running outside an MCP-Apps-compliant host. */
+        --bg: var(--color-background-primary, #0a0a0a);
+        --fg: var(--color-text-primary, #e5e5e5);
+        --accent: var(--color-ring-primary, #5eead4);
       }
       body {
         margin: 0;
