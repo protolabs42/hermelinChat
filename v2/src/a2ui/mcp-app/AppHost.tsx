@@ -82,9 +82,20 @@ export default function AppHost({
     resolveUiResource(resourceUri, client)
       .then((raw) => {
         if (cancelled) return
-        const cspText = buildCsp(csp)
-        const cspMeta = `<meta http-equiv="Content-Security-Policy" content="${cspText.replace(/"/g, '&quot;')}">`
-        const injected = raw.replace(/<head[^>]*>/i, (m) => m + cspMeta)
+        // Only inject CSP meta tag if the component explicitly declares CSP
+        // requirements via the `csp` prop. Apps that don't declare CSP run
+        // unrestricted within the sandbox (sandbox="allow-scripts" is the
+        // strong security wall; CSP meta tag is optional defense-in-depth).
+        // This matches basic-host behavior and avoids breaking apps that
+        // need 'unsafe-eval' (Three.js shaders), inline workers, etc.
+        // Phase 5.2 will plumb _meta.ui.csp from the resource's metadata
+        // so apps can declare their needs without the component prop.
+        let injected = raw
+        if (csp && Object.keys(csp).length > 0) {
+          const cspText = buildCsp(csp)
+          const cspMeta = `<meta http-equiv="Content-Security-Policy" content="${cspText.replace(/"/g, '&quot;')}">`
+          injected = raw.replace(/<head[^>]*>/i, (m) => m + cspMeta)
+        }
         setHtml(injected)
       })
       .catch((e: Error) => !cancelled && setError(e.message))
