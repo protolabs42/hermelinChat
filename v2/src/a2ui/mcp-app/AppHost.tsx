@@ -35,6 +35,11 @@ interface AppHostProps {
   server: string
   height?: number
   toolInput?: Record<string, unknown>
+  /** If set, AppHost calls this tool via the MCP client after initialization
+   *  and pushes the result to the iframe via bridge.sendToolResult(). This
+   *  completes the MCP Apps tool→UI flow for passive-display apps (like
+   *  qr-server) that only render on tool result, not on user interaction. */
+  toolName?: string
   csp?: DeclaredCsp
 }
 
@@ -47,6 +52,7 @@ export default function AppHost({
   server,
   height = 500,
   toolInput,
+  toolName,
   csp,
 }: AppHostProps) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null)
@@ -125,9 +131,28 @@ export default function AppHost({
       { hostContext }
     )
 
-    bridge.oninitialized = () => {
+    bridge.oninitialized = async () => {
       if (toolInput) {
         bridge.sendToolInput({ arguments: toolInput })
+      }
+      // If a toolName is specified, call the tool via the MCP client and
+      // push the result to the iframe. This completes the full MCP Apps
+      // tool→UI flow for passive-display apps (like qr-server) that only
+      // render when they receive a tool result, not on user interaction.
+      if (toolName && client) {
+        try {
+          const result = await client.callTool({
+            name: toolName,
+            arguments: toolInput ?? {},
+          })
+          // callTool returns a compat union type (zod-inferred); sendToolResult
+          // wants the ext-apps CallToolResult. Structurally identical at runtime
+          // (both have content: ContentBlock[]). Cast bridges the TS gap.
+          bridge.sendToolResult(result as Parameters<typeof bridge.sendToolResult>[0])
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.error(`[mcp-app:${server}] tool call '${toolName}' failed:`, e)
+        }
       }
     }
 

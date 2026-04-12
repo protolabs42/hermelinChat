@@ -31,14 +31,15 @@
             "id": "desc",
             "component": "Text",
             "variant": "caption",
-            "text": "Python MCP server on localhost:3002. The iframe's form calls generate_qr via AppBridge backchannel — if the QR regenerates when you type, the full bidirectional MCP Apps protocol is proven."
+            "text": "Python MCP server on localhost:3002. AppHost calls generate_qr via the MCP client, then pushes the tool result (QR image) to the iframe via sendToolResult(). The iframe renders the image on receipt — proving the full tool→UI pipeline."
           },
           {
             "id": "app",
             "component": "McpApp",
             "resourceUri": "ui://qr-server/view.html",
             "server": "qr-server",
-            "height": 560,
+            "height": 400,
+            "toolName": "generate_qr",
             "toolInput": {
               "text": "https://aurora-chat.dev",
               "error_correction": "M",

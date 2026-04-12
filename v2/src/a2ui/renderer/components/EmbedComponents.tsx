@@ -65,6 +65,7 @@ const McpAppRender = ({ component, surface }: RenderProps) => {
       server={c.server}
       height={c.height}
       toolInput={c.toolInput}
+      toolName={c.toolName}
     />
   )
 }

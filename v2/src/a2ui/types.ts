@@ -247,6 +247,10 @@ export interface McpAppComponent extends BaseComponent {
   server: string
   height?: number
   toolInput?: Record<string, unknown>
+  /** If set, the host calls this tool via the MCP client after iframe
+   *  initialization and pushes the result via sendToolResult(). Used by
+   *  passive-display apps (like qr-server) that only render on tool result. */
+  toolName?: string
 }
 
 /** Discriminated union of every component type in the catalog. */
