@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import { useSidebarStore, type SessionSummary } from '../stores/sidebar'
 import { useChatStore, type ChatMessage } from '../stores/chat'
+import { loadAnchors } from '../a2ui/surface-anchors'
 
 function relativeTime(epoch: number | null): string {
   if (!epoch) return ''
@@ -145,6 +146,44 @@ function SessionRow({ session, isActive }: { session: SessionSummary; isActive: 
               content: m.content || '',
               timestamp: m.timestamp ? m.timestamp * 1000 : Date.now(),
             }))
+
+          // Restore persisted surface anchors — merge by timestamp so they
+          // re-appear at their original position in the conversation.
+          const anchors = loadAnchors(session.id)
+          if (anchors.length > 0) {
+            let anchorIdx = 0
+            const merged: ChatMessage[] = []
+            // Both lists are sorted by timestamp. Walk both in order.
+            for (const msg of chatMessages) {
+              // Insert any anchors whose timestamp falls before this message
+              while (anchorIdx < anchors.length && anchors[anchorIdx].timestamp <= msg.timestamp) {
+                const a = anchors[anchorIdx]
+                merged.push({
+                  id: `surface-${a.surfaceId}`,
+                  role: 'surface',
+                  content: '',
+                  timestamp: a.timestamp,
+                  surfaceId: a.surfaceId,
+                })
+                anchorIdx++
+              }
+              merged.push(msg)
+            }
+            // Append any remaining anchors after all messages
+            while (anchorIdx < anchors.length) {
+              const a = anchors[anchorIdx]
+              merged.push({
+                id: `surface-${a.surfaceId}`,
+                role: 'surface',
+                content: '',
+                timestamp: a.timestamp,
+                surfaceId: a.surfaceId,
+              })
+              anchorIdx++
+            }
+            chatMessages.length = 0
+            chatMessages.push(...merged)
+          }
 
           useChatStore.setState({
             messages: chatMessages,

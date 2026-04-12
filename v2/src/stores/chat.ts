@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { AcpEvent } from '../types/acp'
+import { persistSurfaceAnchor } from '../a2ui/surface-anchors'
 
 // Streaming text buffer — batches rapid chunks into fewer React updates
 let _textBuffer = ''
@@ -115,12 +116,20 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       if (_textBuffer) {
         flushTextBuffer(set)
       }
+      const timestamp = Date.now()
+      // Persist so the anchor survives aurora-chat restarts. The surface
+      // data itself stays on disk (hermes JSON files); this just records
+      // where in the message stream it belongs.
+      const sid = s.sessionId
+      if (sid) {
+        persistSurfaceAnchor(sid, surfaceId, timestamp)
+      }
       return {
         messages: [...s.messages, {
           id: genId(),
           role: 'surface' as const,
           content: '',
-          timestamp: Date.now(),
+          timestamp,
           surfaceId,
         }],
       }
