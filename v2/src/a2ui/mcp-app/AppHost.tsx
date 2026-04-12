@@ -57,15 +57,28 @@ export default function AppHost({
 
   const a2uiCtx = useA2UI()
   const getClient = useMcpClientStore((s) => s.getClient)
+  // Subscribe to this server's connection state so we re-render when it
+  // transitions from 'connecting' → 'connected'. Without this, the useEffect
+  // below fires once on mount (while still connecting) and locks into the
+  // "not connected" error permanently.
+  const serverState: string = useMcpClientStore(
+    (s) => server === BUNDLED_SERVER_NAME ? 'connected' : (s.servers[server]?.state ?? 'missing')
+  )
 
   // 1 + 2 + 3: resolve HTML and inject CSP
+  // Re-runs when serverState changes (e.g. connecting → connected).
   useEffect(() => {
+    // Don't try to resolve while still connecting — show loading state instead
+    if (server !== BUNDLED_SERVER_NAME && serverState !== 'connected') return
+
     let cancelled = false
     const client = server === BUNDLED_SERVER_NAME ? null : getClient(server)
     if (server !== BUNDLED_SERVER_NAME && !client) {
       setError(`MCP server "${server}" is not connected. Add it in Settings → MCP Servers.`)
       return
     }
+    // Clear any previous error from a failed attempt
+    setError(null)
     resolveUiResource(resourceUri, client)
       .then((raw) => {
         if (cancelled) return
@@ -78,7 +91,7 @@ export default function AppHost({
     return () => {
       cancelled = true
     }
-  }, [resourceUri, server, csp, getClient])
+  }, [resourceUri, server, csp, getClient, serverState])
 
   // 5–7: wire AppBridge on iframe load
   const onIframeLoad = () => {
@@ -155,6 +168,27 @@ export default function AppHost({
       }
     }
   }, [])
+
+  // Show connecting state while the MCP client is still initializing
+  if (server !== BUNDLED_SERVER_NAME && (serverState === 'connecting' || serverState === 'missing')) {
+    return (
+      <div
+        style={{
+          padding: 16,
+          fontFamily: 'var(--font-mono, monospace)',
+          fontSize: 12,
+          color: 'var(--color-muted)',
+          background: 'var(--color-elevated)',
+          border: '1px dashed var(--color-border)',
+          borderRadius: 8,
+        }}
+      >
+        {serverState === 'connecting'
+          ? <>Connecting to MCP server <code style={{ color: 'var(--color-accent)' }}>{server}</code>…</>
+          : <>MCP server <code style={{ color: 'var(--color-accent)' }}>{server}</code> not configured. Add it in Settings → MCP Servers.</>}
+      </div>
+    )
+  }
 
   if (error) {
     return (
