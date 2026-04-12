@@ -30,7 +30,14 @@ export default function StatusBar() {
       title: 'Select working directory',
       defaultPath: cwd || undefined,
     })
-    if (selected) setCwd(selected as string)
+    if (selected) {
+      setCwd(selected as string)
+      // Sync to hermes so the live session's tools use the new CWD.
+      // load_session calls session_manager.update_cwd() + persists to DB.
+      if (sessionId) {
+        invoke('acp_load_session', { sessionId, cwd: selected })
+      }
+    }
   }
 
   // Show just the last segment of the path, full path in tooltip
