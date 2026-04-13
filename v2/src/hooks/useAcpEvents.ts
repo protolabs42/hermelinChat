@@ -35,6 +35,15 @@ export function useAcpEvents() {
     // Query current status on mount (events may have fired before listeners registered)
     invoke<string>('acp_status').then((status) => {
       useChatStore.setState({ connectionStatus: status })
+      // If hermes is already connected but no session is active yet,
+      // start a fresh session in the stored CWD. This prevents hermes
+      // from auto-resuming a stale session from a previous launch.
+      if (status === 'connected' && !useChatStore.getState().sessionId) {
+        const cwd = useChatStore.getState().cwd
+        invoke('acp_new_session', { cwd }).catch((e: unknown) =>
+          console.error('Failed to start initial session:', e)
+        )
+      }
     }).catch(() => {})
 
     // Load existing artifacts on mount

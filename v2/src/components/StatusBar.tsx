@@ -32,11 +32,11 @@ export default function StatusBar() {
     })
     if (selected) {
       setCwd(selected as string)
-      // Sync to hermes so the live session's tools use the new CWD.
-      // load_session calls session_manager.update_cwd() + persists to DB.
-      if (sessionId) {
-        invoke('acp_load_session', { sessionId, cwd: selected })
-      }
+      // Start a fresh session in the new CWD — clears chat and tells hermes.
+      useChatStore.getState().reset()
+      invoke('acp_new_session', { cwd: selected }).catch((e: unknown) =>
+        console.error('Failed to start session in new cwd:', e)
+      )
     }
   }
 
@@ -105,6 +105,11 @@ export default function StatusBar() {
           onClick={() => {
             useChatStore.getState().reset()
             invoke('set_window_title', { title: 'Aurora Chat' }).catch(() => {})
+            // Start a fresh hermes session in the current CWD
+            const currentCwd = useChatStore.getState().cwd
+            invoke('acp_new_session', { cwd: currentCwd }).catch((e: unknown) =>
+              console.error('Failed to start new session:', e)
+            )
           }}
           title="New chat (Ctrl+N)"
           style={{ ...btnStyle, fontSize: 20, lineHeight: 1 }}
