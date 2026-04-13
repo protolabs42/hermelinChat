@@ -1,6 +1,7 @@
 mod acp;
 mod artifacts;
 mod commands;
+mod hermes_config;
 mod sessions;
 
 use commands::AcpState;
