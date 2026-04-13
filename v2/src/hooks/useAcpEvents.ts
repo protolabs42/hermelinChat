@@ -32,14 +32,20 @@ export function useAcpEvents() {
       }
     })
 
+    // Get the real launch CWD from Rust (the directory aurora-chat was started from)
+    invoke<string>('get_launch_cwd').then((launchCwd) => {
+      useChatStore.getState().setCwd(launchCwd)
+    }).catch(() => {})
+
     // Query current status on mount (events may have fired before listeners registered)
-    invoke<string>('acp_status').then((status) => {
+    invoke<string>('acp_status').then(async (status) => {
       useChatStore.setState({ connectionStatus: status })
       // If hermes is already connected but no session is active yet,
-      // start a fresh session in the stored CWD. This prevents hermes
-      // from auto-resuming a stale session from a previous launch.
+      // start a fresh session in the launch CWD.
       if (status === 'connected' && !useChatStore.getState().sessionId) {
+        // Wait briefly for get_launch_cwd to resolve (it's fast, local call)
         const cwd = useChatStore.getState().cwd
+          || await invoke<string>('get_launch_cwd').catch(() => null)
         invoke('acp_new_session', { cwd }).catch((e: unknown) =>
           console.error('Failed to start initial session:', e)
         )

@@ -127,6 +127,13 @@ pub fn check_hermes_update() -> VersionInfo {
 }
 
 #[tauri::command]
+pub fn get_launch_cwd() -> String {
+    std::env::current_dir()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|_| ".".to_string())
+}
+
+#[tauri::command]
 pub fn set_window_title(app: tauri::AppHandle, title: String) -> Result<(), String> {
     use tauri::Manager;
     if let Some(window) = app.get_webview_window("main") {

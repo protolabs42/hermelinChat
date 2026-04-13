@@ -90,7 +90,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   connectionStatus: 'connecting',
   pendingPrompt: null,
   usage: null,
-  cwd: localStorage.getItem('aurora-cwd') || null,
+  cwd: null, // populated from Rust process CWD on startup, not localStorage
 
   addUserMessage: (text: string) => {
     set((s) => ({
@@ -260,7 +260,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   setSessionId: (id: string) => set({ sessionId: id }),
   setPendingPrompt: (text: string | null) => set({ pendingPrompt: text }),
   setCwd: (path: string) => {
-    localStorage.setItem('aurora-cwd', path)
     set({ cwd: path })
   },
 
