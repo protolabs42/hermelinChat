@@ -16,6 +16,7 @@ interface SidebarStore {
   close: () => void
   toggle: () => void
   loadSessions: () => Promise<void>
+  loadSessionsForProject: (projectId: string) => Promise<void>
 }
 
 export const useSidebarStore = create<SidebarStore>((set) => ({
@@ -23,7 +24,17 @@ export const useSidebarStore = create<SidebarStore>((set) => ({
   sessions: [],
   open: () => {
     set({ isOpen: true })
-    useSidebarStore.getState().loadSessions()
+    // Load sessions filtered by active project if one is set
+    import('./projects').then(({ useProjectStore }) => {
+      const { activeProjectId } = useProjectStore.getState()
+      if (activeProjectId) {
+        useSidebarStore.getState().loadSessionsForProject(activeProjectId)
+      } else {
+        useSidebarStore.getState().loadSessions()
+      }
+    }).catch(() => {
+      useSidebarStore.getState().loadSessions()
+    })
   },
   close: () => set({ isOpen: false }),
   toggle: () => {
@@ -41,6 +52,20 @@ export const useSidebarStore = create<SidebarStore>((set) => ({
       set({ sessions })
     } catch (e) {
       console.error('Failed to load sessions:', e)
+    }
+  },
+  loadSessionsForProject: async (projectId: string) => {
+    try {
+      const { invoke } = await import('@tauri-apps/api/core')
+      const sessions = await invoke<SessionSummary[]>('get_sessions_for_project', {
+        projectId,
+        limit: 50,
+      })
+      set({ sessions })
+    } catch (e) {
+      console.error('Failed to load sessions for project:', e)
+      // Fall back to loading all sessions
+      useSidebarStore.getState().loadSessions()
     }
   },
 }))
