@@ -2,17 +2,23 @@ mod acp;
 mod artifacts;
 mod commands;
 mod hermes_config;
+mod mcp_commands;
 mod mcp_proxy;
 mod sessions;
 
 use commands::AcpState;
+use hermes_config::ConfigLock;
+use mcp_proxy::McpPoolState;
 use std::sync::Mutex;
+use tokio::sync::Mutex as TokioMutex;
 use tauri::Manager;
 
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(AcpState(Mutex::new(None)))
+        .manage(ConfigLock(TokioMutex::new(())))
+        .manage(McpPoolState::new())
         .setup(|app| {
             match acp::client::AcpClient::spawn(&app.handle()) {
                 Ok(client) => {
@@ -31,6 +37,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            // Existing ACP commands
             commands::acp_new_session,
             commands::acp_load_session,
             commands::acp_send_prompt,
@@ -43,6 +50,25 @@ pub fn run() {
             commands::list_a2ui_batches,
             commands::set_window_title,
             commands::check_hermes_update,
+            // MCP server management commands
+            mcp_commands::list_mcp_servers,
+            mcp_commands::add_mcp_server,
+            mcp_commands::update_mcp_server,
+            mcp_commands::remove_mcp_server,
+            mcp_commands::toggle_mcp_server,
+            mcp_commands::test_mcp_server,
+            // Secret / env-var commands
+            mcp_commands::list_env_var_names,
+            mcp_commands::save_env_var,
+            mcp_commands::delete_env_var,
+            mcp_commands::find_orphaned_env_vars,
+            // MCP proxy commands
+            mcp_commands::mcp_read_resource,
+            mcp_commands::mcp_call_tool,
+            mcp_commands::mcp_list_tools,
+            mcp_commands::mcp_list_resources,
+            // Hermes sync
+            mcp_commands::reload_hermes,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
