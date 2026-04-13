@@ -68,8 +68,12 @@ export function useAcpEvents() {
               await projectStore.setActiveProject(newProject.id)
             }
           } else {
-            // No git repo — check for persisted activeProjectId (desktop launch)
-            if (projectStore.activeProjectId && projectStore.activeProjectId !== 'scratchpad' && projectStore.projects[projectStore.activeProjectId]) {
+            // No git repo found. Only resume persisted project if launched
+            // from $HOME (desktop-icon launch). Otherwise, the user explicitly
+            // cd'd somewhere — respect that by using Scratchpad.
+            const homeDir = await invoke<string>('get_home_dir').catch(() => '')
+            const isDesktopLaunch = launchCwd === homeDir
+            if (isDesktopLaunch && projectStore.activeProjectId && projectStore.activeProjectId !== 'scratchpad' && projectStore.projects[projectStore.activeProjectId]) {
               await projectStore.setActiveProject(projectStore.activeProjectId)
             } else {
               await projectStore.setActiveProject('scratchpad')
