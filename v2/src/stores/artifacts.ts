@@ -15,11 +15,17 @@ interface ArtifactStore {
   artifacts: Artifact[]
   activeId: string | null
   panelOpen: boolean
+  /** When set, the side panel shows this A2UI surface instead of an artifact. */
+  pinnedSurfaceId: string | null
 
   setActiveId: (id: string) => void
   openPanel: () => void
   closePanel: () => void
   togglePanel: () => void
+  /** Pin a surface to the side panel (opens it if closed). */
+  pinSurface: (surfaceId: string) => void
+  /** Unpin — return the panel to artifact mode. */
+  unpinSurface: () => void
 
   handleEvent: (event: ArtifactEvent) => void
 }
@@ -42,11 +48,14 @@ export const useArtifactStore = create<ArtifactStore>((set) => ({
   artifacts: [],
   activeId: null,
   panelOpen: false,
+  pinnedSurfaceId: null,
 
   setActiveId: (id) => set({ activeId: id }),
   openPanel: () => set({ panelOpen: true }),
   closePanel: () => set({ panelOpen: false }),
   togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen })),
+  pinSurface: (surfaceId) => set({ pinnedSurfaceId: surfaceId, panelOpen: true }),
+  unpinSurface: () => set({ pinnedSurfaceId: null }),
 
   handleEvent: (event) => {
     switch (event.kind) {

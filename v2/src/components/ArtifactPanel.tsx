@@ -1,5 +1,10 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useArtifactStore, type Artifact } from '../stores/artifacts'
+import { useSurfaceStore } from '../stores/surfaces'
+import { useChatStore } from '../stores/chat'
+import { invoke } from '@tauri-apps/api/core'
+import A2UISurface from '../a2ui/renderer/A2UISurface'
+import type { ActionMessage, ErrorMessage } from '../a2ui/types'
 import ErrorBoundary from './ErrorBoundary'
 
 // Lazy-loaded renderers — each pulls in its own library chunks only on first use
@@ -418,11 +423,38 @@ function formatTimeAgo(ts: number | null): string {
 /*  Main panel                                                        */
 /* ------------------------------------------------------------------ */
 
+const ACTION_MARKER = '[[A2UI_ACTION]] '
+let _panelActionSeq = 0
+
+function sendPanelActionEnvelope(
+  kind: 'action' | 'error',
+  payload: ActionMessage | ErrorMessage
+) {
+  const sessionId = useChatStore.getState().sessionId
+  if (!sessionId) return
+  _panelActionSeq += 1
+  const envelope = {
+    kind: `a2ui_${kind}`,
+    version: 'v0.9',
+    seq: _panelActionSeq,
+    ...(kind === 'action' ? (payload as ActionMessage) : (payload as ErrorMessage)),
+  }
+  invoke('acp_send_prompt', {
+    sessionId,
+    text: ACTION_MARKER + JSON.stringify(envelope),
+  }).catch(() => {})
+}
+
 export default function ArtifactPanel() {
   const artifacts = useArtifactStore((s) => s.artifacts)
   const activeId = useArtifactStore((s) => s.activeId)
   const setActiveId = useArtifactStore((s) => s.setActiveId)
   const closePanel = useArtifactStore((s) => s.closePanel)
+  const pinnedSurfaceId = useArtifactStore((s) => s.pinnedSurfaceId)
+  const unpinSurface = useArtifactStore((s) => s.unpinSurface)
+  const pinnedSurface = useSurfaceStore((s) =>
+    pinnedSurfaceId ? s.surfaces[pinnedSurfaceId] : null
+  )
 
   // Memoize so dropdown toggles don't generate a fresh activeArtifact reference
   // every parent render — that was forcing ArtifactBody to re-mount unnecessarily.
@@ -793,15 +825,58 @@ export default function ArtifactPanel() {
 
       {/* Body */}
       <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
-        {activeArtifact ? (
+        {pinnedSurface ? (
+          <div style={{ padding: 12 }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 12,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  color: 'var(--color-accent)',
+                }}
+              >
+                Pinned Surface
+              </div>
+              <button
+                onClick={unpinSurface}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 4,
+                  padding: '4px 8px',
+                  fontSize: 11,
+                  fontFamily: 'var(--font-mono, monospace)',
+                  color: 'var(--color-muted)',
+                  cursor: 'pointer',
+                }}
+              >
+                unpin
+              </button>
+            </div>
+            <A2UISurface
+              surface={pinnedSurface}
+              onAction={(msg) => sendPanelActionEnvelope('action', msg)}
+              onError={(msg) => sendPanelActionEnvelope('error', msg)}
+            />
+          </div>
+        ) : activeArtifact ? (
           <ArtifactBody artifact={activeArtifact} />
         ) : (
           <EmptyRenderer title="No artifacts" detail="Ask the agent to create one" />
         )}
       </div>
 
-      {/* Footer */}
-      {activeArtifact && (
+      {/* Footer — hidden when showing a pinned surface */}
+      {!pinnedSurface && activeArtifact && (
         <div style={{
           padding: '8px 12px',
           borderTop: '1px solid var(--color-border)',

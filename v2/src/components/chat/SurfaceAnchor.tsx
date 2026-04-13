@@ -14,6 +14,7 @@ import { invoke } from '@tauri-apps/api/core'
 import A2UISurface from '../../a2ui/renderer/A2UISurface'
 import { useSurfaceStore } from '../../stores/surfaces'
 import { useChatStore } from '../../stores/chat'
+import { useArtifactStore } from '../../stores/artifacts'
 import type { ActionMessage, ErrorMessage } from '../../a2ui/types'
 
 interface Props {
@@ -57,6 +58,8 @@ function sendActionEnvelope(
 
 export default function SurfaceAnchor({ surfaceId }: Props) {
   const surface = useSurfaceStore((s) => s.surfaces[surfaceId])
+  const pinSurface = useArtifactStore((s) => s.pinSurface)
+  const isPinned = useArtifactStore((s) => s.pinnedSurfaceId === surfaceId)
 
   if (!surface) {
     return (
@@ -86,15 +89,39 @@ export default function SurfaceAnchor({ surfaceId }: Props) {
     >
       <div
         style={{
-          fontSize: 12,
-          fontWeight: 600,
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
           marginBottom: 8,
-          color: 'var(--color-accent)',
         }}
       >
-        Aurora · Surface
+        <div
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            color: 'var(--color-accent)',
+          }}
+        >
+          Aurora · Surface
+        </div>
+        <button
+          onClick={() => pinSurface(surfaceId)}
+          title={isPinned ? 'Pinned to side panel' : 'Pin to side panel'}
+          style={{
+            background: 'transparent',
+            border: '1px solid var(--color-border)',
+            borderRadius: 4,
+            padding: '4px 8px',
+            fontSize: 11,
+            fontFamily: 'var(--font-mono, monospace)',
+            color: isPinned ? 'var(--color-accent)' : 'var(--color-muted)',
+            cursor: 'pointer',
+          }}
+        >
+          {isPinned ? 'pinned' : 'pin'}
+        </button>
       </div>
       <A2UISurface
         surface={surface}
