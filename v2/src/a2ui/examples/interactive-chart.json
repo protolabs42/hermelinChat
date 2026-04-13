@@ -5,7 +5,7 @@
       "version": "v0.9",
       "createSurface": {
         "surfaceId": "sales_by_region",
-        "catalogId": "https://aurora-chat.dev/catalog/v0.1.json",
+        "catalogId": "aurora-chat://catalog/v0.1.json",
         "sendDataModel": false
       }
     },

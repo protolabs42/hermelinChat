@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://aurora-chat.dev/catalog/v0.1.json",
+  "$id": "aurora-chat://catalog/v0.1.json",
   "title": "Aurora Chat A2UI Catalog",
   "description": "Component + function catalog for Aurora Chat A2UI surfaces. Conforms to A2UI protocol v0.9. Includes the basic A2UI components (Text, Button, TextField, CheckBox, ChoicePicker, Column, Row, Card, List, Divider, Icon, Image) and Aurora Chat visual extensions (Chart, Map, Mermaid, Table, Logs, Markdown, HtmlEmbed, IframeEmbed, McpApp).",
   "version": "0.1.0",
