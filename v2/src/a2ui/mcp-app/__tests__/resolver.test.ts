@@ -20,10 +20,10 @@ async function main() {
     /not found/i
   )
 
-  // Non-aurora-bundled scheme WITHOUT a client → throws
+  // Non-aurora-bundled scheme WITHOUT a resolver → throws
   await assert.rejects(
     () => resolveUiResource('ui://threejs-server/scene.html'),
-    /no mcp client/i
+    /no mcp resolver/i
   )
 
   // Non-ui URI throws

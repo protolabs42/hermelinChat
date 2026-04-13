@@ -2,16 +2,15 @@
  * AppHost — sandboxed iframe + MCP Apps bridge for a single McpApp component.
  *
  * Lifecycle:
- *  1. On mount: look up MCP Client for the component's `server` field from
- *     the mcpClients store. If `server === 'aurora-bundled'`, no client needed.
- *  2. Resolve resourceUri → HTML via resolveUiResource(uri, client).
- *  3. Inject CSP meta tag into <head> based on the component's csp prop (or
- *     the resource's _meta.ui.csp if we ever plumb it through — Phase 5.1).
+ *  1. On mount: check server status in hermesMcpServers store (config-based).
+ *     If `server === 'aurora-bundled'`, no server needed.
+ *  2. Resolve resourceUri → HTML via resolveUiResource(uri, resolver).
+ *     resolver is a closure over tauriReadResource(server, uri).
+ *  3. Inject CSP meta tag into <head> based on the component's csp prop.
  *  4. Render iframe with sandbox="allow-scripts" + srcDoc.
- *  5. On iframe load: instantiate AppBridge with the real Client (auto-proxies
- *     tools/call + resources/read), PostMessageTransport, and current theme as
- *     hostContext. When client is null (bundled-only), pass null to AppBridge
- *     and the bundled demo's postMessage handlers will no-op for backchannel.
+ *  5. On iframe load: instantiate AppBridge with null client, wire manual
+ *     handlers (oncalltool, onreadresource, onlistresources) that proxy
+ *     through Tauri commands. Pass PostMessageTransport + theme as hostContext.
  *  6. Hook bridge.oninitialized → bridge.sendToolInput(toolInput).
  *  7. Hook bridge.onsizechange → resize iframe.
  *  8. On unmount: teardownResource, clear refs.
@@ -22,11 +21,21 @@ import {
   AppBridge,
   PostMessageTransport,
 } from '@modelcontextprotocol/ext-apps/app-bridge'
+import type {
+  CallToolResult,
+  ReadResourceResult,
+  ListResourcesResult,
+} from '@modelcontextprotocol/sdk/types.js'
 import { resolveUiResource } from './resolver'
 import { buildCsp, type DeclaredCsp } from './csp'
 import { getThemeContext } from './theme-bridge'
-import { useMcpClientStore } from '../../stores/mcpClients'
+import { useHermesMcpServers } from '../../stores/hermesMcpServers'
 import { useA2UI } from '../renderer/context'
+import {
+  tauriReadResource,
+  tauriCallTool,
+  tauriListResources,
+} from './tauri-proxy'
 
 interface AppHostProps {
   componentId: string
@@ -35,7 +44,7 @@ interface AppHostProps {
   server: string
   height?: number
   toolInput?: Record<string, unknown>
-  /** If set, AppHost calls this tool via the MCP client after initialization
+  /** If set, AppHost calls this tool via Tauri proxy after initialization
    *  and pushes the result to the iframe via bridge.sendToolResult(). This
    *  completes the MCP Apps tool→UI flow for passive-display apps (like
    *  qr-server) that only render on tool result, not on user interaction. */
@@ -62,40 +71,36 @@ export default function AppHost({
   const [iframeHeight, setIframeHeight] = useState<number>(height)
 
   const a2uiCtx = useA2UI()
-  const getClient = useMcpClientStore((s) => s.getClient)
-  // Subscribe to this server's connection state so we re-render when it
-  // transitions from 'connecting' → 'connected'. Without this, the useEffect
-  // below fires once on mount (while still connecting) and locks into the
-  // "not connected" error permanently.
-  const serverState: string = useMcpClientStore(
-    (s) => server === BUNDLED_SERVER_NAME ? 'connected' : (s.servers[server]?.state ?? 'missing')
-  )
+
+  // Derive server "state" from hermesMcpServers store.
+  // The new store is config-based — Rust handles connections lazily.
+  // - 'ready'    → server exists and is enabled (connection happens on demand in Rust)
+  // - 'disabled' → server exists but is disabled
+  // - 'missing'  → server not in config
+  const serverState: 'ready' | 'disabled' | 'missing' = useHermesMcpServers((s) => {
+    if (server === BUNDLED_SERVER_NAME) return 'ready'
+    const entry = s.servers[server]
+    if (!entry) return 'missing'
+    return entry.enabled ? 'ready' : 'disabled'
+  })
 
   // 1 + 2 + 3: resolve HTML and inject CSP
-  // Re-runs when serverState changes (e.g. connecting → connected).
   useEffect(() => {
-    // Don't try to resolve while still connecting — show loading state instead
-    if (server !== BUNDLED_SERVER_NAME && serverState !== 'connected') return
+    // Don't try to resolve until the server is known-ready
+    if (server !== BUNDLED_SERVER_NAME && serverState !== 'ready') return
 
     let cancelled = false
-    const client = server === BUNDLED_SERVER_NAME ? null : getClient(server)
-    if (server !== BUNDLED_SERVER_NAME && !client) {
-      setError(`MCP server "${server}" is not connected. Add it in Settings → MCP Servers.`)
-      return
-    }
-    // Clear any previous error from a failed attempt
+
+    // Bundled path: no resolver needed
+    // Remote path: resolver is a closure over tauriReadResource
+    const resolver = server === BUNDLED_SERVER_NAME
+      ? null
+      : (uri: string) => tauriReadResource(server, uri)
+
     setError(null)
-    resolveUiResource(resourceUri, client)
+    resolveUiResource(resourceUri, resolver)
       .then((raw) => {
         if (cancelled) return
-        // Only inject CSP meta tag if the component explicitly declares CSP
-        // requirements via the `csp` prop. Apps that don't declare CSP run
-        // unrestricted within the sandbox (sandbox="allow-scripts" is the
-        // strong security wall; CSP meta tag is optional defense-in-depth).
-        // This matches basic-host behavior and avoids breaking apps that
-        // need 'unsafe-eval' (Three.js shaders), inline workers, etc.
-        // Phase 5.2 will plumb _meta.ui.csp from the resource's metadata
-        // so apps can declare their needs without the component prop.
         let injected = raw
         if (csp && Object.keys(csp).length > 0) {
           const cspText = buildCsp(csp)
@@ -108,47 +113,75 @@ export default function AppHost({
     return () => {
       cancelled = true
     }
-  }, [resourceUri, server, csp, getClient, serverState])
+  }, [resourceUri, server, csp, serverState])
 
   // 5–7: wire AppBridge on iframe load
   const onIframeLoad = () => {
     const iframe = iframeRef.current
     if (!iframe || !iframe.contentWindow) return
 
-    const client = server === BUNDLED_SERVER_NAME ? null : getClient(server)
-
-    // theme-bridge now emits BOTH Aurora's original var names AND the SDK's
-    // canonical McpUiStyleVariableKey set (mapped via SPEC_KEY_MAPPING). Return
-    // type is McpUiHostContext — no cast needed.
     const hostContext = getThemeContext({ maxHeight: height })
 
+    // Always use null-client pattern — all MCP calls proxy through Tauri.
+    // Capabilities always include serverTools + serverResources so the bridge
+    // advertises those to the view.
     const bridge = new AppBridge(
-      client,
+      null,
       { name: 'aurora-chat', version: '0.1.0' },
-      client
-        ? { openLinks: {}, serverTools: {}, serverResources: {}, logging: {} }
-        : { openLinks: {}, logging: {} },
+      { openLinks: {}, serverTools: {}, serverResources: {}, logging: {} },
       { hostContext }
     )
+
+    // Wire manual handlers for server-side MCP calls via Tauri proxy
+    if (server !== BUNDLED_SERVER_NAME) {
+      bridge.oncalltool = async (params, _extra): Promise<CallToolResult> => {
+        const raw = await tauriCallTool(
+          server,
+          params.name,
+          (params.arguments ?? {}) as Record<string, unknown>
+        )
+        // Tauri returns raw JSON. Shape it as CallToolResult.
+        const typed = raw as Record<string, unknown>
+        return {
+          content: (typed.content ?? []) as CallToolResult['content'],
+          isError: typed.isError as boolean | undefined,
+        }
+      }
+
+      bridge.onreadresource = async (params, _extra): Promise<ReadResourceResult> => {
+        const text = await tauriReadResource(server, params.uri)
+        // Wrap the raw text string into a proper ReadResourceResult
+        return {
+          contents: [{ uri: params.uri, text, mimeType: 'text/html' }],
+        }
+      }
+
+      bridge.onlistresources = async (_params, _extra): Promise<ListResourcesResult> => {
+        const raw = await tauriListResources(server)
+        const typed = raw as Record<string, unknown>
+        return {
+          resources: (typed.resources ?? []) as ListResourcesResult['resources'],
+          nextCursor: typed.nextCursor as string | undefined,
+        }
+      }
+    }
 
     bridge.oninitialized = async () => {
       if (toolInput) {
         bridge.sendToolInput({ arguments: toolInput })
       }
-      // If a toolName is specified, call the tool via the MCP client and
-      // push the result to the iframe. This completes the full MCP Apps
-      // tool→UI flow for passive-display apps (like qr-server) that only
-      // render when they receive a tool result, not on user interaction.
-      if (toolName && client) {
+      // If a toolName is specified, call the tool via Tauri proxy and push the
+      // result to the iframe. This completes the full MCP Apps tool→UI flow for
+      // passive-display apps (like qr-server) that only render on tool result.
+      if (toolName && server !== BUNDLED_SERVER_NAME) {
         try {
-          const result = await client.callTool({
-            name: toolName,
-            arguments: toolInput ?? {},
-          })
-          // callTool returns a compat union type (zod-inferred); sendToolResult
-          // wants the ext-apps CallToolResult. Structurally identical at runtime
-          // (both have content: ContentBlock[]). Cast bridges the TS gap.
-          bridge.sendToolResult(result as Parameters<typeof bridge.sendToolResult>[0])
+          const raw = await tauriCallTool(server, toolName, toolInput ?? {})
+          const typed = raw as Record<string, unknown>
+          const result: CallToolResult = {
+            content: (typed.content ?? []) as CallToolResult['content'],
+            isError: typed.isError as boolean | undefined,
+          }
+          bridge.sendToolResult(result)
         } catch (e) {
           // eslint-disable-next-line no-console
           console.error(`[mcp-app:${server}] tool call '${toolName}' failed:`, e)
@@ -205,8 +238,8 @@ export default function AppHost({
     }
   }, [])
 
-  // Show connecting state while the MCP client is still initializing
-  if (server !== BUNDLED_SERVER_NAME && (serverState === 'connecting' || serverState === 'missing')) {
+  // Show waiting state while the server config is loading / not ready
+  if (server !== BUNDLED_SERVER_NAME && serverState !== 'ready') {
     return (
       <div
         style={{
@@ -219,8 +252,8 @@ export default function AppHost({
           borderRadius: 8,
         }}
       >
-        {serverState === 'connecting'
-          ? <>Connecting to MCP server <code style={{ color: 'var(--color-accent)' }}>{server}</code>…</>
+        {serverState === 'disabled'
+          ? <>MCP server <code style={{ color: 'var(--color-accent)' }}>{server}</code> is disabled. Enable it in Settings → MCP Servers.</>
           : <>MCP server <code style={{ color: 'var(--color-accent)' }}>{server}</code> not configured. Add it in Settings → MCP Servers.</>}
       </div>
     )

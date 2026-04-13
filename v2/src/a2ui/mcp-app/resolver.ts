@@ -14,8 +14,6 @@
  * shipped.
  */
 
-import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
-
 const AURORA_BUNDLED_PREFIX = 'ui://aurora-bundled/'
 
 /** Allowlist of filenames under v2/src/a2ui/mcp-app/bundled/ */
@@ -73,13 +71,15 @@ export function isUiUri(uri: string): boolean {
  * Resolve a ui:// URI to HTML text.
  *
  * @param uri      Either `ui://aurora-bundled/<name>` (uses the bundled
- *                 cache) or any other `ui://...` (uses the provided client).
- * @param client   Optional MCP Client. Required for non-bundled URIs.
- *                 Ignored for bundled URIs (no network round-trip).
+ *                 cache) or any other `ui://...` (uses the provided resolver).
+ * @param resolver Optional function `(uri: string) => Promise<string>`.
+ *                 Required for non-bundled URIs. Ignored for bundled URIs
+ *                 (no network round-trip). Callers typically pass a closure
+ *                 over `tauriReadResource(server, uri)`.
  */
 export async function resolveUiResource(
   uri: string,
-  client?: Client | null
+  resolver?: ((uri: string) => Promise<string>) | null
 ): Promise<string> {
   if (!isUiUri(uri)) {
     throw new Error(`Not a ui:// URI: ${uri}`)
@@ -93,20 +93,9 @@ export async function resolveUiResource(
     return html
   }
 
-  // Remote path — delegate to the caller's MCP client
-  if (!client) {
-    throw new Error(`No MCP client available to resolve: ${uri}`)
+  // Remote path — delegate to the caller's resolver function
+  if (!resolver) {
+    throw new Error(`No MCP resolver available to resolve: ${uri}`)
   }
-  const result = await client.readResource({ uri })
-  // MCP resources/read returns a contents array of text OR blob items.
-  // Find the first TEXT item — that's the HTML bundle. Blobs (images,
-  // binary) are ignored here.
-  const textItem = result.contents.find(
-    (c): c is typeof c & { text: string } =>
-      typeof (c as { text?: unknown }).text === 'string'
-  )
-  if (!textItem) {
-    throw new Error(`MCP resource ${uri} returned no text content`)
-  }
-  return textItem.text
+  return resolver(uri)
 }
