@@ -15,8 +15,7 @@ import { useEffect, useMemo, useState } from 'react'
 import A2UISurface, { foldMessages } from './A2UISurface'
 import { ThemeProvider } from '../../theme'
 import type { ActionMessage, ErrorMessage } from '../types'
-import { useMcpClientStore } from '../../stores/mcpClients'
-import { loadConfiguredServers } from '../mcp-app/mcp-config'
+import { useHermesMcpServers } from '../../stores/hermesMcpServers'
 
 // Vite ?raw imports so the examples ship as string literals and we parse
 // at module-load time. No network, no filesystem.
@@ -78,18 +77,11 @@ export default function A2UIDevPreview() {
   )
 
   // Dev preview replaces the normal app shell, so SettingsPanel never mounts
-  // and the mcpClients store would be empty. Hydrate it from the same
-  // localStorage config SettingsPanel reads so MCP App test surfaces render
-  // without requiring a two-launch dance.
-  const mcpServers = useMcpClientStore((s) => s.servers)
-  const addServer = useMcpClientStore((s) => s.addServer)
+  // and the hermesMcpServers store may not have loaded yet. Trigger a refresh
+  // so MCP App test surfaces can resolve server status without a two-launch dance.
+  const { servers: mcpServers, refresh } = useHermesMcpServers()
   useEffect(() => {
-    const persisted = loadConfiguredServers()
-    for (const cfg of persisted) {
-      if (!useMcpClientStore.getState().servers[cfg.name]) {
-        void addServer(cfg)
-      }
-    }
+    void refresh()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -223,23 +215,20 @@ export default function A2UIDevPreview() {
               <div style={{ color: 'var(--color-accent)', fontWeight: 600 }}>
                 MCP servers:
               </div>
-              {Object.values(mcpServers).map((entry) => (
-                <div key={entry.config.name} style={{ color: 'var(--color-text)' }}>
+              {Object.values(mcpServers).map((server) => (
+                <div key={server.name} style={{ color: 'var(--color-text)' }}>
                   <span
                     style={{
-                      color:
-                        entry.state === 'connected'
-                          ? 'var(--color-success)'
-                          : entry.state === 'connecting'
-                            ? 'var(--color-warning)'
-                            : 'var(--color-danger)',
+                      color: server.enabled
+                        ? 'var(--color-success)'
+                        : 'var(--color-muted)',
                     }}
                   >
                     ●
                   </span>{' '}
-                  {entry.config.name}{' '}
+                  {server.name}{' '}
                   <span style={{ color: 'var(--color-muted)' }}>
-                    ({entry.state})
+                    ({server.enabled ? 'enabled' : 'disabled'})
                   </span>
                 </div>
               ))}
