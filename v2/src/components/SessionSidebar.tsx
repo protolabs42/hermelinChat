@@ -248,10 +248,8 @@ function SessionRow({ session, isActive }: { session: SessionSummary; isActive: 
             pendingPrompt: null,
           })
 
-          // Prefer the session's own stored cwd; fall back to the global cwd
-          // if the session has none recorded (old sessions, etc.)
-          const sessionCwd = session.cwd || useChatStore.getState().cwd
-          if (sessionCwd) useChatStore.getState().setCwd(sessionCwd)
+          // Use the session's own stored cwd for loading (project store owns CWD context)
+          const sessionCwd = session.cwd || null
           await invoke('acp_load_session', { sessionId: session.id, cwd: sessionCwd })
 
           invoke('set_window_title', {

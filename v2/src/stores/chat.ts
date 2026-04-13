@@ -68,7 +68,6 @@ export interface ChatStore {
   connectionStatus: string
   pendingPrompt: string | null
   usage: UsageInfo | null
-  cwd: string | null
 
   addUserMessage: (text: string) => void
   /** Inject a surface anchor into the chat stream. Phase 4. */
@@ -76,7 +75,6 @@ export interface ChatStore {
   handleAcpEvent: (event: AcpEvent) => void
   setSessionId: (id: string) => void
   setPendingPrompt: (text: string | null) => void
-  setCwd: (path: string) => void
   reset: () => void
 }
 
@@ -90,7 +88,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   connectionStatus: 'connecting',
   pendingPrompt: null,
   usage: null,
-  cwd: null, // populated from Rust process CWD on startup, not localStorage
 
   addUserMessage: (text: string) => {
     set((s) => ({
@@ -259,9 +256,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   setSessionId: (id: string) => set({ sessionId: id }),
   setPendingPrompt: (text: string | null) => set({ pendingPrompt: text }),
-  setCwd: (path: string) => {
-    set({ cwd: path })
-  },
 
   reset: () => {
     _nextId = 0

@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { open } from '@tauri-apps/plugin-dialog'
 import { useChatStore } from '../stores/chat'
 import { useSettingsStore } from '../stores/settings'
 import { useSidebarStore } from '../stores/sidebar'
 import { useArtifactStore } from '../stores/artifacts'
+import { useProjectStore, SCRATCHPAD_ID } from '../stores/projects'
 import { useTheme } from '../theme'
+import ProjectSwitcher from './ProjectSwitcher'
 
 interface VersionInfo {
   current: string | null
@@ -15,33 +16,32 @@ interface VersionInfo {
 
 export default function StatusBar() {
   const status = useChatStore((s) => s.connectionStatus)
-  const sessionId = useChatStore((s) => s.sessionId)
   const toggleSettings = useSettingsStore((s) => s.toggle)
   const toggleSidebar = useSidebarStore((s) => s.toggle)
   const artifactCount = useArtifactStore((s) => s.artifacts.length)
   const toggleArtifacts = useArtifactStore((s) => s.togglePanel)
-  const cwd = useChatStore((s) => s.cwd)
-  const setCwd = useChatStore((s) => s.setCwd)
   const { theme } = useTheme()
 
-  const pickDirectory = async () => {
-    const selected = await open({
-      directory: true,
-      title: 'Select working directory',
-      defaultPath: cwd || undefined,
-    })
-    if (selected) {
-      setCwd(selected as string)
-      // Start a fresh session in the new CWD — clears chat and tells hermes.
-      useChatStore.getState().reset()
-      invoke('acp_new_session', { cwd: selected }).catch((e: unknown) =>
-        console.error('Failed to start session in new cwd:', e)
-      )
-    }
-  }
+  const activeProjectId = useProjectStore((s) => s.activeProjectId)
+  const gitInfo = useProjectStore((s) => s.gitInfo)
+  const getActiveProject = useProjectStore((s) => s.getActiveProject)
 
-  // Show just the last segment of the path, full path in tooltip
-  const cwdLabel = cwd ? cwd.split(/[\\/]/).filter(Boolean).pop() || cwd : null
+  const activeProject = getActiveProject()
+  const isScratchpad = !activeProjectId || activeProjectId === SCRATCHPAD_ID
+  const currentGitInfo = activeProjectId ? gitInfo[activeProjectId] : null
+
+  const [switcherOpen, setSwitcherOpen] = useState(false)
+  const projectNameRef = useRef<HTMLSpanElement>(null)
+
+  const openSwitcher = () => setSwitcherOpen(true)
+  const closeSwitcher = () => setSwitcherOpen(false)
+
+  const getSwitcherAnchor = (): DOMRect | 'center' => {
+    if (projectNameRef.current) {
+      return projectNameRef.current.getBoundingClientRect()
+    }
+    return 'center'
+  }
 
   const [updateInfo, setUpdateInfo] = useState<VersionInfo | null>(null)
 
@@ -105,9 +105,10 @@ export default function StatusBar() {
           onClick={() => {
             useChatStore.getState().reset()
             invoke('set_window_title', { title: 'Aurora Chat' }).catch(() => {})
-            // Start a fresh hermes session in the current CWD
-            const currentCwd = useChatStore.getState().cwd
-            invoke('acp_new_session', { cwd: currentCwd }).catch((e: unknown) =>
+            // Start a fresh hermes session in the active project's CWD
+            const activeProject = useProjectStore.getState().getActiveProject()
+            const cwd = activeProject?.path || null
+            invoke('acp_new_session', { cwd }).catch((e: unknown) =>
               console.error('Failed to start new session:', e)
             )
           }}
@@ -135,13 +136,79 @@ export default function StatusBar() {
 
       {/* Center */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-        <span style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
-        <span>{status}</span>
-        {status === 'connected' && sessionId && (
-          <span style={{ color: 'var(--color-muted)', opacity: 0.5, fontSize: 11 }}>
-            {sessionId.slice(0, 12)}
+        {/* Connection status dot */}
+        <span
+          style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor, flexShrink: 0 }}
+          title={status}
+        />
+
+        {/* Project breadcrumb */}
+        {activeProjectId === null ? (
+          <span style={{ color: 'var(--color-muted)', opacity: 0.5 }}>...</span>
+        ) : isScratchpad ? (
+          <span
+            ref={projectNameRef}
+            onClick={openSwitcher}
+            style={{
+              fontStyle: 'italic',
+              color: 'var(--color-muted)',
+              cursor: 'pointer',
+              textDecorationLine: 'underline',
+              textDecorationStyle: 'dashed',
+              textUnderlineOffset: 3,
+              fontSize: 13,
+            }}
+          >
+            Scratchpad
           </span>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span
+              ref={projectNameRef}
+              onClick={openSwitcher}
+              style={{
+                color: 'var(--color-accent)',
+                cursor: 'pointer',
+                textDecorationLine: 'underline',
+                textDecorationStyle: 'dashed',
+                textUnderlineOffset: 3,
+                fontFamily: 'var(--font-mono, monospace)',
+                fontSize: 13,
+                fontWeight: 600,
+              }}
+            >
+              {activeProject?.name ?? '...'}
+            </span>
+            {currentGitInfo?.branch && (
+              <>
+                <span style={{ color: 'var(--color-muted)', opacity: 0.5 }}>/</span>
+                <span
+                  style={{
+                    color: 'var(--color-success)',
+                    fontFamily: 'var(--font-mono, monospace)',
+                    fontSize: 12,
+                  }}
+                >
+                  {currentGitInfo.branch}
+                </span>
+                {currentGitInfo.dirty && (
+                  <span
+                    title="Uncommitted changes"
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      background: 'var(--color-warning, #f9e2af)',
+                      flexShrink: 0,
+                      display: 'inline-block',
+                    }}
+                  />
+                )}
+              </>
+            )}
+          </div>
         )}
+
         {status === 'disconnected' && (
           <button
             onClick={handleReconnect}
@@ -159,32 +226,6 @@ export default function StatusBar() {
             Reconnect
           </button>
         )}
-
-        {/* cwd picker — reflects active session's cwd, or default for next new session */}
-        <button
-          onClick={pickDirectory}
-          title={
-            cwd
-              ? `${sessionId ? 'Current session cwd' : 'Default cwd for next session'}: ${cwd}`
-              : 'Click to set working directory'
-          }
-          style={{
-            background: 'transparent',
-            border: '1px solid var(--color-border)',
-            borderRadius: 6,
-            color: 'var(--color-muted)',
-            fontSize: 11,
-            padding: '4px 12px',
-            cursor: 'pointer',
-            fontFamily: 'var(--font-mono, monospace)',
-            maxWidth: 180,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {cwdLabel || 'set cwd...'}
-        </button>
       </div>
 
       {/* Right */}
@@ -229,6 +270,14 @@ export default function StatusBar() {
           &#9881;
         </button>
       </div>
+
+      {/* Project Switcher overlay */}
+      {switcherOpen && (
+        <ProjectSwitcher
+          anchor={getSwitcherAnchor()}
+          onClose={closeSwitcher}
+        />
+      )}
     </div>
   )
 }

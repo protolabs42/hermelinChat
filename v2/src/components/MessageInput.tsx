@@ -34,7 +34,9 @@ export default function MessageInput() {
     try {
       if (!sessionId) {
         useChatStore.getState().setPendingPrompt(text)
-        const cwd = useChatStore.getState().cwd
+        const { useProjectStore } = await import('../stores/projects')
+        const activeProject = useProjectStore.getState().getActiveProject()
+        const cwd = activeProject?.path || null
         await invoke('acp_new_session', { cwd })
       } else {
         await invoke('acp_send_prompt', { sessionId, text })
