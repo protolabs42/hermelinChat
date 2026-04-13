@@ -2,6 +2,7 @@ mod acp;
 mod artifacts;
 mod commands;
 mod hermes_config;
+mod mcp_proxy;
 mod sessions;
 
 use commands::AcpState;
