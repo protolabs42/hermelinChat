@@ -4,6 +4,7 @@ mod commands;
 mod hermes_config;
 mod mcp_commands;
 mod mcp_proxy;
+mod projects;
 mod sessions;
 
 use commands::AcpState;
@@ -19,6 +20,7 @@ pub fn run() {
         .manage(AcpState(Mutex::new(None)))
         .manage(ConfigLock(TokioMutex::new(())))
         .manage(McpPoolState::new())
+        .manage(projects::ProjectLock(TokioMutex::new(())))
         .setup(|app| {
             match acp::client::AcpClient::spawn(&app.handle()) {
                 Ok(client) => {
@@ -70,6 +72,16 @@ pub fn run() {
             mcp_commands::mcp_list_resources,
             // Hermes sync
             mcp_commands::reload_hermes,
+            // Project management
+            projects::list_projects,
+            projects::add_project,
+            projects::remove_project,
+            projects::update_project,
+            projects::set_active_project,
+            projects::get_git_info,
+            projects::detect_project,
+            projects::assign_session_to_project,
+            projects::get_sessions_for_project,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
