@@ -80,7 +80,7 @@ Hermes and Aurora Chat maintain independent MCP connections (hermes for agent to
 ```toml
 # Cargo.toml additions
 rmcp = { version = "1.4.0", features = ["client", "transport-streamable-http-client-reqwest"] }
-serde_yml = "0.0"          # maintained fork of deprecated serde_yaml
+serde_yaml = "0.9"         # soft-deprecated but battle-tested; migrate to serde_yml later if needed
 dotenvy = "0.15"
 ```
 
@@ -135,7 +135,7 @@ pub struct McpServerEntry {
     pub connect_timeout: Option<u64>,                   // hermes-native: initial connection timeout
     // Preserve unknown hermes fields (sampling, tools.include/exclude, etc.)
     #[serde(flatten)]
-    pub extra: HashMap<String, serde_yml::Value>,
+    pub extra: HashMap<String, serde_yaml::Value>,
 }
 
 fn default_true() -> bool { true }
