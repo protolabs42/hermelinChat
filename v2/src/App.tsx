@@ -14,6 +14,8 @@ import { AlignmentMascot } from './components/AlignmentMascot'
 import ErrorBoundary from './components/ErrorBoundary'
 import { useArtifactStore } from './stores/artifacts'
 import { useChatStore } from './stores/chat'
+import { useSidebarStore } from './stores/sidebar'
+import ProjectSwitcher from './components/ProjectSwitcher'
 
 function LoadingScreen() {
   return (
@@ -31,6 +33,8 @@ export default function App() {
 
   const connectionStatus = useChatStore((s) => s.connectionStatus)
   const panelOpen = useArtifactStore((s) => s.panelOpen)
+  const projectSwitcherOpen = useSidebarStore((s) => s.projectSwitcherOpen)
+  const closeProjectSwitcher = useSidebarStore((s) => s.closeProjectSwitcher)
 
   // Set initial window title
   useEffect(() => {
@@ -97,6 +101,11 @@ export default function App() {
         <ErrorBoundary label="Mascot" compact>
           <AlignmentMascot />
         </ErrorBoundary>
+
+        {/* Project switcher — opened via Ctrl+Shift+P */}
+        {projectSwitcherOpen && (
+          <ProjectSwitcher anchor="center" onClose={closeProjectSwitcher} />
+        )}
       </ErrorBoundary>
     </ThemeProvider>
   )

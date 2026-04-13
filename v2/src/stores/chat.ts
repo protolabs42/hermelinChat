@@ -218,6 +218,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               .catch((e: unknown) => console.error('Failed to send queued prompt:', e))
           })
         }
+        // Assign new session to active project
+        import('../stores/projects').then(({ useProjectStore }) => {
+          const ps = useProjectStore.getState()
+          if (ps.activeProjectId) {
+            ps.assignSession(event.session_id, ps.activeProjectId)
+              .catch((e: unknown) => console.error('[chat] assignSession failed:', e))
+          }
+        })
         break
       }
 

@@ -11,16 +11,20 @@ export interface SessionSummary {
 
 interface SidebarStore {
   isOpen: boolean
+  projectSwitcherOpen: boolean
   sessions: SessionSummary[]
   open: () => void
   close: () => void
   toggle: () => void
+  openProjectSwitcher: () => void
+  closeProjectSwitcher: () => void
   loadSessions: () => Promise<void>
   loadSessionsForProject: (projectId: string) => Promise<void>
 }
 
 export const useSidebarStore = create<SidebarStore>((set) => ({
   isOpen: false,
+  projectSwitcherOpen: false,
   sessions: [],
   open: () => {
     set({ isOpen: true })
@@ -37,6 +41,8 @@ export const useSidebarStore = create<SidebarStore>((set) => ({
     })
   },
   close: () => set({ isOpen: false }),
+  openProjectSwitcher: () => set({ projectSwitcherOpen: true }),
+  closeProjectSwitcher: () => set({ projectSwitcherOpen: false }),
   toggle: () => {
     const current = useSidebarStore.getState()
     if (!current.isOpen) {
