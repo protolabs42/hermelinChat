@@ -170,7 +170,7 @@ pub async fn list_projects(
     Ok(read_data(&app).projects)
 }
 
-/// Add a project by path.  Validates .git exists, auto-names from basename.
+/// Add a project by path. Auto-names from basename. Git is optional bonus info.
 #[tauri::command]
 pub async fn add_project(
     path: String,
@@ -184,9 +184,9 @@ pub async fn add_project(
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|_| path.clone());
 
-    // Require a .git directory
-    if !Path::new(&abs_path).join(".git").exists() {
-        return Err(format!("'{abs_path}' is not a git repository (no .git directory)"));
+    // Validate path exists as a directory
+    if !Path::new(&abs_path).is_dir() {
+        return Err(format!("'{abs_path}' is not a directory"));
     }
 
     let _guard = lock.0.lock().await;
@@ -545,16 +545,17 @@ mod tests {
         assert!(is_dup, "duplicate path should be detected");
     }
 
-    // ── .git presence check ───────────────────────────────────────────
+    // ── Directory validation ─────────────────────────────────────────
 
     #[test]
-    fn requires_git_directory() {
+    fn accepts_any_directory_not_just_git() {
+        // A plain directory without .git should be accepted as a project
         let no_git = tempfile::TempDir::new().unwrap();
         let no_git_path = no_git.path().to_string_lossy().to_string();
-        assert!(
-            !Path::new(&no_git_path).join(".git").exists(),
-            "test dir should have no .git"
-        );
+        assert!(!Path::new(&no_git_path).join(".git").exists());
+        // The add_project function requires AppHandle (Tauri runtime),
+        // so we test the validation logic directly:
+        assert!(Path::new(&no_git_path).is_dir());
     }
 
     // ── Session-project mapping ───────────────────────────────────────

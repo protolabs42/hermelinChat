@@ -49,34 +49,38 @@ export function useAcpEvents() {
       if (status === 'connected' && !useChatStore.getState().sessionId) {
         try {
           const launchCwd = await invoke<string>('get_launch_cwd')
+          const homeDir = await invoke<string>('get_home_dir').catch(() => '')
           const projectStore = (await import('../stores/projects')).useProjectStore.getState()
           await projectStore.refresh()
 
-          // Try to detect a project from launch CWD
-          const detected = await invoke<{ git_root: string; suggested_name: string } | null>(
-            'detect_project', { path: launchCwd }
-          )
-
-          if (detected) {
-            // Check if this git root matches a known project
-            const known = Object.values(projectStore.projects).find(p => p.path === detected.git_root)
-            if (known) {
-              await projectStore.setActiveProject(known.id)
-            } else {
-              // Auto-create project from detected git repo
-              const newProject = await projectStore.addProject(detected.git_root, detected.suggested_name)
-              await projectStore.setActiveProject(newProject.id)
-            }
-          } else {
-            // No git repo found. Only resume persisted project if launched
-            // from $HOME (desktop-icon launch). Otherwise, the user explicitly
-            // cd'd somewhere — respect that by using Scratchpad.
-            const homeDir = await invoke<string>('get_home_dir').catch(() => '')
-            const isDesktopLaunch = launchCwd === homeDir
-            if (isDesktopLaunch && projectStore.activeProjectId && projectStore.activeProjectId !== 'scratchpad' && projectStore.projects[projectStore.activeProjectId]) {
+          if (launchCwd === homeDir) {
+            // Launched from $HOME (desktop-icon, no intentional folder)
+            // Resume last project if one exists, otherwise Scratchpad
+            if (projectStore.activeProjectId && projectStore.activeProjectId !== 'scratchpad' && projectStore.projects[projectStore.activeProjectId]) {
               await projectStore.setActiveProject(projectStore.activeProjectId)
             } else {
               await projectStore.setActiveProject('scratchpad')
+            }
+          } else {
+            // Launched from a specific folder — that folder IS the project
+            // Check if it's already a known project (by path or git root)
+            const detected = await invoke<{ git_root: string; suggested_name: string } | null>(
+              'detect_project', { path: launchCwd }
+            ).catch(() => null)
+
+            // Use git root if found, otherwise the exact launch folder
+            const projectPath = detected?.git_root ?? launchCwd
+            const projectName = detected?.suggested_name
+              ?? launchCwd.split(/[\\/]/).filter(Boolean).pop()
+              ?? 'unnamed'
+
+            const known = Object.values(projectStore.projects).find(p => p.path === projectPath)
+            if (known) {
+              await projectStore.setActiveProject(known.id)
+            } else {
+              // Auto-create project from this folder
+              const newProject = await projectStore.addProject(projectPath, projectName)
+              await projectStore.setActiveProject(newProject.id)
             }
           }
         } catch (e) {
