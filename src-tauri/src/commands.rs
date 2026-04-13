@@ -127,6 +127,13 @@ pub fn check_hermes_update() -> VersionInfo {
 }
 
 #[tauri::command]
+pub fn get_home_dir() -> String {
+    dirs::home_dir()
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|| ".".to_string())
+}
+
+#[tauri::command]
 pub fn get_launch_cwd() -> String {
     std::env::current_dir()
         .map(|p| p.to_string_lossy().to_string())

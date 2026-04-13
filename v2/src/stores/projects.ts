@@ -125,7 +125,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const project = get().getActiveProject()
     let cwd: string | null = null
     if (id === SCRATCHPAD_ID || !project || !project.path) {
-      cwd = await invoke<string>('get_launch_cwd')
+      // Scratchpad uses $HOME to feel context-free, not the launch folder
+      cwd = await invoke<string>('get_home_dir')
     } else {
       cwd = project.path
     }

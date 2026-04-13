@@ -50,6 +50,7 @@ pub fn run() {
             commands::get_session_messages,
             commands::list_artifacts,
             commands::list_a2ui_batches,
+            commands::get_home_dir,
             commands::get_launch_cwd,
             commands::set_window_title,
             commands::check_hermes_update,
