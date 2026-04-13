@@ -4,7 +4,7 @@ import { invoke } from '@tauri-apps/api/core'
 import type { AcpEvent } from '../types/acp'
 import { useChatStore } from '../stores/chat'
 import { useArtifactStore } from '../stores/artifacts'
-import { useSurfaceStore, type A2UIEvent, type A2UIBatch } from '../stores/surfaces'
+import { useSurfaceStore, type A2UIEvent } from '../stores/surfaces'
 
 export function useAcpEvents() {
   useEffect(() => {
@@ -52,27 +52,10 @@ export function useAcpEvents() {
       }
     }).catch(() => {})
 
-    // Load existing artifacts on mount
-    invoke<Array<Record<string, unknown>>>('list_artifacts').then((artifacts) => {
-      if (artifacts.length > 0) {
-        useArtifactStore.getState().handleEvent({
-          kind: 'List',
-          artifacts: artifacts as never[],
-        })
-      }
-    }).catch(() => {})
-
-    // Load existing A2UI batches on mount
-    invoke<A2UIBatch[]>('list_a2ui_batches').then((batches) => {
-      if (batches.length > 0) {
-        useSurfaceStore.getState().handleEvent({ kind: 'List', batches })
-        // Inject chat anchors for any surfaces that exist
-        const ordered = useSurfaceStore.getState().orderedIds
-        for (const id of ordered) {
-          useChatStore.getState().addSurfaceAnchor(id)
-        }
-      }
-    }).catch(() => {})
+    // Skip loading stale artifacts and surfaces on fresh startup.
+    // They belong to previous sessions and clutter the new chat.
+    // When resuming a session from the sidebar, the session load
+    // handler will fetch that session's artifacts/surfaces.
 
     return () => {
       unlistenAcp.then((fn) => fn())
