@@ -103,7 +103,7 @@ export const THEMES: Record<string, Theme> = {
 
       // Bottom-right easter egg.
       alignmentSvgRaw: STOUT_MASCOT_RAW,
-      alignmentTitle: 'the stout knows…',
+      alignmentTitle: 'the Stout knows…',
       alignmentWhisperText: 'aligned to you…',
       alignmentFetchWhisper: true,
     },

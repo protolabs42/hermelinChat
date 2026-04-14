@@ -54,7 +54,7 @@ export const THEMES: Record<string, Theme> = {
     identity: {
       topbarSvg: HERMELIN_SVG,
       mascotSvg: STOUT_SVG,
-      mascotTitle: 'the stout knows\u2026',
+      mascotTitle: 'the Stout knows\u2026',
       whisperText: 'aligned to you\u2026',
     },
     colors: {

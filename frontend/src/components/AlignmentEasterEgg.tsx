@@ -89,10 +89,10 @@ export const AlignmentEasterEgg = ({
         opacity,
         transition: 'all 0.35s ease',
         transform: open ? 'scale(1.15)' : toastActive ? 'scale(1.1)' : 'scale(1)',
-        filter: open || toastActive ? `drop-shadow(0 0 10px ${AMBER[400]}70)` : 'none',
+        filter: open || toastActive ? `drop-shadow(0 0 12px ${AMBER[400]}70)` : 'none',
         userSelect: 'none',
       }}
-      title={title || 'the stout knows\u2026'}
+      title={title || 'the Stout knows\u2026'}
     >
       <InlineSvgIcon svgRaw={svgRaw} size={18} />
 
@@ -108,7 +108,7 @@ export const AlignmentEasterEgg = ({
             fontSize: 9,
             color: AMBER[400],
             textShadow: `0 0 8px ${AMBER[400]}40`,
-            padding: '3px 7px',
+            padding: '4px 8px',
             borderRadius: 999,
             background: `${SLATE.surface}dd`,
             border: `1px solid ${AMBER[900]}55`,
