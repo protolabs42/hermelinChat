@@ -1130,16 +1130,29 @@ def _format_memories_for_prefetch(memories: List[Dict[str, Any]]) -> str:
 def _resolve_ring(cwd: Any, config: ChorusClientConfig) -> Optional[str]:
     """Map a working directory to a Chorus project ring.
 
-    Auto-creation of rings on the hive happens server-side when we emit the
-    first signal to a ring tag — we just need to pick a stable, lowercased
-    tag here. When the cwd is missing or ``scope_by_cwd`` is off, fall back
-    to ``default_ring`` (which may be ``None``).
+    Auto-creation of rings on the hive happens server-side when we first
+    write a memory or signal into ``ring:<tag>`` — we just need to pick a
+    stable, lowercased tag here.
+
+    hermes's ``run_agent.py`` calls ``initialize_all`` without a ``cwd``
+    kwarg (as of hermes-agent main, 2026-04-14: only session_id, platform,
+    hermes_home, agent_context and profile info are threaded through). We
+    therefore fall back to the process's current working directory when
+    the caller didn't explicitly pass one — that's the directory hermes
+    was launched from, which is the right project signal.
+
+    ``scope_by_cwd: false`` in ``chorus.json`` opts out entirely and uses
+    ``default_ring`` without any cwd inference.
     """
     if not config.scope_by_cwd:
         return config.default_ring
 
     if not cwd:
-        return config.default_ring
+        import os
+        try:
+            cwd = os.getcwd()
+        except Exception:
+            return config.default_ring
 
     try:
         tag = Path(str(cwd)).name.strip().lower()
