@@ -988,11 +988,16 @@ class ChorusMemoryProvider(MemoryProvider):
             f"Active as `{identity_name}`"
             + (f" on ring `{self._ring}`." if self._ring else "."),
         ]
-        if config.recall_mode == "hybrid":
+        if config.recall_mode in ("hybrid", "tools"):
             header_bits.append(
-                "Memory tools (`chorus_memory_store`, `chorus_memory_query`, "
-                "`chorus_memory_recall`) are available — use them to persist or "
-                "retrieve ring knowledge as you work."
+                "Memory tools available (call by bare name):\n"
+                "  - `chorus_memory_store`  persist a new memory\n"
+                "  - `chorus_memory_query`  semantic search over accessible memories\n"
+                "  - `chorus_memory_recall` all memories for a named entity\n"
+                "  - `chorus_memory_update` edit an existing memory by id\n"
+                "  - `chorus_memory_forget` delete a memory by id\n"
+                "  - `chorus_memory_relate` link two memories "
+                "(supports / contradicts / derives_from / supersedes / related_to)"
             )
         header = "\n".join(header_bits)
 
