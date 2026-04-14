@@ -7,11 +7,15 @@ import { useArtifactStore } from '../stores/artifacts'
 import { useProjectStore, SCRATCHPAD_ID } from '../stores/projects'
 import { useTheme } from '../theme'
 import ProjectSwitcher from './ProjectSwitcher'
+import HermesUpdateModal from './HermesUpdateModal'
 
 interface VersionInfo {
   current: string | null
   latest: string | null
   update_available: boolean
+  commits_behind: number | null
+  install_type: string
+  hermes_dir: string | null
 }
 
 export default function StatusBar() {
@@ -44,11 +48,16 @@ export default function StatusBar() {
   }
 
   const [updateInfo, setUpdateInfo] = useState<VersionInfo | null>(null)
+  const [updateModalOpen, setUpdateModalOpen] = useState(false)
+
+  const refreshUpdateInfo = () => {
+    invoke<VersionInfo>('check_hermes_update').then((info) => {
+      setUpdateInfo(info.update_available ? info : null)
+    }).catch(() => {})
+  }
 
   useEffect(() => {
-    invoke<VersionInfo>('check_hermes_update').then((info) => {
-      if (info.update_available) setUpdateInfo(info)
-    }).catch(() => {})
+    refreshUpdateInfo()
   }, [])
 
   const dotColor =
@@ -254,16 +263,27 @@ export default function StatusBar() {
         )}
 
         {updateInfo?.update_available && (
-          <span style={{
-            fontSize: 11,
-            padding: '4px 12px',
-            borderRadius: 99,
-            background: 'var(--color-accent)',
-            color: 'var(--color-bg)',
-            fontWeight: 700,
-          }}>
-            {updateInfo.latest} available
-          </span>
+          <button
+            onClick={() => setUpdateModalOpen(true)}
+            title={
+              updateInfo.commits_behind
+                ? `${updateInfo.commits_behind} commits behind origin/main`
+                : 'Update available'
+            }
+            style={{
+              fontSize: 11,
+              padding: '4px 12px',
+              borderRadius: 99,
+              background: 'var(--color-accent)',
+              color: 'var(--color-bg)',
+              fontWeight: 700,
+              border: 'none',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            {updateInfo.latest ?? 'update'} available
+          </button>
         )}
 
         <button onClick={toggleSettings} title="Settings (Ctrl+,)" style={{ ...btnStyle, fontSize: 20 }}>
@@ -276,6 +296,14 @@ export default function StatusBar() {
         <ProjectSwitcher
           anchor={getSwitcherAnchor()}
           onClose={closeSwitcher}
+        />
+      )}
+
+      {updateModalOpen && updateInfo && (
+        <HermesUpdateModal
+          info={updateInfo}
+          onClose={() => setUpdateModalOpen(false)}
+          onUpdateComplete={refreshUpdateInfo}
         />
       )}
     </div>
