@@ -82,14 +82,13 @@ def test_forget_nonexistent_raises_chorus_error(real_client):
         real_client.memory_forget(memory_id="memory:definitely-not-a-real-id")
 
 
-@pytest.mark.xfail(
-    reason="Upstream chorus-protocol has a SurrealDB template parse error on "
-    "memory/relate — tracked for ops fix. Remove this marker once "
-    "`<record>$from->relates_to-><record>$to` is rewritten.",
-    strict=False,
-)
 def test_relate_two_memories(real_client, identity_namespace):
-    """Create two memories, relate them, clean up."""
+    """Create two memories, relate them, clean up.
+
+    Upstream fixed in chorus-protocol (GH-26). The server now returns a
+    proper relation object with in/out/relation_type/strength on the
+    ``relates_to:*`` edge record.
+    """
     tag = f"relate-verify-{uuid.uuid4().hex[:8]}"
 
     a = real_client.memory_store(
@@ -115,7 +114,11 @@ def test_relate_two_memories(real_client, identity_namespace):
         rel = real_client.memory_relate(
             from_memory=aid, to_memory=bid, relation_type="derives_from",
         )
-        assert isinstance(rel, dict)
+        assert isinstance(rel, dict), f"unexpected relate result: {rel!r}"
+        assert rel.get("id", "").startswith("relates_to:"), f"no relation id: {rel}"
+        assert rel.get("in") == aid
+        assert rel.get("out") == bid
+        assert rel.get("relation_type") == "derives_from"
     finally:
         real_client.memory_forget(memory_id=aid)
         real_client.memory_forget(memory_id=bid)

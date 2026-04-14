@@ -228,6 +228,41 @@ def test_manager_on_memory_write_mirrors_to_chorus(live_manager):
     })
 
 
+def test_manager_relate_via_tool_dispatch(live_manager):
+    """Full provider path: two stores → relate via tool → inspect edge → cleanup."""
+    import uuid
+
+    tag = f"relate-loop-{uuid.uuid4().hex[:8]}"
+
+    store_a_raw = live_manager.handle_tool_call("chorus_memory_store", {
+        "content": f"relate loop A {tag}", "entity": "relate-loop-verify",
+        "category": "integration-test", "tags": [tag, "loop-a"],
+        "memory_type": "semantic",
+    })
+    store_b_raw = live_manager.handle_tool_call("chorus_memory_store", {
+        "content": f"relate loop B {tag}", "entity": "relate-loop-verify",
+        "category": "integration-test", "tags": [tag, "loop-b"],
+        "memory_type": "semantic",
+    })
+    aid = json.loads(store_a_raw)["result"]["id"]
+    bid = json.loads(store_b_raw)["result"]["id"]
+
+    try:
+        relate_raw = live_manager.handle_tool_call("chorus_memory_relate", {
+            "from_memory": aid, "to_memory": bid,
+            "relation_type": "derives_from",
+        })
+        body = json.loads(relate_raw)
+        assert "error" not in body, f"relate via tool failed: {body}"
+        rel = body["result"]
+        assert rel["id"].startswith("relates_to:")
+        assert rel["in"] == aid and rel["out"] == bid
+        assert rel["relation_type"] == "derives_from"
+    finally:
+        live_manager.handle_tool_call("chorus_memory_forget", {"memory_id": aid})
+        live_manager.handle_tool_call("chorus_memory_forget", {"memory_id": bid})
+
+
 def test_manager_on_pre_compress_returns_summary(live_manager):
     summary = live_manager.on_pre_compress([
         {"role": "user", "content": "important fact we should not lose"},
