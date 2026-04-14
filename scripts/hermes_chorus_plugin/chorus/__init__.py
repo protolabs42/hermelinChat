@@ -243,9 +243,100 @@ RELATE_SCHEMA: Dict[str, Any] = {
 }
 
 
+GRAPH_SCHEMA: Dict[str, Any] = {
+    "name": "chorus_memory_graph",
+    "description": (
+        "Traverse the knowledge graph from a memory (BFS). Returns connected "
+        "memories with the edge that links each one back (relation_type, "
+        "strength). Use when you want to see what's DOWNSTREAM of a memory — "
+        "what it supports, what derives from it, what supersedes it."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "memory_id": {
+                "type": "string",
+                "description": "Memory id to traverse from (e.g. 'memory:abc123').",
+            },
+        },
+        "required": ["memory_id"],
+    },
+}
+
+
+EDGES_SCHEMA: Dict[str, Any] = {
+    "name": "chorus_memory_edges",
+    "description": (
+        "List every edge (incoming AND outgoing) for a memory. Cheaper + more "
+        "direct than chorus_memory_graph — use when you want the raw edge "
+        "records without walking the graph."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "memory_id": {
+                "type": "string",
+                "description": "Memory id to list edges for.",
+            },
+        },
+        "required": ["memory_id"],
+    },
+}
+
+
+UPDATE_EDGE_SCHEMA: Dict[str, Any] = {
+    "name": "chorus_memory_update_edge",
+    "description": (
+        "Edit an existing edge's strength or metadata. Use when you've "
+        "gained new evidence about an existing relation — e.g. you want to "
+        "increase strength because the link was confirmed, or attach "
+        "metadata documenting why the edge exists."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "edge_id": {
+                "type": "string",
+                "description": "Edge id to update (e.g. 'relates_to:abc123').",
+            },
+            "strength": {
+                "type": "number",
+                "description": "New edge strength between 0.0 and 1.0. Clamped to range.",
+            },
+            "metadata": {
+                "type": "object",
+                "description": "New free-form metadata. REPLACES the prior metadata, doesn't merge.",
+            },
+        },
+        "required": ["edge_id"],
+    },
+}
+
+
+DELETE_EDGE_SCHEMA: Dict[str, Any] = {
+    "name": "chorus_memory_delete_edge",
+    "description": (
+        "Remove an edge from the graph. Permanent. Use for cleanup when a "
+        "relation turns out to be wrong or obsolete. Does NOT delete the "
+        "connected memories — only the edge between them."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "edge_id": {
+                "type": "string",
+                "description": "Edge id to delete (e.g. 'relates_to:abc123').",
+            },
+        },
+        "required": ["edge_id"],
+    },
+}
+
+
 MEMORY_TOOL_SCHEMAS: List[Dict[str, Any]] = [
     STORE_SCHEMA, QUERY_SCHEMA, RECALL_SCHEMA,
     UPDATE_SCHEMA, FORGET_SCHEMA, RELATE_SCHEMA,
+    GRAPH_SCHEMA, EDGES_SCHEMA, UPDATE_EDGE_SCHEMA, DELETE_EDGE_SCHEMA,
 ]
 
 
@@ -797,12 +888,7 @@ class ChorusMemoryProvider(MemoryProvider):
                         f"Invalid relation_type {relation_type!r}. "
                         f"Expected one of: {', '.join(_VALID_RELATION_TYPES)}."
                     )
-                strength = args.get("strength")
-                if strength is not None:
-                    try:
-                        strength = max(0.0, min(1.0, float(strength)))
-                    except (TypeError, ValueError):
-                        strength = None
+                strength = _clamp_strength(args.get("strength"))
                 metadata = args.get("metadata")
                 if metadata is not None and not isinstance(metadata, dict):
                     metadata = None
@@ -813,6 +899,49 @@ class ChorusMemoryProvider(MemoryProvider):
                     strength=strength,
                     metadata=metadata,
                 )
+                return json.dumps({"result": result})
+
+            if tool_name == "chorus_memory_graph":
+                memory_id = (args.get("memory_id") or "").strip()
+                if not memory_id:
+                    return tool_error("Missing required parameter: memory_id")
+                result = self._client.memory_graph(memory_id=memory_id)
+                return json.dumps({"result": result})
+
+            if tool_name == "chorus_memory_edges":
+                memory_id = (args.get("memory_id") or "").strip()
+                if not memory_id:
+                    return tool_error("Missing required parameter: memory_id")
+                result = self._client.memory_edges(memory_id=memory_id)
+                return json.dumps({"result": result})
+
+            if tool_name == "chorus_memory_update_edge":
+                edge_id = (args.get("edge_id") or "").strip()
+                if not edge_id:
+                    return tool_error("Missing required parameter: edge_id")
+                strength = _clamp_strength(args.get("strength"))
+                metadata = args.get("metadata")
+                if metadata is not None and not isinstance(metadata, dict):
+                    metadata = None
+                update_fields = {
+                    k: v for k, v in (("strength", strength), ("metadata", metadata))
+                    if v is not None
+                }
+                if not update_fields:
+                    return tool_error(
+                        "chorus_memory_update_edge requires at least one of: "
+                        "strength, metadata."
+                    )
+                result = self._client.memory_update_edge(
+                    edge_id=edge_id, **update_fields,
+                )
+                return json.dumps({"result": result})
+
+            if tool_name == "chorus_memory_delete_edge":
+                edge_id = (args.get("edge_id") or "").strip()
+                if not edge_id:
+                    return tool_error("Missing required parameter: edge_id")
+                result = self._client.memory_delete_edge(edge_id=edge_id)
                 return json.dumps({"result": result})
 
             return tool_error(f"Unknown tool: {tool_name}")
@@ -1030,6 +1159,16 @@ class ChorusMemoryProvider(MemoryProvider):
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _clamp_strength(value: Any) -> Optional[float]:
+    """Coerce user-supplied strength into [0.0, 1.0] or return None if not a number."""
+    if value is None:
+        return None
+    try:
+        return max(0.0, min(1.0, float(value)))
+    except (TypeError, ValueError):
+        return None
 
 
 def _preview(text: str, *, limit: int) -> str:

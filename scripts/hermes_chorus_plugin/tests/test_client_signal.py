@@ -29,11 +29,14 @@ class _FakeSession:
         self._responses = list(responses)
         self.calls = []
 
-    def post(self, url, json=None, headers=None, timeout=None):
-        self.calls.append({"url": url, "json": json, "headers": dict(headers or {})})
+    def request(self, method, url, json=None, headers=None, timeout=None):
+        self.calls.append({"method": method, "url": url, "json": json, "headers": dict(headers or {})})
         if not self._responses:
             raise AssertionError("FakeSession exhausted — unexpected extra request")
         return self._responses.pop(0)
+
+    def post(self, url, json=None, headers=None, timeout=None):
+        return self.request("POST", url, json=json, headers=headers, timeout=timeout)
 
 
 def _client(responses):

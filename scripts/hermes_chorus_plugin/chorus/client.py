@@ -255,13 +255,30 @@ class ChorusClient:
         return requests.Session()
 
     def _post(self, path: str, payload: dict, *, label: str) -> "_HttpResult":
-        """Shared POST dispatch with retries + typed error mapping.
+        """Shorthand for POST dispatch. Kept for backwards compatibility
+        with ``_rpc`` and ``_rest`` — newer verb-specific helpers route
+        through :meth:`_http`."""
+        return self._http("POST", path, payload, label=label)
 
-        ``label`` is a human-friendly name used in exception messages
-        (e.g. ``"memory/store"`` for RPC, ``"/emit"`` for REST).
+    def _http(
+        self,
+        method: str,
+        path: str,
+        body: dict | None = None,
+        *,
+        label: str,
+    ) -> "_HttpResult":
+        """Shared HTTP dispatch with retries + typed error mapping.
+
+        ``method`` is any HTTP verb (POST, GET, PATCH, DELETE). ``label``
+        is a human-friendly name used in exception messages (e.g.
+        ``"memory/store"`` for RPC, ``"/emit"`` for REST).
 
         Returns an ``_HttpResult`` that callers unpack themselves — RPC
         unwraps ``result`` / ``error``, REST unwraps ``data``.
+
+        We prefer :meth:`requests.Session.request` for its uniform verb
+        support. ``_FakeSession`` test doubles expose the same surface.
         """
         import requests
 
@@ -274,9 +291,10 @@ class ChorusClient:
 
         for attempt in range(2):  # at most one retry
             try:
-                response = self._session.post(
+                response = self._session.request(
+                    method,
                     url,
-                    json=payload,
+                    json=body,
                     headers=headers,
                     timeout=self._config.timeout_seconds,
                 )
@@ -305,14 +323,21 @@ class ChorusClient:
                     f"Chorus server error ({status}) on {label}: {_response_excerpt(response)}"
                 )
 
+            # 204 No Content (or any empty body) is a valid success for
+            # DELETE-style calls. Surface it as ``None`` rather than
+            # raising on the json() attempt.
+            raw_text = getattr(response, "text", "") or ""
+            if status == 204 or not raw_text.strip():
+                return _HttpResult(status=status, body=None)
+
             try:
-                body = response.json()
+                body_json = response.json()
             except (ValueError, json.JSONDecodeError) as exc:
                 raise ChorusError(
                     f"Chorus returned non-JSON body on {label}: {_response_excerpt(response)}"
                 ) from exc
 
-            return _HttpResult(status=status, body=body)
+            return _HttpResult(status=status, body=body_json)
 
         # Unreachable — the loop either returns or raises.
         raise ChorusError(f"Chorus {label}: exhausted retries without response")
@@ -351,15 +376,22 @@ class ChorusClient:
             return body["result"]
         return body
 
-    def _rest(self, path: str, body: dict | None = None) -> Any:
-        """Dispatch a single REST ``POST`` call.
+    def _rest(
+        self,
+        path: str,
+        body: dict | None = None,
+        *,
+        method: str = "POST",
+    ) -> Any:
+        """Dispatch a single REST call for any verb.
 
         Returns the unwrapped ``data`` field on success (the chorus server
-        wraps REST payloads as ``{"data": ...}``). Raises a typed error on
+        wraps REST payloads as ``{"data": ...}``). Empty bodies (DELETE
+        with 204/empty) surface as ``None``. Raises a typed error on
         4xx/5xx; the chorus server reports REST errors as
         ``{"error": {"code": ..., "message": ...}}`` at 4xx.
         """
-        result = self._post(path, body or {}, label=path)
+        result = self._http(method, path, body, label=path)
         response_body = result.body
 
         if result.status >= 400:
@@ -378,6 +410,9 @@ class ChorusClient:
             raise ChorusError(
                 f"Chorus HTTP {result.status} on {path}: {_response_excerpt_from_body(response_body)}"
             )
+
+        if response_body is None:
+            return None  # DELETE / 204 No Content
 
         if isinstance(response_body, dict) and "data" in response_body:
             return response_body["data"]
@@ -492,6 +527,63 @@ class ChorusClient:
             "metadata": metadata,
         })
         return self._rpc("memory/relate", params)
+
+    def memory_graph(self, *, memory_id: str) -> Any:
+        """Traverse the knowledge graph (BFS) starting from ``memory_id``.
+
+        REST: ``GET /memory/graph/{id}``. Returns a ``{"memories": [...]}``
+        shape where each entry includes its ``edge`` metadata (relation_type,
+        strength) relative to the start.
+        """
+        from urllib.parse import quote
+
+        return self._rest(f"/memory/graph/{quote(memory_id, safe='')}", method="GET")
+
+    def memory_edges(self, *, memory_id: str) -> Any:
+        """List inbound + outbound edges for ``memory_id``.
+
+        REST: ``GET /memory/relate/{id}/edges``. Returns ``{"edges": [...]}``.
+        """
+        from urllib.parse import quote
+
+        return self._rest(
+            f"/memory/relate/{quote(memory_id, safe='')}/edges",
+            method="GET",
+        )
+
+    def memory_update_edge(
+        self,
+        *,
+        edge_id: str,
+        strength: float | None = None,
+        metadata: dict | None = None,
+    ) -> Any:
+        """Edit an edge's strength or metadata.
+
+        REST: ``PATCH /memory/relate/{edge_id}``. ``None`` fields are
+        omitted so the server only touches what the caller wants to change.
+        """
+        from urllib.parse import quote
+
+        body = _compact({"strength": strength, "metadata": metadata})
+        return self._rest(
+            f"/memory/relate/{quote(edge_id, safe='')}",
+            body,
+            method="PATCH",
+        )
+
+    def memory_delete_edge(self, *, edge_id: str) -> Any:
+        """Delete an edge from the graph.
+
+        REST: ``DELETE /memory/relate/{edge_id}``. Returns whatever the
+        server reports (typically ``{"deleted": true}``).
+        """
+        from urllib.parse import quote
+
+        return self._rest(
+            f"/memory/relate/{quote(edge_id, safe='')}",
+            method="DELETE",
+        )
 
     def signal_emit(
         self,

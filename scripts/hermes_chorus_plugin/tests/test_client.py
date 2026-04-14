@@ -38,9 +38,11 @@ class _FakeSession:
         self._responses = list(responses)
         self.calls: List[Dict[str, Any]] = []
 
-    def post(self, url: str, json: Any = None, headers: Optional[Dict[str, str]] = None,
-             timeout: Optional[float] = None) -> _FakeResponse:
+    def request(self, method: str, url: str, json: Any = None,
+                headers: Optional[Dict[str, str]] = None,
+                timeout: Optional[float] = None) -> _FakeResponse:
         self.calls.append({
+            "method": method,
             "url": url,
             "json": json,
             "headers": dict(headers or {}),
@@ -49,6 +51,11 @@ class _FakeSession:
         if not self._responses:
             raise AssertionError("FakeSession exhausted — unexpected extra request")
         return self._responses.pop(0)
+
+    def post(self, url: str, json: Any = None,
+             headers: Optional[Dict[str, str]] = None,
+             timeout: Optional[float] = None) -> _FakeResponse:
+        return self.request("POST", url, json=json, headers=headers, timeout=timeout)
 
 
 def _make_config(**overrides):
@@ -184,7 +191,7 @@ def test_rpc_wraps_connection_errors_as_unreachable():
     from plugins.memory.chorus.client import ChorusClient, ChorusUnreachableError
 
     session = MagicMock()
-    session.post.side_effect = requests.ConnectionError("refused")
+    session.request.side_effect = requests.ConnectionError("refused")
     client = ChorusClient(_make_config(), session=session, retry_backoff=0)
 
     with pytest.raises(ChorusUnreachableError):
@@ -196,7 +203,7 @@ def test_rpc_wraps_timeout_as_unreachable():
     from plugins.memory.chorus.client import ChorusClient, ChorusUnreachableError
 
     session = MagicMock()
-    session.post.side_effect = requests.Timeout("slow")
+    session.request.side_effect = requests.Timeout("slow")
     client = ChorusClient(_make_config(), session=session, retry_backoff=0)
 
     with pytest.raises(ChorusUnreachableError):

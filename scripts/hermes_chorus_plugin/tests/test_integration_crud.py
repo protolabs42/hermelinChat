@@ -82,6 +82,65 @@ def test_forget_nonexistent_raises_chorus_error(real_client):
         real_client.memory_forget(memory_id="memory:definitely-not-a-real-id")
 
 
+def test_graph_traversal_and_edge_lifecycle(real_client, identity_namespace):
+    """Full graph lifecycle: store A+B → relate → edges/graph → update → delete → verify gone."""
+    tag = f"graph-verify-{uuid.uuid4().hex[:8]}"
+
+    a = real_client.memory_store(
+        content=f"graph node A {tag}", entity="graph-verify",
+        category="integration-test", tags=[tag, "a"],
+        memory_type="semantic", namespace=identity_namespace,
+    )
+    b = real_client.memory_store(
+        content=f"graph node B {tag}", entity="graph-verify",
+        category="integration-test", tags=[tag, "b"],
+        memory_type="semantic", namespace=identity_namespace,
+    )
+    aid = a.get("id") or a.get("memory_id")
+    bid = b.get("id") or b.get("memory_id")
+
+    try:
+        rel = real_client.memory_relate(
+            from_memory=aid, to_memory=bid, relation_type="derives_from",
+            strength=0.6, metadata={"tag": tag},
+        )
+        edge_id = rel["id"]
+        assert edge_id.startswith("relates_to:")
+
+        # graph traversal from A should surface B
+        graph = real_client.memory_graph(memory_id=aid)
+        memories = graph.get("memories") if isinstance(graph, dict) else graph
+        assert isinstance(memories, list)
+        assert any(m.get("id") == bid for m in memories), \
+            f"graph traversal didn't surface {bid}: {memories!r}"
+
+        # edges for A should list our new edge
+        edges = real_client.memory_edges(memory_id=aid)
+        edge_list = edges.get("edges") if isinstance(edges, dict) else edges
+        assert any(e.get("id") == edge_id for e in edge_list), \
+            f"edges list missing {edge_id}: {edge_list!r}"
+
+        # update strength
+        updated = real_client.memory_update_edge(
+            edge_id=edge_id, strength=0.95, metadata={"confirmed": True},
+        )
+        assert updated.get("strength") == 0.95
+        assert updated.get("metadata", {}).get("confirmed") is True
+
+        # delete edge
+        deleted = real_client.memory_delete_edge(edge_id=edge_id)
+        assert deleted is None or deleted.get("deleted") is True
+
+        # verify edges list is now empty
+        edges_after = real_client.memory_edges(memory_id=aid)
+        edge_list_after = edges_after.get("edges") if isinstance(edges_after, dict) else edges_after
+        assert not any(e.get("id") == edge_id for e in (edge_list_after or [])), \
+            "edge still present after delete"
+    finally:
+        real_client.memory_forget(memory_id=aid)
+        real_client.memory_forget(memory_id=bid)
+
+
 def test_relate_two_memories(real_client, identity_namespace):
     """Create two memories, relate them, clean up.
 
