@@ -1,0 +1,14 @@
+name: chorus
+version: 0.1.0
+description: "Chorus memory provider — cross-session ring-scoped memory, recall, and optional signal emission for hermes agents joining a Chorus hive."
+pip_dependencies:
+  - requests>=2.28
+hooks:
+  - system_prompt_block
+  - prefetch
+  - queue_prefetch
+  - sync_turn
+  - on_turn_start
+  - on_session_end
+  - on_pre_compress
+  - on_memory_write

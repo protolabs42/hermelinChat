@@ -10,6 +10,7 @@ SKIP_FRONTEND=0
 SKIP_PYTHON=0
 SKIP_HERMES_PATCH=0
 SKIP_HERMES_SKINS=0
+SKIP_HERMES_CHORUS=0
 NO_PULL=0
 
 usage() {
@@ -24,6 +25,7 @@ Options:
   --skip-hermes-patch   Skip patching the active Hermes installation with artifact tools
   --skip-hermes-skins   Skip installing hermelinChat CLI skins into ~/.hermes/skins/
   --skip-hermes-themes  (deprecated alias for --skip-hermes-skins)
+  --skip-hermes-chorus  Skip installing the Chorus memory provider plugin into Hermes
   --no-pull             Skip git pull
   -h, --help            Show help
 
@@ -61,6 +63,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --skip-hermes-skins|--skip-hermes-themes)
       SKIP_HERMES_SKINS=1
+      shift
+      ;;
+    --skip-hermes-chorus)
+      SKIP_HERMES_CHORUS=1
       shift
       ;;
     --no-pull)
@@ -184,6 +190,15 @@ if [[ "$SKIP_HERMES_SKINS" -eq 0 ]]; then
     exit 1
   fi
   python3 scripts/install_hermes_skins.py --auto --force
+fi
+
+if [[ "$SKIP_HERMES_CHORUS" -eq 0 ]]; then
+  echo "==> installing Chorus memory provider plugin into Hermes"
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "ERROR: python3 not found (needed for Chorus plugin installer)." >&2
+    exit 1
+  fi
+  python3 scripts/install_hermes_chorus_plugin.py
 fi
 
 if [[ "$SKIP_FRONTEND" -eq 0 ]]; then
