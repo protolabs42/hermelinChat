@@ -254,23 +254,18 @@ class ChorusClient:
             ) from exc
         return requests.Session()
 
-    def _rpc(self, method: str, params: dict | None = None) -> Any:
-        """Dispatch a single JSON-RPC call.
+    def _post(self, path: str, payload: dict, *, label: str) -> "_HttpResult":
+        """Shared POST dispatch with retries + typed error mapping.
 
-        Returns the ``result`` field on success. Raises a typed
-        ``ChorusError`` subclass on every failure mode. Retries ONCE on
-        transient 5xx with a small backoff; everything else fails fast.
+        ``label`` is a human-friendly name used in exception messages
+        (e.g. ``"memory/store"`` for RPC, ``"/emit"`` for REST).
+
+        Returns an ``_HttpResult`` that callers unpack themselves — RPC
+        unwraps ``result`` / ``error``, REST unwraps ``data``.
         """
-        # Requests can raise either of these; isolate import for clarity.
         import requests
 
-        url = self._config.url.rstrip("/") + "/rpc"
-        payload = {
-            "jsonrpc": "2.0",
-            "method": method,
-            "params": params or {},
-            "id": next(self._id_counter),
-        }
+        url = self._config.url.rstrip("/") + path
         headers = {
             "Authorization": f"Bearer {self._config.api_key or ''}",
             "Content-Type": "application/json",
@@ -295,11 +290,11 @@ class ChorusClient:
             status = response.status_code
             if status == 401:
                 raise ChorusAuthError(
-                    f"Chorus rejected the api_key (401) on {method}: {_response_excerpt(response)}"
+                    f"Chorus rejected the api_key (401) on {label}: {_response_excerpt(response)}"
                 )
             if status == 403:
                 raise ChorusPermissionError(
-                    f"Chorus denied {method} (403): {_response_excerpt(response)}"
+                    f"Chorus denied {label} (403): {_response_excerpt(response)}"
                 )
             if 500 <= status < 600:
                 if attempt == 0:
@@ -307,35 +302,86 @@ class ChorusClient:
                         time.sleep(self._retry_backoff)
                     continue
                 raise ChorusServerError(
-                    f"Chorus server error ({status}) on {method}: {_response_excerpt(response)}"
-                )
-            if status >= 400:
-                raise ChorusError(
-                    f"Chorus HTTP {status} on {method}: {_response_excerpt(response)}"
+                    f"Chorus server error ({status}) on {label}: {_response_excerpt(response)}"
                 )
 
             try:
                 body = response.json()
             except (ValueError, json.JSONDecodeError) as exc:
                 raise ChorusError(
-                    f"Chorus returned non-JSON body on {method}: {_response_excerpt(response)}"
+                    f"Chorus returned non-JSON body on {label}: {_response_excerpt(response)}"
                 ) from exc
 
-            if isinstance(body, dict) and body.get("error"):
-                err = body["error"]
-                code = err.get("code")
-                message = err.get("message", "unknown")
-                raise ChorusRpcError(
-                    f"Chorus RPC error ({code}) on {method}: {message}"
-                )
-
-            if isinstance(body, dict) and "result" in body:
-                return body["result"]
-            # Some endpoints might not wrap in JSON-RPC; return raw body.
-            return body
+            return _HttpResult(status=status, body=body)
 
         # Unreachable — the loop either returns or raises.
-        raise ChorusError(f"Chorus {method}: exhausted retries without response")
+        raise ChorusError(f"Chorus {label}: exhausted retries without response")
+
+    def _rpc(self, method: str, params: dict | None = None) -> Any:
+        """Dispatch a single JSON-RPC call.
+
+        Returns the ``result`` field on success. Raises a typed
+        ``ChorusError`` subclass on every failure mode. Retries ONCE on
+        transient 5xx via ``_post``.
+        """
+        payload = {
+            "jsonrpc": "2.0",
+            "method": method,
+            "params": params or {},
+            "id": next(self._id_counter),
+        }
+        result = self._post("/rpc", payload, label=method)
+        body = result.body
+
+        if result.status >= 400:
+            raise ChorusError(
+                f"Chorus HTTP {result.status} on {method}: "
+                f"{_excerpt(json.dumps(body) if isinstance(body, (dict, list)) else body)}"
+            )
+
+        if isinstance(body, dict) and body.get("error"):
+            err = body["error"]
+            code = err.get("code")
+            message = err.get("message", "unknown")
+            raise ChorusRpcError(
+                f"Chorus RPC error ({code}) on {method}: {message}"
+            )
+
+        if isinstance(body, dict) and "result" in body:
+            return body["result"]
+        return body
+
+    def _rest(self, path: str, body: dict | None = None) -> Any:
+        """Dispatch a single REST ``POST`` call.
+
+        Returns the unwrapped ``data`` field on success (the chorus server
+        wraps REST payloads as ``{"data": ...}``). Raises a typed error on
+        4xx/5xx; the chorus server reports REST errors as
+        ``{"error": {"code": ..., "message": ...}}`` at 4xx.
+        """
+        result = self._post(path, body or {}, label=path)
+        response_body = result.body
+
+        if result.status >= 400:
+            err_obj = response_body.get("error") if isinstance(response_body, dict) else None
+            if isinstance(err_obj, dict):
+                code = err_obj.get("code", result.status)
+                message = err_obj.get("message", "unknown")
+                # Server reports missing-role as a 400 with a distinct code.
+                # Promote it to ChorusPermissionError so provider-side
+                # degradation logic (flip emit_signals off) catches it.
+                if isinstance(code, str) and code == "SIGNAL_ROLE_NOT_HELD":
+                    raise ChorusPermissionError(
+                        f"Chorus role not held on {path}: {message}"
+                    )
+                raise ChorusError(f"Chorus error ({code}) on {path}: {message}")
+            raise ChorusError(
+                f"Chorus HTTP {result.status} on {path}: {_response_excerpt_from_body(response_body)}"
+            )
+
+        if isinstance(response_body, dict) and "data" in response_body:
+            return response_body["data"]
+        return response_body
 
     # -- high level -----------------------------------------------------------
 
@@ -394,35 +440,116 @@ class ChorusClient:
         """Recall every memory for a named entity via ``memory/recall``."""
         return self._rpc("memory/recall", {"entity": entity})
 
+    def memory_update(
+        self,
+        *,
+        memory_id: str,
+        content: str | None = None,
+        tags: list | None = None,
+        category: str | None = None,
+        memory_type: str | None = None,
+        confidence: float | None = None,
+    ) -> Any:
+        """Edit an existing memory via ``memory/update``.
+
+        Any field left as ``None`` is omitted so the server only touches
+        what the caller explicitly wants to change.
+        """
+        params = _compact({
+            "memory_id": memory_id,
+            "content": content,
+            "tags": tags,
+            "category": category,
+            "memory_type": memory_type,
+            "confidence": confidence,
+        })
+        return self._rpc("memory/update", params)
+
+    def memory_forget(self, *, memory_id: str) -> Any:
+        """Delete a memory via ``memory/forget``."""
+        return self._rpc("memory/forget", {"memory_id": memory_id})
+
+    def memory_relate(
+        self,
+        *,
+        from_memory: str,
+        to_memory: str,
+        relation_type: str,
+        strength: float | None = None,
+        metadata: dict | None = None,
+    ) -> Any:
+        """Create a graph edge between two memories via ``memory/relate``.
+
+        Valid ``relation_type`` values (server enum):
+        ``supports``, ``contradicts``, ``derives_from``, ``supersedes``,
+        ``related_to``.
+        """
+        params = _compact({
+            "from": from_memory,
+            "to": to_memory,
+            "relation_type": relation_type,
+            "strength": strength,
+            "metadata": metadata,
+        })
+        return self._rpc("memory/relate", params)
+
     def signal_emit(
         self,
         *,
-        stream_type: str,
+        signal_type: str,
         content: str,
+        from_role: str,
+        from_identity: str | None = None,
+        to_role: str | None = None,
+        to_identity: str | None = None,
+        to_ring: str | None = None,
         urgency: float | None = None,
         tags: list | None = None,
-        namespace: str | None = None,
+        parent_id: str | None = None,
     ) -> Any:
-        """Emit a signal via ``signal/emit``.
+        """Emit a signal via REST ``POST /emit``.
+
+        ``signal/emit`` is NOT a JSON-RPC method; the chorus server exposes
+        signal emission as a flat REST endpoint. The body mirrors the
+        public chorus-protocol SDK's ``client.signals.emit(params)``.
 
         Gated by the caller — the plugin only calls this when
-        ``emit_signals`` is truthy and the identity holds a signal-capable
-        role. Permission errors must be caught at the callsite so we can
-        degrade gracefully.
+        ``emit_signals`` is truthy. A ``SIGNAL_ROLE_NOT_HELD`` error
+        surfaces as a plain ``ChorusError`` so the callsite can degrade
+        gracefully (flip ``emit_signals`` off for the session).
         """
-        params = _compact({
-            "stream_type": stream_type,
+        body = _compact({
+            "signal_type": signal_type,
             "content": content,
+            "from_role": from_role,
+            "from_identity": from_identity,
+            "to_role": to_role,
+            "to_identity": to_identity,
+            "to_ring": to_ring,
             "urgency": urgency,
             "tags": tags,
-            "namespace": namespace,
+            "parent_id": parent_id,
         })
-        return self._rpc("signal/emit", params)
+        return self._rest("/emit", body)
+
+
+@dataclass
+class _HttpResult:
+    """Raw HTTP result for internal dispatch helpers."""
+
+    status: int
+    body: Any
 
 
 def _compact(params: dict) -> dict:
     """Drop keys whose value is ``None``. Keeps the wire protocol tidy."""
     return {k: v for k, v in params.items() if v is not None}
+
+
+def _excerpt(text: Any, limit: int = 200) -> str:
+    """Truncate arbitrary text / object-repr for log messages."""
+    s = str(text) if text is not None else "<empty>"
+    return s[:limit] if s else "<empty>"
 
 
 def _response_excerpt(response) -> str:
@@ -432,3 +559,13 @@ def _response_excerpt(response) -> str:
     except Exception:
         return "<unreadable>"
     return text[:200] if text else "<empty>"
+
+
+def _response_excerpt_from_body(body: Any) -> str:
+    """Like ``_response_excerpt`` but works from an already-parsed body."""
+    if body is None:
+        return "<empty>"
+    try:
+        return json.dumps(body)[:200]
+    except Exception:
+        return _excerpt(body)

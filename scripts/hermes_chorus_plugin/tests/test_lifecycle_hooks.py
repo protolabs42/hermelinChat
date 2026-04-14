@@ -84,7 +84,8 @@ def test_sync_turn_emits_pulse_on_every_turn(isolated_env):
 
     client.signal_emit.assert_called_once()
     call_kwargs = client.signal_emit.call_args.kwargs
-    assert call_kwargs.get("stream_type") == "pulse"
+    assert call_kwargs.get("signal_type") == "pulse"
+    assert call_kwargs.get("from_role") == "dev"  # default role_name
 
 
 def test_sync_turn_accumulates_on_session_end_mode(isolated_env):
@@ -138,8 +139,8 @@ def test_on_session_end_emits_sense_and_stores_briefing(isolated_env):
 
     # One sense signal summarizing the session
     client.signal_emit.assert_called()
-    stream_types = [c.kwargs.get("stream_type") for c in client.signal_emit.call_args_list]
-    assert "sense" in stream_types
+    signal_types = [c.kwargs.get("signal_type") for c in client.signal_emit.call_args_list]
+    assert "sense" in signal_types
 
     # One briefing memory stored
     client.memory_store.assert_called()

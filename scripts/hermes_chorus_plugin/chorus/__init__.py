@@ -137,7 +137,116 @@ RECALL_SCHEMA: Dict[str, Any] = {
 }
 
 
-MEMORY_TOOL_SCHEMAS: List[Dict[str, Any]] = [STORE_SCHEMA, QUERY_SCHEMA, RECALL_SCHEMA]
+_VALID_RELATION_TYPES = (
+    "supports", "contradicts", "derives_from", "supersedes", "related_to",
+)
+
+
+UPDATE_SCHEMA: Dict[str, Any] = {
+    "name": "chorus_memory_update",
+    "description": (
+        "Edit an existing Chorus memory by id. Use to correct a fact, refine "
+        "its tags, or adjust confidence after new evidence arrives. Any field "
+        "left unset is preserved."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "memory_id": {
+                "type": "string",
+                "description": "Memory id to update (e.g. 'memory:abc123').",
+            },
+            "content": {
+                "type": "string",
+                "description": "New content — replaces the existing text.",
+            },
+            "tags": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "New tag list — REPLACES the prior tags.",
+            },
+            "category": {
+                "type": "string",
+                "description": "New category label.",
+            },
+            "memory_type": {
+                "type": "string",
+                "enum": ["semantic", "episodic", "procedural"],
+                "description": "New memory type.",
+            },
+            "confidence": {
+                "type": "number",
+                "description": "New confidence between 0.0 and 1.0.",
+            },
+        },
+        "required": ["memory_id"],
+    },
+}
+
+
+FORGET_SCHEMA: Dict[str, Any] = {
+    "name": "chorus_memory_forget",
+    "description": (
+        "Delete a memory from Chorus by id. Permanent. Use for cleanup when a "
+        "memory is wrong, obsolete, or accidentally created (e.g. test probes)."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "memory_id": {
+                "type": "string",
+                "description": "Memory id to forget (e.g. 'memory:abc123').",
+            },
+        },
+        "required": ["memory_id"],
+    },
+}
+
+
+RELATE_SCHEMA: Dict[str, Any] = {
+    "name": "chorus_memory_relate",
+    "description": (
+        "Link two memories in the knowledge graph. Builds structured "
+        "relationships so future recalls can traverse (e.g. 'decision X derives "
+        "from research Y'). Both memories must be in accessible namespaces."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "from_memory": {
+                "type": "string",
+                "description": "Source memory id.",
+            },
+            "to_memory": {
+                "type": "string",
+                "description": "Target memory id.",
+            },
+            "relation_type": {
+                "type": "string",
+                "enum": list(_VALID_RELATION_TYPES),
+                "description": (
+                    "How they relate. 'supports' / 'contradicts' are evidentiary; "
+                    "'derives_from' / 'supersedes' are lineage; 'related_to' is generic."
+                ),
+            },
+            "strength": {
+                "type": "number",
+                "description": "Edge weight between 0.0 and 1.0.",
+            },
+            "metadata": {
+                "type": "object",
+                "description": "Free-form metadata to attach to the edge (e.g. reason).",
+            },
+        },
+        "required": ["from_memory", "to_memory", "relation_type"],
+    },
+}
+
+
+MEMORY_TOOL_SCHEMAS: List[Dict[str, Any]] = [
+    STORE_SCHEMA, QUERY_SCHEMA, RECALL_SCHEMA,
+    UPDATE_SCHEMA, FORGET_SCHEMA, RELATE_SCHEMA,
+]
 
 
 # ---------------------------------------------------------------------------
@@ -438,7 +547,7 @@ class ChorusMemoryProvider(MemoryProvider):
 
         if mode == "every-turn" and config.emit_signals and self._client is not None:
             self._spawn_signal_emit(
-                stream_type="pulse",
+                signal_type="pulse",
                 content=_preview(user_content, limit=180),
                 urgency=0.1,
                 tags=["hermes-plugin", "turn"],
@@ -500,18 +609,24 @@ class ChorusMemoryProvider(MemoryProvider):
         if config.emit_signals:
             try:
                 self._client.signal_emit(
-                    stream_type="sense",
+                    signal_type="sense",
                     content=f"hermes session ended after {turn_count} turns",
+                    from_role=config.role_name,
                     urgency=0.1,
                     tags=["hermes-plugin", "session-end"],
                 )
             except ChorusPermissionError as exc:
                 logger.warning(
-                    "Chorus signal/emit denied on session end (%s); role not filled.",
+                    "Chorus /emit denied on session end (%s); role not filled.",
                     exc,
                 )
             except ChorusError as exc:
-                logger.warning("Chorus session-end signal failed: %s", exc)
+                # Covers SIGNAL_ROLE_NOT_HELD (400 with structured error body).
+                logger.warning(
+                    "Chorus session-end signal failed (%s); consider flipping "
+                    "emit_signals off or verifying the identity holds role %r.",
+                    exc, config.role_name,
+                )
             except Exception as exc:  # pragma: no cover
                 logger.warning("Chorus session-end signal crashed: %s", exc)
 
@@ -646,6 +761,60 @@ class ChorusMemoryProvider(MemoryProvider):
                 result = self._client.memory_recall(entity=entity)
                 return json.dumps({"result": result})
 
+            if tool_name == "chorus_memory_update":
+                memory_id = (args.get("memory_id") or "").strip()
+                if not memory_id:
+                    return tool_error("Missing required parameter: memory_id")
+                update_fields = {
+                    k: args[k] for k in ("content", "tags", "category", "memory_type", "confidence")
+                    if k in args and args[k] is not None
+                }
+                if not update_fields:
+                    return tool_error(
+                        "chorus_memory_update requires at least one field to change "
+                        "(content, tags, category, memory_type, or confidence)."
+                    )
+                result = self._client.memory_update(memory_id=memory_id, **update_fields)
+                return json.dumps({"result": result})
+
+            if tool_name == "chorus_memory_forget":
+                memory_id = (args.get("memory_id") or "").strip()
+                if not memory_id:
+                    return tool_error("Missing required parameter: memory_id")
+                result = self._client.memory_forget(memory_id=memory_id)
+                return json.dumps({"result": result})
+
+            if tool_name == "chorus_memory_relate":
+                from_memory = (args.get("from_memory") or "").strip()
+                to_memory = (args.get("to_memory") or "").strip()
+                relation_type = (args.get("relation_type") or "").strip()
+                if not from_memory or not to_memory:
+                    return tool_error(
+                        "chorus_memory_relate requires from_memory and to_memory."
+                    )
+                if relation_type not in _VALID_RELATION_TYPES:
+                    return tool_error(
+                        f"Invalid relation_type {relation_type!r}. "
+                        f"Expected one of: {', '.join(_VALID_RELATION_TYPES)}."
+                    )
+                strength = args.get("strength")
+                if strength is not None:
+                    try:
+                        strength = max(0.0, min(1.0, float(strength)))
+                    except (TypeError, ValueError):
+                        strength = None
+                metadata = args.get("metadata")
+                if metadata is not None and not isinstance(metadata, dict):
+                    metadata = None
+                result = self._client.memory_relate(
+                    from_memory=from_memory,
+                    to_memory=to_memory,
+                    relation_type=relation_type,
+                    strength=strength,
+                    metadata=metadata,
+                )
+                return json.dumps({"result": result})
+
             return tool_error(f"Unknown tool: {tool_name}")
 
         except ChorusError as exc:
@@ -741,16 +910,18 @@ class ChorusMemoryProvider(MemoryProvider):
     def _spawn_signal_emit(
         self,
         *,
-        stream_type: str,
+        signal_type: str,
         content: str,
         urgency: float,
         tags: List[str],
     ) -> None:
         """Fire-and-forget signal emission on a daemon thread.
 
-        Permission errors flip ``emit_signals`` off so we stop hammering
-        the server (typical cause: ``hermes-plugin`` role not filled for
-        this identity).
+        Permission errors (both 403 ``ChorusPermissionError`` and the
+        400 ``SIGNAL_ROLE_NOT_HELD`` flavour carried as a generic
+        ``ChorusError``) flip ``emit_signals`` off so we stop hammering
+        the server. Typical cause: the identity doesn't hold the role
+        named in ``role_name`` (defaults to ``"dev"``).
         """
         client = self._client
         if client is None:
@@ -760,17 +931,18 @@ class ChorusMemoryProvider(MemoryProvider):
         def _run() -> None:
             try:
                 client.signal_emit(
-                    stream_type=stream_type,
+                    signal_type=signal_type,
                     content=content,
+                    from_role=config.role_name,
+                    to_ring=self._ring,
                     urgency=urgency,
                     tags=tags,
                 )
             except ChorusPermissionError as exc:
                 logger.warning(
-                    "Chorus signal/emit denied (%s); disabling signal emission "
-                    "for this session. Check that the identity holds the "
-                    "hermes-plugin role.",
-                    exc,
+                    "Chorus /emit denied (%s); disabling signal emission "
+                    "for this session. Check that the identity holds role %r.",
+                    exc, config.role_name,
                 )
                 config.emit_signals = False
             except ChorusError as exc:
