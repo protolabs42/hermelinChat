@@ -184,6 +184,41 @@ test('anchors interleave by timestamp', () => {
   assert.equal(msgs[3].surfaceId, 'S2')
 })
 
+test('hermes openai-style tool_calls (function.name nested) extracts tool name', () => {
+  // Aurora's actual hermes DB shape — name lives under .function.name, not top-level.
+  // Using id as the call identifier (also exposed as call_id alongside).
+  const msgs = sessionRowsToMessages([
+    row({
+      id: 1,
+      role: 'assistant',
+      timestamp: 1,
+      tool_calls: JSON.stringify([
+        {
+          id: 'toolu_xyz',
+          call_id: 'toolu_xyz',
+          type: 'function',
+          function: {
+            name: 'terminal',
+            arguments: '{"command":"ls"}',
+          },
+        },
+      ]),
+    }),
+    row({
+      id: 2,
+      role: 'tool',
+      timestamp: 2,
+      tool_call_id: 'toolu_xyz',
+      content: JSON.stringify({ output: 'file1\nfile2' }),
+    }),
+  ])
+  assert.equal(msgs.length, 1, 'tool result should merge into placeholder')
+  assert.equal(msgs[0].role, 'tool')
+  assert.equal(msgs[0].toolTitle, 'terminal', 'name must be extracted from function.name')
+  assert.equal(msgs[0].toolStatus, 'completed')
+  assert.equal(msgs[0].content, 'file1\nfile2')
+})
+
 test('malformed tool_calls JSON does not crash, assistant still renders', () => {
   const msgs = sessionRowsToMessages([
     row({

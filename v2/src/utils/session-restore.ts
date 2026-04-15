@@ -27,18 +27,42 @@ interface ToolCallEntry {
   arguments?: unknown
 }
 
+/**
+ * Hermes/OpenAI tool_calls JSON has two shapes in the wild:
+ *
+ *   Flat:    { id, name, arguments }
+ *   Nested:  { id, call_id, type: 'function', function: { name, arguments } }
+ *
+ * Aurora's hermes uses the nested form. Normalize both into ToolCallEntry.
+ * Also accept call_id as a fallback when id is missing.
+ */
 function parseToolCalls(raw: string | null): ToolCallEntry[] {
   if (!raw) return []
   try {
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
-    return parsed.filter(
-      (e): e is ToolCallEntry =>
-        typeof e === 'object' &&
-        e !== null &&
-        typeof (e as { id?: unknown }).id === 'string' &&
-        typeof (e as { name?: unknown }).name === 'string'
-    )
+    const out: ToolCallEntry[] = []
+    for (const entry of parsed) {
+      if (typeof entry !== 'object' || entry === null) continue
+      const e = entry as {
+        id?: unknown
+        call_id?: unknown
+        name?: unknown
+        function?: { name?: unknown; arguments?: unknown }
+        arguments?: unknown
+      }
+      const id =
+        typeof e.id === 'string' ? e.id : typeof e.call_id === 'string' ? e.call_id : null
+      const name =
+        typeof e.name === 'string'
+          ? e.name
+          : typeof e.function?.name === 'string'
+          ? e.function.name
+          : null
+      if (!id || !name) continue
+      out.push({ id, name, arguments: e.function?.arguments ?? e.arguments })
+    }
+    return out
   } catch {
     return []
   }
