@@ -20,7 +20,7 @@ export function ScanlinesOverlay({ opacity = 0.06 }: ScanlinesOverlayProps) {
       className="absolute inset-0 pointer-events-none z-10"
       style={{
         opacity,
-        mixBlendMode: 'overlay',
+        mixBlendMode: 'soft-light',
         backgroundImage: `repeating-linear-gradient(to bottom, ${stripe} 0, ${stripe} 1px, rgba(0,0,0,0) 4px, rgba(0,0,0,0) 8px)`,
       }}
     />
