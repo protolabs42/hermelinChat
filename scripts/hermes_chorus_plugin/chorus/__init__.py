@@ -590,6 +590,7 @@ class ChorusMemoryProvider(MemoryProvider):
                 return
 
             memories = _extract_memories(response)
+            memories = [m for m in memories if "hermes-mirror" not in (m.get("tags") or [])]
             if not memories:
                 return
             formatted = _format_memories_for_prefetch(memories)

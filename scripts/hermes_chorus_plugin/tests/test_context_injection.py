@@ -194,6 +194,57 @@ def test_queue_prefetch_spawns_thread_and_populates_slot(isolated_env):
         assert "prefetched fact" in provider._prefetch_result
 
 
+def test_queue_prefetch_excludes_hermes_mirror_memories(isolated_env):
+    """Prefetch must not echo hermes-mirror memories back into the next turn.
+
+    Built-in MEMORY.md writes are auto-mirrored to Chorus tagged
+    ``hermes-mirror`` (see on_memory_write). Without a filter, the next
+    turn's prefetch would surface those same memories alongside the original
+    MEMORY.md copy in the system prompt — so the model sees its own recent
+    writes echoed as "past Chorus recall". The filter drops them before
+    formatting.
+    """
+    provider, client = _active_provider(memories=[
+        {"content": "genuine ring fact", "tags": ["insight"], "category": "info"},
+        {
+            "content": "my own MEMORY.md note",
+            "tags": ["hermes-plugin", "hermes-mirror", "target:core"],
+            "category": "info",
+        },
+    ])
+
+    provider.queue_prefetch("tell me about X")
+
+    deadline = time.time() + 2.0
+    while time.time() < deadline:
+        with provider._prefetch_lock:
+            if provider._prefetch_result:
+                break
+        time.sleep(0.01)
+
+    with provider._prefetch_lock:
+        result = provider._prefetch_result
+
+    assert "genuine ring fact" in result
+    assert "my own MEMORY.md note" not in result
+
+
+def test_queue_prefetch_empty_when_all_memories_are_mirrored(isolated_env):
+    """If every returned memory is a hermes-mirror echo, inject nothing."""
+    provider, client = _active_provider(memories=[
+        {"content": "echo A", "tags": ["hermes-mirror"], "category": "info"},
+        {"content": "echo B", "tags": ["hermes-mirror"], "category": "info"},
+    ])
+
+    provider.queue_prefetch("tell me about X")
+
+    # Give the daemon a moment even though we expect no write to the slot.
+    time.sleep(0.1)
+
+    with provider._prefetch_lock:
+        assert provider._prefetch_result == ""
+
+
 def test_queue_prefetch_noop_when_inactive(isolated_env, monkeypatch):
     monkeypatch.delenv("CHORUS_API_KEY", raising=False)
     from plugins.memory.chorus import ChorusMemoryProvider
