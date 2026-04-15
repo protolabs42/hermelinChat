@@ -59,6 +59,11 @@
 body {
   font-family: var(--font-sans);
   font-size: var(--font-size-base, 16px);
+  /* Medium (500) reads far more solidly than Regular (400) on Chromium /
+     WebView2. The Geist-Medium face is already @font-faced above; no extra
+     network cost. Fixes the 'text looks disabled/faded' feel on every theme. */
+  font-weight: 500;
+  text-rendering: optimizeLegibility;
   background: var(--color-bg, #1e1e2e);
   color: var(--color-text, #cdd6f4);
   overflow: hidden;
