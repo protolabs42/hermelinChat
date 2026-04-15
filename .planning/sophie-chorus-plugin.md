@@ -76,6 +76,10 @@ All hook scripts are stand-alone: they spawn, call the chorus HTTP RPC directly
 (not via MCP — MCP is for in-agent tool use), exit. No long-running process,
 no shared state between hooks beyond what chorus stores server-side.
 
+`SessionStart` on `source: compact` is a deliberate no-op — the
+just-fired `PreCompact` already stored the pre-compact briefing, and
+re-hydrating resume_context the instant after compaction adds noise.
+
 ## Repo layout
 
 ```
@@ -232,20 +236,26 @@ Tools we call (via HTTP `/rpc`, not MCP):
 
 | Tool | Hook | Frequency |
 |---|---|---|
-| `chorus_resume_context` | SessionStart | Per session open |
+| `chorus_resume_context` | SessionStart | Per session open (skipped on `source: compact`) |
 | `chorus_memory_store` | SessionEnd, PreCompact | Per session close / compact |
 | `chorus_emit_signal` | SessionEnd, PreCompact | Per session close / compact |
 
 Signals we emit:
 
-- `sense` at SessionEnd, urgency 0.3 — audit trail of work ended
-- `pulse` at PreCompact, urgency 0.2 — low-urgency "still alive, saved state"
+| Hook | Kind | Urgency | Purpose |
+|---|---|---|---|
+| SessionEnd | `sense` | 0.3 | Audit trail of work ended |
+| PreCompact | `pulse` | 0.2 | "Still alive, saved state" |
 
 Memory we write:
 
-- `session-briefing` (episodic-ish, but we'll use `procedural` type to match
-  existing `next-session-plan` entries) at SessionEnd
-- `pre-compact-insight` (procedural) at PreCompact
+| Hook | Category | Type | Tags (base) |
+|---|---|---|---|
+| SessionEnd | `session-briefing` | `procedural` | `[project-tag, "session-end", <ISO-date>]` |
+| PreCompact | `pre-compact-insight` | `procedural` | `[project-tag, "pre-compact", <ISO-date>, trigger]` |
+
+Both use `procedural` type to match the existing `next-session-plan` memory
+convention sophie+aurora already use.
 
 Both memory writes use `ring:<project-ring-id>` namespace so they scope to the
 folder sophie was working in, matching existing chorus convention.
@@ -256,13 +266,17 @@ folder sophie was working in, matching existing chorus convention.
 ~/.claude/secrets/chorus.env        ← CHORUS_URL, CHORUS_API_KEY
 ```
 
-Already exists for the MCP install — we reuse, don't duplicate. Plugin never
-requires interactive setup.
+Assumed to exist from the chorus-mcp install — we reuse, don't duplicate.
+Plugin never requires interactive setup.
 
 Fall-back env var read order:
 1. `$CHORUS_URL`, `$CHORUS_API_KEY` directly in env
 2. `~/.claude/secrets/chorus.env` (dotenv parse)
 3. `~/.claude/secrets/chorus.json` (if someone prefers JSON)
+
+If your MCP install put credentials at a different path, extend this fallback
+chain in `src/config.ts` — the three-path default is a convenience, not a
+hard requirement.
 
 If all three fail → no-op with stderr warning. Plugin never errors the session.
 
