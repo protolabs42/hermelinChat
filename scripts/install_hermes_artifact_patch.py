@@ -172,6 +172,7 @@ def _origin(name: str) -> str:
 
 model_tools = _origin("model_tools")
 toolsets = _origin("toolsets")
+acp_session = _origin("acp_adapter.session")
 
 tools_spec = importlib.util.find_spec("tools")
 if tools_spec is None:
@@ -188,6 +189,7 @@ print(json.dumps({
     "model_tools": model_tools,
     "toolsets": toolsets,
     "tools_dir": tools_dir,
+    "acp_session": acp_session,
 }, ensure_ascii=False))
 '''
 
@@ -287,6 +289,51 @@ def _patch_toolsets(path: Path) -> tuple[bool, str]:
     return True, f"Patched {path.name}: added artifacts toolset"
 
 
+def _patch_acp_session(path: Path) -> tuple[bool, str]:
+    """Two edits to acp_adapter/session.py for Aurora Chat:
+
+    1. Pass the manager's existing SessionDB into AIAgent (via self._get_db())
+       so aurora can recall past sessions via session_search. ACP path used
+       to skip this, returning "Session database not available." for recall.
+    2. Extend enabled_toolsets to include 'artifacts' and 'a2ui' so Aurora
+       Chat's right-side panel + inline surface tools work in ACP sessions.
+
+    Idempotent: detects existing patches and skips.
+    """
+    text, newline = _read_text_with_newline(path)
+    changes = []
+
+    # Patch 2: enabled_toolsets extension.
+    if '"enabled_toolsets": ["hermes-acp", "artifacts", "a2ui"]' not in text:
+        anchor = '"enabled_toolsets": ["hermes-acp"]'
+        if anchor not in text:
+            return False, "session.py: enabled_toolsets anchor not found — schema may have changed"
+        text = text.replace(
+            anchor,
+            '"enabled_toolsets": ["hermes-acp", "artifacts", "a2ui"]',
+            1,
+        )
+        changes.append("extended enabled_toolsets")
+
+    # Patch 1: session_db kwarg using the manager's existing _get_db helper.
+    if '"session_db": self._get_db(),' not in text:
+        anchor_line = '"model": model or default_model,'
+        if anchor_line not in text:
+            return False, "session.py: kwargs anchor 'model' not found"
+        text = text.replace(
+            anchor_line,
+            anchor_line + newline + '            "session_db": self._get_db(),',
+            1,
+        )
+        changes.append("injected session_db kwarg")
+
+    if not changes:
+        return False, "session.py: ACP patches already applied"
+
+    _write_text_with_newline(path, text, newline)
+    return True, f"Patched {path.name}: " + ", ".join(changes)
+
+
 def _install_artifact_tool(tools_dir: Path) -> tuple[bool, str]:
     target = tools_dir / "artifact_tool.py"
     source_text = ARTIFACT_TOOL_SRC.read_text(encoding="utf-8")
@@ -340,6 +387,7 @@ def main() -> int:
     print(f"  model_tools:   {live_paths['model_tools']}")
     print(f"  toolsets:      {live_paths['toolsets']}")
     print(f"  tools dir:     {live_paths['tools_dir']}")
+    print(f"  acp session:   {live_paths['acp_session']}")
 
     if args.dry_run:
         print("\nDry run only. No files changed.")
@@ -352,6 +400,8 @@ def main() -> int:
         changed, message = _patch_model_tools(live_paths["model_tools"])
         changes.append((changed, message))
         changed, message = _patch_toolsets(live_paths["toolsets"])
+        changes.append((changed, message))
+        changed, message = _patch_acp_session(live_paths["acp_session"])
         changes.append((changed, message))
     except Exception as exc:
         print(f"ERROR: failed to patch Hermes installation: {exc}", file=sys.stderr)
