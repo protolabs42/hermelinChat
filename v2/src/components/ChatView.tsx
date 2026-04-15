@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useChatStore } from '../stores/chat'
 import MessageBubble from './MessageBubble'
 import UsageBar from './chat/UsageBar'
+import WelcomeCard from './WelcomeCard'
 
 const SCROLL_THRESHOLD = 80
 
@@ -54,9 +55,8 @@ export default function ChatView() {
             height: '100%',
             gap: 16,
           }}>
-            <span style={{ color: 'var(--color-accent)', fontSize: 32, opacity: 0.3 }}>&#9672;</span>
-            <span style={{ color: 'var(--color-text-bright)', fontSize: 18, fontWeight: 600 }}>Start a conversation</span>
-            <span style={{ color: 'var(--color-muted)', fontSize: 14 }}>Message Aurora to begin</span>
+            <WelcomeCard />
+            <span style={{ color: 'var(--color-muted)', fontSize: 13 }}>Message Aurora to begin</span>
           </div>
         )}
         {messages.map((msg) => (

@@ -222,23 +222,76 @@ fn check_hermes_update_inner(hermes_bin: &str) -> VersionInfo {
     pip_version_info(hermes_bin)
 }
 
+fn stream_command(
+    app: &tauri::AppHandle,
+    program: &str,
+    args: &[&str],
+    log: &mut String,
+) -> bool {
+    use std::io::{BufRead, BufReader};
+    use std::process::Stdio;
+    use tauri::Emitter;
+
+    let mut child = match std::process::Command::new(program)
+        .args(args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+    {
+        Ok(c) => c,
+        Err(e) => {
+            let msg = format!("failed to spawn {program}: {e}\n");
+            log.push_str(&msg);
+            let _ = app.emit("hermes-update:log", &msg);
+            return false;
+        }
+    };
+
+    let stdout = child.stdout.take();
+    let stderr = child.stderr.take();
+
+    let stderr_thread = stderr.map(|s| {
+        let app = app.clone();
+        std::thread::spawn(move || {
+            let mut collected = String::new();
+            for line in BufReader::new(s).lines().map_while(Result::ok) {
+                let _ = app.emit("hermes-update:log", format!("{line}\n"));
+                collected.push_str(&line);
+                collected.push('\n');
+            }
+            collected
+        })
+    });
+
+    if let Some(s) = stdout {
+        for line in BufReader::new(s).lines().map_while(Result::ok) {
+            let _ = app.emit("hermes-update:log", format!("{line}\n"));
+            log.push_str(&line);
+            log.push('\n');
+        }
+    }
+
+    if let Some(t) = stderr_thread {
+        if let Ok(err) = t.join() {
+            log.push_str(&err);
+        }
+    }
+
+    child.wait().map(|s| s.success()).unwrap_or(false)
+}
+
 #[tauri::command]
-pub fn apply_hermes_update() -> UpdateResult {
+pub fn apply_hermes_update(app: tauri::AppHandle) -> UpdateResult {
+    use tauri::Emitter;
+
     let hermes_bin = std::env::var("HERMES_BIN").unwrap_or_else(|_| "hermes".to_string());
     let mut log = String::new();
 
-    log.push_str(&format!("==> {} update\n", hermes_bin));
-    let hermes_ok = match std::process::Command::new(&hermes_bin).arg("update").output() {
-        Ok(o) => {
-            log.push_str(&String::from_utf8_lossy(&o.stdout));
-            log.push_str(&String::from_utf8_lossy(&o.stderr));
-            o.status.success()
-        }
-        Err(e) => {
-            log.push_str(&format!("failed to run `{} update`: {e}\n", hermes_bin));
-            false
-        }
-    };
+    let header = format!("==> {} update\n", hermes_bin);
+    log.push_str(&header);
+    let _ = app.emit("hermes-update:log", &header);
+
+    let hermes_ok = stream_command(&app, &hermes_bin, &["update"], &mut log);
 
     if !hermes_ok {
         let (new_version, new_commits_behind, verified) = verify_hermes_state(&hermes_bin);
@@ -261,35 +314,38 @@ pub fn apply_hermes_update() -> UpdateResult {
 
     let (patches_reapplied, success) = match patch_script {
         Some(p) if p.exists() => {
-            log.push_str(&format!("\n==> reapplying patches via {}\n", p.display()));
-            match std::process::Command::new("python3").arg(&p).output() {
-                Ok(o) => {
-                    log.push_str(&String::from_utf8_lossy(&o.stdout));
-                    log.push_str(&String::from_utf8_lossy(&o.stderr));
-                    (o.status.success(), o.status.success())
-                }
-                Err(e) => {
-                    log.push_str(&format!("failed to run patch script: {e}\n"));
-                    (false, false)
-                }
-            }
+            let header = format!("\n==> reapplying patches via {}\n", p.display());
+            log.push_str(&header);
+            let _ = app.emit("hermes-update:log", &header);
+            let script_arg = p.to_string_lossy().to_string();
+            let ok = stream_command(&app, "python3", &[&script_arg], &mut log);
+            (ok, ok)
         }
         _ => {
-            log.push_str("\n⚠ patch script not found — patches NOT reapplied.\n");
-            log.push_str("Run `scripts/update.sh --skip-frontend --skip-python --no-pull` from the hermelinChat repo.\n");
+            let msg = "\n⚠ patch script not found — patches NOT reapplied.\nRun `scripts/update.sh --skip-frontend --skip-python --no-pull` from the hermelinChat repo.\n";
+            log.push_str(msg);
+            let _ = app.emit("hermes-update:log", msg);
             (false, true)
         }
     };
 
-    log.push_str("\n==> verifying post-update state\n");
+    let header = "\n==> verifying post-update state\n";
+    log.push_str(header);
+    let _ = app.emit("hermes-update:log", header);
     let (new_version, new_commits_behind, verified) = verify_hermes_state(&hermes_bin);
     if let Some(ref v) = new_version {
-        log.push_str(&format!("version: {}\n", v));
+        let line = format!("version: {}\n", v);
+        log.push_str(&line);
+        let _ = app.emit("hermes-update:log", &line);
     }
     if let Some(n) = new_commits_behind {
-        log.push_str(&format!("commits behind origin/main: {}\n", n));
+        let line = format!("commits behind origin/main: {}\n", n);
+        log.push_str(&line);
+        let _ = app.emit("hermes-update:log", &line);
     }
-    log.push_str(if verified { "✓ verified: at latest\n" } else { "⚠ still behind upstream\n" });
+    let verdict = if verified { "✓ verified: at latest\n" } else { "⚠ still behind upstream\n" };
+    log.push_str(verdict);
+    let _ = app.emit("hermes-update:log", verdict);
 
     UpdateResult {
         success: success && verified,
@@ -299,6 +355,185 @@ pub fn apply_hermes_update() -> UpdateResult {
         new_commits_behind,
         verified,
     }
+}
+
+#[derive(serde::Serialize)]
+pub struct HermesToolsets {
+    pub enabled: Vec<String>,
+    pub model: Option<String>,
+}
+
+#[derive(serde::Serialize)]
+pub struct HermesBannerHero {
+    pub art: String,
+    pub color: Option<String>,
+    pub skin: Option<String>,
+}
+
+#[tauri::command]
+pub fn get_hermes_banner_hero() -> HermesBannerHero {
+    let Some(home) = dirs::home_dir() else {
+        return HermesBannerHero { art: String::new(), color: None, skin: None };
+    };
+
+    // Active skin from config.yaml → display.skin (default "hermelin")
+    let config_path = home.join(".hermes").join("config.yaml");
+    let active_skin: String = std::fs::read_to_string(&config_path)
+        .ok()
+        .and_then(|s| serde_yaml::from_str::<serde_yaml::Value>(&s).ok())
+        .and_then(|v| v.get("display").and_then(|d| d.get("skin")).and_then(|s| s.as_str()).map(String::from))
+        .unwrap_or_else(|| "hermelin".to_string());
+
+    let skin_path = home.join(".hermes").join("skins").join(format!("{active_skin}.yaml"));
+    let fallback_path = home.join(".hermes").join("skins").join("hermelin.yaml");
+
+    let skin_yaml = std::fs::read_to_string(&skin_path)
+        .or_else(|_| std::fs::read_to_string(&fallback_path))
+        .ok()
+        .and_then(|s| serde_yaml::from_str::<serde_yaml::Value>(&s).ok());
+
+    let Some(yaml) = skin_yaml else {
+        return HermesBannerHero { art: String::new(), color: None, skin: Some(active_skin) };
+    };
+
+    let raw = yaml.get("banner_hero").and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+    // Extract the first hex color we see inside [#rrggbb] or [bold #rrggbb] tags.
+    let color = raw.split('[').find_map(|seg| {
+        let (before_close, _) = seg.split_once(']')?;
+        let hash_idx = before_close.find('#')?;
+        let hex: String = before_close[hash_idx..]
+            .chars()
+            .take_while(|c| c.is_ascii_hexdigit() || *c == '#')
+            .collect();
+        if hex.len() == 7 { Some(hex) } else { None }
+    });
+
+    // Strip rich-format tags: [anything] and [/]
+    let mut art = String::with_capacity(raw.len());
+    let mut inside = false;
+    for ch in raw.chars() {
+        match ch {
+            '[' => inside = true,
+            ']' => inside = false,
+            c if !inside => art.push(c),
+            _ => {}
+        }
+    }
+
+    HermesBannerHero { art: art.trim_end().to_string(), color, skin: Some(active_skin) }
+}
+
+#[derive(serde::Serialize)]
+pub struct HermesSkills {
+    pub total: usize,
+    pub categories: Vec<String>,
+}
+
+#[tauri::command]
+pub fn get_hermes_skills() -> HermesSkills {
+    let Some(skills_dir) = dirs::home_dir().map(|h| h.join(".hermes").join("skills")) else {
+        return HermesSkills { total: 0, categories: vec![] };
+    };
+    if !skills_dir.is_dir() {
+        return HermesSkills { total: 0, categories: vec![] };
+    }
+
+    let mut categories: Vec<String> = Vec::new();
+    let mut total: usize = 0;
+
+    let Ok(entries) = std::fs::read_dir(&skills_dir) else {
+        return HermesSkills { total: 0, categories: vec![] };
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() { continue; }
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else { continue };
+        if name.starts_with('.') || name.starts_with('_') { continue; }
+        categories.push(name.to_string());
+
+        if let Ok(sub) = std::fs::read_dir(&path) {
+            for s in sub.flatten() {
+                if s.path().join("SKILL.md").exists() {
+                    total += 1;
+                }
+            }
+        }
+    }
+
+    categories.sort();
+    HermesSkills { total, categories }
+}
+
+#[tauri::command]
+pub fn get_hermes_toolsets() -> HermesToolsets {
+    let home = dirs::home_dir();
+    let config_path = home
+        .map(|h| h.join(".hermes").join("config.yaml"))
+        .filter(|p| p.exists());
+
+    let Some(path) = config_path else {
+        return HermesToolsets { enabled: vec![], model: None };
+    };
+
+    let contents = match std::fs::read_to_string(&path) {
+        Ok(s) => s,
+        Err(_) => return HermesToolsets { enabled: vec![], model: None },
+    };
+
+    let yaml: serde_yaml::Value = match serde_yaml::from_str(&contents) {
+        Ok(v) => v,
+        Err(_) => return HermesToolsets { enabled: vec![], model: None },
+    };
+
+    let enabled = yaml
+        .get("toolsets")
+        .and_then(|v| v.as_sequence())
+        .map(|seq| {
+            seq.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let model = yaml
+        .get("model")
+        .and_then(|m| m.get("default"))
+        .and_then(|d| d.as_str())
+        .map(String::from);
+
+    HermesToolsets { enabled, model }
+}
+
+#[tauri::command]
+pub fn delete_session(session_id: String) -> Result<(), String> {
+    let hermes_bin = std::env::var("HERMES_BIN").unwrap_or_else(|_| "hermes".to_string());
+    let output = std::process::Command::new(&hermes_bin)
+        .args(["sessions", "delete", "--yes", &session_id])
+        .output()
+        .map_err(|e| format!("failed to run hermes sessions delete: {e}"))?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn rename_session(session_id: String, title: String) -> Result<(), String> {
+    let trimmed = title.trim();
+    if trimmed.is_empty() {
+        return Err("Title cannot be empty".into());
+    }
+    let hermes_bin = std::env::var("HERMES_BIN").unwrap_or_else(|_| "hermes".to_string());
+    let output = std::process::Command::new(&hermes_bin)
+        .args(["sessions", "rename", &session_id, trimmed])
+        .output()
+        .map_err(|e| format!("failed to run hermes sessions rename: {e}"))?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
+    }
+    Ok(())
 }
 
 #[tauri::command]

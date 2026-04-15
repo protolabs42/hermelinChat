@@ -1,10 +1,11 @@
 import { useState, useRef } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useSidebarStore, type SessionSummary } from '../stores/sidebar'
-import { useChatStore, type ChatMessage } from '../stores/chat'
+import { useChatStore } from '../stores/chat'
 import { useProjectStore, SCRATCHPAD_ID } from '../stores/projects'
 import { loadAnchors } from '../a2ui/surface-anchors'
 import { groupByTime } from '../utils/time-groups'
+import { sessionRowsToMessages, type SessionRow } from '../utils/session-restore'
 import ProjectSwitcher from './ProjectSwitcher'
 
 // ── Project header ──────────────────────────────────────────────────────────────
@@ -33,12 +34,12 @@ function ProjectHeader({ onClose }: { onClose: () => void }) {
         ref={headerRef}
         onClick={handleHeaderClick}
         style={{
-          height: 32,
+          height: 48,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '0 8px 0 12px',
-          background: 'var(--color-elevated)',
+          padding: '0 12px 0 16px',
+          background: 'var(--color-surface)',
           borderBottom: '1px solid var(--color-border)',
           flexShrink: 0,
           cursor: 'pointer',
@@ -59,7 +60,7 @@ function ProjectHeader({ onClose }: { onClose: () => void }) {
             style={{
               fontFamily: 'var(--font-mono)',
               fontWeight: 700,
-              fontSize: 12,
+              fontSize: 13,
               color: 'var(--color-accent)',
               fontStyle: isScratchpad ? 'italic' : 'normal',
               whiteSpace: 'nowrap',
@@ -71,7 +72,7 @@ function ProjectHeader({ onClose }: { onClose: () => void }) {
           </span>
           <span
             style={{
-              fontSize: 9,
+              fontSize: 10,
               color: 'var(--color-muted)',
               lineHeight: 1,
               flexShrink: 0,
@@ -101,7 +102,7 @@ function ProjectHeader({ onClose }: { onClose: () => void }) {
               <span
                 style={{
                   fontFamily: 'var(--font-mono)',
-                  fontSize: 10,
+                  fontSize: 12,
                   color: 'var(--color-success)',
                   whiteSpace: 'nowrap',
                   maxWidth: 80,
@@ -115,8 +116,8 @@ function ProjectHeader({ onClose }: { onClose: () => void }) {
                 <div
                   title="Uncommitted changes"
                   style={{
-                    width: 5,
-                    height: 5,
+                    width: 6,
+                    height: 6,
                     borderRadius: '50%',
                     background: 'var(--color-warning)',
                     flexShrink: 0,
@@ -134,14 +135,14 @@ function ProjectHeader({ onClose }: { onClose: () => void }) {
             }}
             title="Close sidebar"
             style={{
-              width: 24,
-              height: 24,
+              width: 34,
+              height: 34,
               background: 'transparent',
               border: 'none',
               color: 'var(--color-muted)',
               cursor: 'pointer',
-              borderRadius: 4,
-              fontSize: 14,
+              borderRadius: 8,
+              fontSize: 16,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -185,84 +186,99 @@ function GroupLabel({ label }: { label: string }) {
 
 // ── Session row ─────────────────────────────────────────────────────────────────
 
+function refreshSessions() {
+  const activeId = useProjectStore.getState().activeProjectId
+  if (activeId && activeId !== SCRATCHPAD_ID) {
+    useSidebarStore.getState().loadSessionsForProject(activeId)
+  } else {
+    useSidebarStore.getState().loadSessions()
+  }
+}
+
 function SessionRow({ session, isActive }: { session: SessionSummary; isActive: boolean }) {
+  const [hover, setHover] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [title, setTitle] = useState(session.title)
+  const [confirming, setConfirming] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  const loadSession = async () => {
+    try {
+      const rows = await invoke<SessionRow[]>('get_session_messages', { sessionId: session.id })
+      const anchors = loadAnchors(session.id)
+      const chatMessages = sessionRowsToMessages(rows, anchors)
+
+      useChatStore.setState({
+        messages: chatMessages,
+        sessionId: session.id,
+        isStreaming: false,
+        pendingPrompt: null,
+      })
+
+      const sessionCwd = session.cwd || null
+      await invoke('acp_load_session', { sessionId: session.id, cwd: sessionCwd })
+
+      invoke('set_window_title', {
+        title: `Aurora Chat \u2014 ${session.title}`,
+      }).catch(() => {})
+
+      useSidebarStore.getState().close()
+    } catch (e) {
+      console.error('Failed to load session:', e)
+    }
+  }
+
+  const commitRename = async () => {
+    const next = title.trim()
+    if (!next || next === session.title) {
+      setTitle(session.title)
+      setEditing(false)
+      return
+    }
+    setBusy(true)
+    try {
+      await invoke('rename_session', { sessionId: session.id, title: next })
+      refreshSessions()
+    } catch (e) {
+      console.error('rename failed:', e)
+      setTitle(session.title)
+    } finally {
+      setBusy(false)
+      setEditing(false)
+    }
+  }
+
+  const commitDelete = async () => {
+    setBusy(true)
+    try {
+      await invoke('delete_session', { sessionId: session.id })
+      refreshSessions()
+    } catch (e) {
+      console.error('delete failed:', e)
+    } finally {
+      setBusy(false)
+      setConfirming(false)
+    }
+  }
+
+  const interactive = !editing && !confirming && !busy
+
   return (
-    <button
-      onClick={async () => {
-        try {
-          const msgs = await invoke<Array<{
-            id: number
-            role: string
-            content: string | null
-            timestamp: number | null
-          }>>('get_session_messages', { sessionId: session.id })
-
-          const chatMessages: ChatMessage[] = msgs
-            .filter((m) => m.content)
-            .map((m) => ({
-              id: `hist-${m.id}`,
-              role: m.role as 'user' | 'assistant',
-              content: m.content || '',
-              timestamp: m.timestamp ? m.timestamp * 1000 : Date.now(),
-            }))
-
-          // Restore persisted surface anchors — merge by timestamp so they
-          // re-appear at their original position in the conversation.
-          const anchors = loadAnchors(session.id)
-          if (anchors.length > 0) {
-            let anchorIdx = 0
-            const merged: ChatMessage[] = []
-            for (const msg of chatMessages) {
-              while (anchorIdx < anchors.length && anchors[anchorIdx].timestamp <= msg.timestamp) {
-                const a = anchors[anchorIdx]
-                merged.push({
-                  id: `surface-${a.surfaceId}`,
-                  role: 'surface',
-                  content: '',
-                  timestamp: a.timestamp,
-                  surfaceId: a.surfaceId,
-                })
-                anchorIdx++
-              }
-              merged.push(msg)
-            }
-            while (anchorIdx < anchors.length) {
-              const a = anchors[anchorIdx]
-              merged.push({
-                id: `surface-${a.surfaceId}`,
-                role: 'surface',
-                content: '',
-                timestamp: a.timestamp,
-                surfaceId: a.surfaceId,
-              })
-              anchorIdx++
-            }
-            chatMessages.length = 0
-            chatMessages.push(...merged)
-          }
-
-          useChatStore.setState({
-            messages: chatMessages,
-            sessionId: session.id,
-            isStreaming: false,
-            pendingPrompt: null,
-          })
-
-          // Use the session's own stored cwd for loading (project store owns CWD context)
-          const sessionCwd = session.cwd || null
-          await invoke('acp_load_session', { sessionId: session.id, cwd: sessionCwd })
-
-          invoke('set_window_title', {
-            title: `Aurora Chat \u2014 ${session.title}`,
-          }).catch(() => {})
-
-          useSidebarStore.getState().close()
-        } catch (e) {
-          console.error('Failed to load session:', e)
+    <div
+      role="button"
+      tabIndex={0}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      onClick={interactive ? loadSession : undefined}
+      onKeyDown={(e) => {
+        if (interactive && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault()
+          loadSession()
         }
       }}
       style={{
-        display: 'block',
+        display: 'flex',
+        alignItems: 'flex-start',
         width: '100%',
         textAlign: 'left',
         background: isActive ? 'var(--color-elevated)' : 'transparent',
@@ -271,38 +287,146 @@ function SessionRow({ session, isActive }: { session: SessionSummary; isActive: 
         color: 'var(--color-text)',
         fontFamily: 'inherit',
         fontSize: 13,
-        padding: '10px 16px',
-        borderRadius: 6,
-        cursor: 'pointer',
-        marginBottom: 2,
+        padding: '8px 12px',
+        borderRadius: 8,
+        cursor: interactive ? 'pointer' : 'default',
+        marginBottom: 4,
+        gap: 8,
+        opacity: busy ? 0.6 : 1,
       }}
     >
-      <div
-        style={{
-          color: 'var(--color-text-bright)',
-          fontWeight: 500,
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          marginBottom: 4,
-          lineHeight: 1.3,
-        }}
-      >
-        {session.title}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {editing ? (
+          <input
+            autoFocus
+            value={title}
+            disabled={busy}
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={commitRename}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              e.stopPropagation()
+              if (e.key === 'Enter') commitRename()
+              if (e.key === 'Escape') {
+                setTitle(session.title)
+                setEditing(false)
+              }
+            }}
+            style={{
+              width: '100%',
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-accent)',
+              borderRadius: 4,
+              color: 'var(--color-text-bright)',
+              fontFamily: 'inherit',
+              fontSize: 13,
+              fontWeight: 500,
+              padding: '4px 8px',
+              outline: 'none',
+              marginBottom: 4,
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              color: 'var(--color-text-bright)',
+              fontWeight: 500,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              marginBottom: 4,
+              lineHeight: 1.3,
+            }}
+          >
+            {session.title}
+          </div>
+        )}
+        <div
+          style={{
+            fontSize: 11,
+            color: 'var(--color-muted)',
+            display: 'flex',
+            gap: 12,
+            lineHeight: 1,
+          }}
+        >
+          <span>{session.message_count} msgs</span>
+        </div>
       </div>
+
+      {/* Actions */}
       <div
+        onClick={(e) => e.stopPropagation()}
         style={{
-          fontSize: 11,
-          color: 'var(--color-muted)',
           display: 'flex',
-          gap: 12,
-          lineHeight: 1,
+          alignItems: 'center',
+          gap: 4,
+          opacity: hover || confirming || editing ? 1 : 0,
+          transition: 'opacity 120ms ease',
+          flexShrink: 0,
         }}
       >
-        <span>{session.message_count} msgs</span>
+        {confirming ? (
+          <>
+            <span style={{ fontSize: 11, color: 'var(--color-muted)', marginRight: 4 }}>Delete?</span>
+            <button
+              onClick={commitDelete}
+              disabled={busy}
+              title="Confirm delete"
+              style={actionBtnStyle('var(--color-danger)')}
+            >
+              ✓
+            </button>
+            <button
+              onClick={() => setConfirming(false)}
+              disabled={busy}
+              title="Cancel"
+              style={actionBtnStyle('var(--color-muted)')}
+            >
+              ✕
+            </button>
+          </>
+        ) : editing ? null : (
+          <>
+            <button
+              onClick={() => setEditing(true)}
+              title="Rename"
+              style={actionBtnStyle('var(--color-muted)')}
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 2l3 3-8 8H3v-3l8-8z" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setConfirming(true)}
+              title="Delete"
+              style={actionBtnStyle('var(--color-muted)')}
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 4h10M6 4V2h4v2M5 4l1 10h4l1-10" />
+              </svg>
+            </button>
+          </>
+        )}
       </div>
-    </button>
+    </div>
   )
+}
+
+function actionBtnStyle(color: string): React.CSSProperties {
+  return {
+    width: 24,
+    height: 24,
+    background: 'transparent',
+    border: 'none',
+    color,
+    cursor: 'pointer',
+    borderRadius: 4,
+    fontSize: 12,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  }
 }
 
 // ── New session bar ─────────────────────────────────────────────────────────────

@@ -55,6 +55,11 @@ pub fn run() {
             commands::set_window_title,
             commands::check_hermes_update,
             commands::apply_hermes_update,
+            commands::get_hermes_toolsets,
+            commands::get_hermes_skills,
+            commands::get_hermes_banner_hero,
+            commands::delete_session,
+            commands::rename_session,
             // MCP server management commands
             mcp_commands::list_mcp_servers,
             mcp_commands::add_mcp_server,

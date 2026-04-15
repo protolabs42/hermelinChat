@@ -8,7 +8,9 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "a2ui:validate": "tsx src/a2ui/validate-examples.ts",
-    "a2ui:test": "tsx src/a2ui/mcp-app/__tests__/csp.test.ts && tsx src/a2ui/mcp-app/__tests__/resolver.test.ts && tsx src/a2ui/mcp-app/__tests__/mcp-config.test.ts"
+    "a2ui:test": "tsx src/a2ui/mcp-app/__tests__/csp.test.ts && tsx src/a2ui/mcp-app/__tests__/resolver.test.ts",
+    "utils:test": "tsx src/utils/__tests__/session-restore.test.ts",
+    "test": "npm run a2ui:test && npm run utils:test"
   },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "^1.5.0",

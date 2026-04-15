@@ -8,11 +8,79 @@ import { useSurfaceStore, type A2UIEvent } from '../stores/surfaces'
 
 export function useAcpEvents() {
   useEffect(() => {
+    // Fires on first ACP connect (either via initial poll or event),
+    // whichever lands first. Idempotent.
+    let bootstrapped = false
+    async function bootstrapProject() {
+      if (bootstrapped) return
+      if (useChatStore.getState().sessionId) return
+      bootstrapped = true
+      try {
+        const launchCwd = await invoke<string>('get_launch_cwd')
+        const homeDir = await invoke<string>('get_home_dir').catch(() => '')
+        const { useProjectStore } = await import('../stores/projects')
+        await useProjectStore.getState().refresh()
+
+        if (launchCwd === homeDir) {
+          const active = useProjectStore.getState().activeProjectId
+          const projects = useProjectStore.getState().projects
+          if (active && active !== 'scratchpad' && projects[active]) {
+            await useProjectStore.getState().setActiveProject(active)
+          } else {
+            await useProjectStore.getState().setActiveProject('scratchpad')
+          }
+          return
+        }
+
+        const detected = await invoke<{ git_root: string; suggested_name: string } | null>(
+          'detect_project', { path: launchCwd }
+        ).catch(() => null)
+        const projectPath = detected?.git_root ?? launchCwd
+        const projectName = detected?.suggested_name
+          ?? launchCwd.split(/[\\/]/).filter(Boolean).pop()
+          ?? 'unnamed'
+
+        const findByPath = () =>
+          Object.values(useProjectStore.getState().projects).find((p) => p.path === projectPath)
+
+        const known = findByPath()
+        if (known) {
+          await useProjectStore.getState().setActiveProject(known.id)
+          return
+        }
+
+        try {
+          const newProject = await useProjectStore.getState().addProject(projectPath, projectName)
+          await useProjectStore.getState().setActiveProject(newProject.id)
+        } catch (addErr) {
+          // Likely "already exists" due to canonicalization mismatch — refresh + retry lookup
+          console.warn('addProject failed, retrying after refresh:', addErr)
+          await useProjectStore.getState().refresh()
+          const retry = findByPath()
+          if (retry) {
+            await useProjectStore.getState().setActiveProject(retry.id)
+          } else {
+            throw addErr
+          }
+        }
+      } catch (e) {
+        console.error('Project startup failed:', e)
+        bootstrapped = false
+        const cwd = await invoke<string>('get_launch_cwd').catch(() => null)
+        invoke('acp_new_session', { cwd }).catch(() => {})
+      }
+    }
+
     const unlistenAcp = listen<AcpEvent>('acp:event', (event) => {
       useChatStore.getState().handleAcpEvent(event.payload)
 
+      const payload = event.payload as AcpEvent
+      if (payload.kind === 'ConnectionStatus' && payload.status === 'connected') {
+        bootstrapProject()
+      }
+
       // Refresh git info after a stream ends so the dirty indicator stays current
-      if (event.payload && (event.payload as AcpEvent).kind === 'StreamEnd') {
+      if (payload.kind === 'StreamEnd') {
         import('../stores/projects').then(({ useProjectStore }) => {
           const ps = useProjectStore.getState()
           if (ps.activeProjectId && ps.activeProjectId !== 'scratchpad') {
@@ -42,53 +110,12 @@ export function useAcpEvents() {
       }
     })
 
-    // Project-aware startup
-    invoke<string>('acp_status').then(async (status) => {
+    // Project-aware startup — try immediately (warm case). If ACP isn't
+    // ready yet, the ConnectionStatus event handler above will catch it.
+    invoke<string>('acp_status').then((status) => {
       useChatStore.setState({ connectionStatus: status })
-
-      if (status === 'connected' && !useChatStore.getState().sessionId) {
-        try {
-          const launchCwd = await invoke<string>('get_launch_cwd')
-          const homeDir = await invoke<string>('get_home_dir').catch(() => '')
-          const projectStore = (await import('../stores/projects')).useProjectStore.getState()
-          await projectStore.refresh()
-
-          if (launchCwd === homeDir) {
-            // Launched from $HOME (desktop-icon, no intentional folder)
-            // Resume last project if one exists, otherwise Scratchpad
-            if (projectStore.activeProjectId && projectStore.activeProjectId !== 'scratchpad' && projectStore.projects[projectStore.activeProjectId]) {
-              await projectStore.setActiveProject(projectStore.activeProjectId)
-            } else {
-              await projectStore.setActiveProject('scratchpad')
-            }
-          } else {
-            // Launched from a specific folder — that folder IS the project
-            // Check if it's already a known project (by path or git root)
-            const detected = await invoke<{ git_root: string; suggested_name: string } | null>(
-              'detect_project', { path: launchCwd }
-            ).catch(() => null)
-
-            // Use git root if found, otherwise the exact launch folder
-            const projectPath = detected?.git_root ?? launchCwd
-            const projectName = detected?.suggested_name
-              ?? launchCwd.split(/[\\/]/).filter(Boolean).pop()
-              ?? 'unnamed'
-
-            const known = Object.values(projectStore.projects).find(p => p.path === projectPath)
-            if (known) {
-              await projectStore.setActiveProject(known.id)
-            } else {
-              // Auto-create project from this folder
-              const newProject = await projectStore.addProject(projectPath, projectName)
-              await projectStore.setActiveProject(newProject.id)
-            }
-          }
-        } catch (e) {
-          console.error('Project startup failed:', e)
-          // Fallback: just start a session with launch CWD
-          const cwd = await invoke<string>('get_launch_cwd').catch(() => null)
-          invoke('acp_new_session', { cwd }).catch(() => {})
-        }
+      if (status === 'connected') {
+        bootstrapProject()
       }
     }).catch(() => {})
 

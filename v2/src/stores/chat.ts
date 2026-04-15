@@ -64,6 +64,7 @@ export interface UsageInfo {
 export interface ChatStore {
   messages: ChatMessage[]
   sessionId: string | null
+  model: string | null
   isStreaming: boolean
   connectionStatus: string
   pendingPrompt: string | null
@@ -84,6 +85,7 @@ const genId = () => `msg-${++_nextId}-${Date.now()}`
 export const useChatStore = create<ChatStore>((set, get) => ({
   messages: [],
   sessionId: null,
+  model: null,
   isStreaming: false,
   connectionStatus: 'connecting',
   pendingPrompt: null,
@@ -206,7 +208,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       case 'SessionInfo': {
         const pending = get().pendingPrompt
-        set({ sessionId: event.session_id, pendingPrompt: null })
+        set({ sessionId: event.session_id, model: event.model ?? null, pendingPrompt: null })
         // Update window title with session ID
         import('@tauri-apps/api/core').then(({ invoke: inv }) => {
           inv('set_window_title', { title: `Aurora Chat \u2014 ${event.session_id.slice(0, 12)}` })
@@ -267,6 +269,6 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   reset: () => {
     _nextId = 0
-    set({ messages: [], sessionId: null, isStreaming: false, pendingPrompt: null, usage: null })
+    set({ messages: [], sessionId: null, model: null, isStreaming: false, pendingPrompt: null, usage: null })
   },
 }))

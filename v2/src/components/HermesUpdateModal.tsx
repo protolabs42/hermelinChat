@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 
 interface VersionInfo {
   current: string | null
@@ -28,9 +29,26 @@ interface Props {
 export default function HermesUpdateModal({ info, onClose, onUpdateComplete }: Props) {
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<UpdateResult | null>(null)
+  const [liveLog, setLiveLog] = useState('')
+  const logRef = useRef<HTMLPreElement>(null)
+
+  useEffect(() => {
+    let unlisten: UnlistenFn | undefined
+    listen<string>('hermes-update:log', (event) => {
+      setLiveLog((prev) => prev + event.payload)
+    }).then((fn) => { unlisten = fn })
+    return () => { if (unlisten) unlisten() }
+  }, [])
+
+  useEffect(() => {
+    if (logRef.current) {
+      logRef.current.scrollTop = logRef.current.scrollHeight
+    }
+  }, [liveLog])
 
   const handleUpdate = async () => {
     setRunning(true)
+    setLiveLog('')
     try {
       const r = await invoke<UpdateResult>('apply_hermes_update')
       setResult(r)
@@ -65,6 +83,22 @@ export default function HermesUpdateModal({ info, onClose, onUpdateComplete }: P
         @keyframes hermes-update-pulse {
           0%, 100% { opacity: 0.5; }
           50% { opacity: 1; }
+        }
+        .hermes-update-btn {
+          transition: background 120ms ease, border-color 120ms ease, transform 80ms ease, opacity 120ms ease;
+        }
+        .hermes-update-btn:hover:not(:disabled) {
+          filter: brightness(1.15);
+        }
+        .hermes-update-btn:active:not(:disabled) {
+          transform: scale(0.97);
+        }
+        .hermes-update-btn-primary:hover:not(:disabled) {
+          box-shadow: 0 0 0 2px var(--color-accent);
+        }
+        .hermes-update-btn-secondary:hover:not(:disabled) {
+          background: var(--color-elevated);
+          border-color: var(--color-accent);
         }
       `}</style>
       <div
@@ -123,7 +157,55 @@ export default function HermesUpdateModal({ info, onClose, onUpdateComplete }: P
         </div>
 
         <div style={{ padding: 20, overflowY: 'auto', flex: 1 }}>
-          {result === null ? (
+          {running ? (
+            <>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                marginBottom: 16,
+                fontSize: 13,
+                color: 'var(--color-accent)',
+                fontWeight: 600,
+              }}>
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: 16,
+                    height: 16,
+                    border: '2px solid currentColor',
+                    borderRightColor: 'transparent',
+                    borderRadius: '50%',
+                    display: 'inline-block',
+                    animation: 'hermes-update-spin 0.8s linear infinite',
+                  }}
+                />
+                <span style={{ animation: 'hermes-update-pulse 1.6s ease-in-out infinite' }}>
+                  Running hermes update — streaming output below
+                </span>
+              </div>
+              <pre
+                ref={logRef}
+                style={{
+                  background: 'var(--color-bg)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 8,
+                  padding: 12,
+                  fontSize: 11,
+                  fontFamily: 'var(--font-mono, monospace)',
+                  maxHeight: 360,
+                  minHeight: 180,
+                  overflowY: 'auto',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  margin: 0,
+                  color: 'var(--color-text)',
+                }}
+              >
+                {liveLog || 'Starting…\n'}
+              </pre>
+            </>
+          ) : result === null ? (
             <>
               <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 16px', fontSize: 13 }}>
                 <span style={{ color: 'var(--color-muted)' }}>Current</span>
@@ -143,7 +225,7 @@ export default function HermesUpdateModal({ info, onClose, onUpdateComplete }: P
                 <span style={{ color: 'var(--color-muted)' }}>Install</span>
                 <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 12 }}>
                   {info.install_type}
-                  {info.hermes_dir && ` — ${info.hermes_dir}`}
+                  {info.hermes_dir && ` \u2014 ${info.hermes_dir}`}
                 </span>
               </div>
 
@@ -169,51 +251,36 @@ export default function HermesUpdateModal({ info, onClose, onUpdateComplete }: P
               }}>
                 <button
                   onClick={onClose}
-                  disabled={running}
+                  className="hermes-update-btn hermes-update-btn-secondary"
                   style={{
                     padding: '8px 16px',
                     background: 'transparent',
                     border: '1px solid var(--color-border)',
                     borderRadius: 8,
                     color: 'var(--color-text-bright)',
-                    cursor: running ? 'not-allowed' : 'pointer',
+                    cursor: 'pointer',
                     fontSize: 13,
+                    fontFamily: 'inherit',
                   }}
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleUpdate}
-                  disabled={running}
+                  className="hermes-update-btn hermes-update-btn-primary"
                   style={{
                     padding: '8px 16px',
-                    background: running ? 'var(--color-elevated)' : 'var(--color-accent)',
-                    border: running ? '1px solid var(--color-border)' : 'none',
+                    background: 'var(--color-accent)',
+                    border: 'none',
                     borderRadius: 8,
-                    color: running ? 'var(--color-muted)' : 'var(--color-bg)',
-                    cursor: running ? 'wait' : 'pointer',
+                    color: 'var(--color-bg)',
+                    cursor: 'pointer',
                     fontSize: 13,
                     fontWeight: 600,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 8,
+                    fontFamily: 'inherit',
                   }}
                 >
-                  {running && (
-                    <span
-                      aria-hidden="true"
-                      style={{
-                        width: 12,
-                        height: 12,
-                        border: '2px solid currentColor',
-                        borderRightColor: 'transparent',
-                        borderRadius: '50%',
-                        display: 'inline-block',
-                        animation: 'hermes-update-spin 0.8s linear infinite',
-                      }}
-                    />
-                  )}
-                  {running ? 'Running hermes update…' : 'Run update'}
+                  Run update
                 </button>
               </div>
             </>
@@ -271,6 +338,7 @@ export default function HermesUpdateModal({ info, onClose, onUpdateComplete }: P
               }}>
                 <button
                   onClick={onClose}
+                  className="hermes-update-btn hermes-update-btn-secondary"
                   style={{
                     padding: '8px 16px',
                     background: 'transparent',
@@ -279,6 +347,7 @@ export default function HermesUpdateModal({ info, onClose, onUpdateComplete }: P
                     color: 'var(--color-text-bright)',
                     cursor: 'pointer',
                     fontSize: 13,
+                    fontFamily: 'inherit',
                   }}
                 >
                   Close
@@ -286,6 +355,7 @@ export default function HermesUpdateModal({ info, onClose, onUpdateComplete }: P
                 {result.success && (
                   <button
                     onClick={handleReconnect}
+                    className="hermes-update-btn hermes-update-btn-primary"
                     style={{
                       padding: '8px 16px',
                       background: 'var(--color-accent)',
@@ -295,6 +365,7 @@ export default function HermesUpdateModal({ info, onClose, onUpdateComplete }: P
                       cursor: 'pointer',
                       fontSize: 13,
                       fontWeight: 600,
+                      fontFamily: 'inherit',
                     }}
                   >
                     Reconnect ACP
