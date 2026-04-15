@@ -2,7 +2,7 @@ import { create } from 'zustand'
 
 const MIN_SIZE = 10
 const MAX_SIZE = 22
-const DEFAULT_SIZE = 14
+const DEFAULT_SIZE = 16
 const STEP = 1
 const STORAGE_KEY = 'aurora-chat-font-size'
 

@@ -50,7 +50,7 @@
 
   --font-sans: 'Geist', -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'Fira Code', monospace;
-  --font-size-base: 14px;
+  --font-size-base: 16px;
 }
 
 /* Base styles */
@@ -58,7 +58,7 @@
 
 body {
   font-family: var(--font-sans);
-  font-size: var(--font-size-base, 14px);
+  font-size: var(--font-size-base, 16px);
   background: var(--color-bg, #1e1e2e);
   color: var(--color-text, #cdd6f4);
   overflow: hidden;
@@ -162,6 +162,10 @@ body {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
+
+/* Chat markdown body — trim outer margin at bubble edges (AionUi pattern). */
+.markdown-body > *:first-child { margin-top: 0 !important; }
+.markdown-body > *:last-child { margin-bottom: 0 !important; }
 
 /* Artifact panel hover styles */
 .artifact-trigger:hover { background: var(--color-elevated) !important; }

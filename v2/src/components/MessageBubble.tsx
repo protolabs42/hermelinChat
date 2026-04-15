@@ -1,5 +1,5 @@
 import type { ChatMessage } from '../stores/chat'
-import { markdownToHtml } from '../utils/markdown'
+import MarkdownView from './chat/MarkdownView'
 import ThinkingBlock from './chat/ThinkingBlock'
 import ToolCallBlock from './chat/ToolCallBlock'
 import DiffView from './chat/DiffView'
@@ -73,8 +73,9 @@ export default function MessageBubble({ message }: Props) {
             lineHeight: 1.625,
             color: 'var(--color-text-bright)',
           }}
-          dangerouslySetInnerHTML={{ __html: markdownToHtml(message.content) }}
-        />
+        >
+          <MarkdownView>{message.content}</MarkdownView>
+        </div>
       )}
     </div>
   )
