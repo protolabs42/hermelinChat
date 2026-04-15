@@ -151,7 +151,39 @@ test('fenced code block wrapped in <pre><code>', () => {
   assert.match(html, /<pre[^>]*><code[^>]*>[\s\S]*console\.log\(1\)[\s\S]*<\/code><\/pre>/)
 })
 
-// ── 6. Real-world shape (mirrors the bug screenshot) ─────────────────────
+// ── 6. Type-transition block splitting (LLM output is rarely blank-line-clean) ─
+
+test('list immediately after a text line (no blank) still renders as a list', () => {
+  const html = markdownToHtml('Each NFT is:\n- a vessel\n- a container\n- an anchor')
+  // The literal "- " must NOT appear as rendered text.
+  assert.doesNotMatch(
+    html,
+    />-\s*a vessel</,
+    'bullet should be rendered as a list item, not literal "- "'
+  )
+  // Bullet unicode char should be present (one per item).
+  const bullets = (html.match(/\u2022/g) || []).length
+  assert.equal(bullets, 3, `expected 3 bullet markers, got ${bullets}`)
+  // Leading "Each NFT is:" should still render as a paragraph.
+  assert.match(html, /<p[^>]*>Each NFT is:<\/p>/)
+})
+
+test('paragraph immediately after a list (no blank) renders as paragraph', () => {
+  const html = markdownToHtml('- one\n- two\nBack to prose.')
+  const bullets = (html.match(/\u2022/g) || []).length
+  assert.equal(bullets, 2)
+  // The prose line must be its own paragraph, not merged into the list.
+  assert.match(html, /<p[^>]*>Back to prose\.<\/p>/)
+})
+
+test('heading immediately followed by list (no blank) renders both correctly', () => {
+  const html = markdownToHtml('## Good for\n- companions\n- worlds')
+  assert.match(html, /font-size:\s*[\d.]+em[^"]*">Good for</)
+  const bullets = (html.match(/\u2022/g) || []).length
+  assert.equal(bullets, 2)
+})
+
+// ── 7. Real-world shape (mirrors the bug screenshot) ─────────────────────
 
 test('headings + lists + paragraphs render without excessive <br/> or empty divs', () => {
   const source = [

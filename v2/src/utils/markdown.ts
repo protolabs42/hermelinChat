@@ -98,9 +98,73 @@ function renderBlock(block: string, codeBlocks: string[]): string {
   return `<p style="margin:0.6em 0">${content}</p>`
 }
 
+type LineKind = 'blank' | 'heading' | 'ul' | 'ol' | 'token' | 'text'
+
+function classifyLine(line: string): LineKind {
+  const t = line.trim()
+  if (!t) return 'blank'
+  if (new RegExp(`^${CODE_TOKEN_PREFIX}\\d+${CODE_TOKEN_SUFFIX}$`).test(t))
+    return 'token'
+  if (/^#{1,3} /.test(t)) return 'heading'
+  if (/^[-*] /.test(t)) return 'ul'
+  if (/^\d+\. /.test(t)) return 'ol'
+  return 'text'
+}
+
+/**
+ * Walk lines and group by type with transitions. Required because LLM output
+ * often omits blank lines between different block types — e.g. a text lead-in
+ * line followed directly by a bullet list. A pure split-on-blank-lines would
+ * fuse those into one paragraph and render bullets as literal "- " text.
+ */
+function splitIntoBlocks(text: string): string[] {
+  const blocks: string[] = []
+  let buffer: string[] = []
+  let bufferKind: LineKind = 'blank'
+
+  const flush = () => {
+    if (buffer.length > 0) {
+      blocks.push(buffer.join('\n'))
+      buffer = []
+    }
+  }
+
+  for (const line of text.split('\n')) {
+    const kind = classifyLine(line)
+
+    if (kind === 'blank') {
+      flush()
+      bufferKind = 'blank'
+      continue
+    }
+
+    // Singleton block types always break the buffer.
+    if (kind === 'heading' || kind === 'token') {
+      flush()
+      blocks.push(line)
+      bufferKind = 'blank'
+      continue
+    }
+
+    // Transition: incompatible previous buffer → flush before appending.
+    const compatible =
+      bufferKind === kind ||
+      // text → ul/ol ends paragraph; ul → text ends list; etc.
+      // Identical kinds continue; everything else splits.
+      false
+
+    if (buffer.length > 0 && !compatible) {
+      flush()
+    }
+    buffer.push(line)
+    bufferKind = kind
+  }
+  flush()
+  return blocks
+}
+
 export function markdownToHtml(text: string): string {
-  // 1. Extract code fences first, replace with tokens so subsequent splits
-  //    and inline processors don't touch their content.
+  // 1. Extract code fences first so later block splitting doesn't slice them.
   const codeBlocks: string[] = []
   const withTokens = text.replace(
     /```(\w*)\n([\s\S]*?)```/g,
@@ -112,8 +176,8 @@ export function markdownToHtml(text: string): string {
     }
   )
 
-  // 2. Split on blank lines into blocks.
-  const blocks = withTokens.split(/\n\s*\n+/)
+  // 2. Split into blocks by line-kind transitions (not just blank lines).
+  const blocks = splitIntoBlocks(withTokens)
 
   // 3. Render each block.
   return blocks.map((b) => renderBlock(b, codeBlocks)).filter(Boolean).join('')
