@@ -144,8 +144,15 @@ See `.planning/sophie-chorus-plugin.md` in hermelinChat for the design.
 ```bash
 cd /home/inu/sophie-chorus
 git add -A
-git commit -m "chore: bootstrap repo skeleton" --author="Sophie <noreply@anthropic.com>"
+git commit -m "$(cat <<'MSG'
+chore: bootstrap repo skeleton
+
+Co-Authored-By: Sophie <noreply@anthropic.com>
+MSG
+)"
 ```
+
+(All subsequent commits in this repo should use the same `Co-Authored-By: Sophie` trailer — don't override `--author`.)
 
 Expected: one commit created, working tree clean.
 
@@ -262,7 +269,6 @@ Expected: version string `1.x`. If not installed, ask Inu.
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "types": ["bun-types"],
     "strict": true,
     "noEmit": true,
     "esModuleInterop": true,
@@ -272,6 +278,8 @@ Expected: version string `1.x`. If not installed, ask Inu.
   "include": ["src/**/*", "hooks/**/*", "tests/**/*"]
 }
 ```
+
+(We rely on `@types/bun` from devDependencies for Bun globals — no explicit `types: ["bun-types"]` needed.)
 
 - [ ] **Step 4: Install deps + generate lock**
 
@@ -487,7 +495,10 @@ describe("callChorus", () => {
 
   it("times out after the configured ms", async () => {
     fetchSpy = spyOn(globalThis, "fetch").mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve(new Response("{}")), 500))
+      (_url: any, init: any) => new Promise((_resolve, reject) => {
+        const signal: AbortSignal | undefined = init?.signal;
+        signal?.addEventListener("abort", () => reject(new Error("aborted")));
+      })
     );
     await expect(callChorus(cfg, "x", {}, { timeoutMs: 50 })).rejects.toBeInstanceOf(ChorusRpcError);
   });
@@ -1162,8 +1173,10 @@ describe("runSessionEnd", () => {
     const store = calls.find((c) => c.method === "chorus_memory_store");
     expect(store.params.category).toBe("session-briefing");
     expect(store.params.memory_type).toBe("procedural");
+    expect(store.params.namespace).toBe("ring:abc");
     const sig = calls.find((c) => c.method === "chorus_emit_signal");
     expect(sig.params.kind).toBe("sense");
+    expect(sig.params.ring_id).toBe("ring:abc");
 
     rmSync(tmp, { recursive: true });
   });
@@ -1380,8 +1393,10 @@ describe("runPreCompact", () => {
     const store = calls.find((c) => c.method === "chorus_memory_store");
     const sig = calls.find((c) => c.method === "chorus_emit_signal");
     expect(store.params.category).toBe("pre-compact-insight");
+    expect(store.params.namespace).toBe("ring:abc");
     expect(store.params.tags).toContain("auto");
     expect(sig.params.kind).toBe("pulse");
+    expect(sig.params.ring_id).toBe("ring:abc");
 
     rmSync(tmp, { recursive: true });
   });
