@@ -18,7 +18,11 @@ function loadSize(): number {
 }
 
 function applySize(size: number) {
+  // Set both the CSS variable AND the concrete font-size on <html> so that
+  // `rem` values in inline styles scale with the user's setting — not just
+  // the explicit --font-size-base consumers.
   document.documentElement.style.setProperty('--font-size-base', `${size}px`)
+  document.documentElement.style.fontSize = `${size}px`
   localStorage.setItem(STORAGE_KEY, String(size))
 }
 

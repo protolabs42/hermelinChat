@@ -39,7 +39,7 @@ const INITIAL_CATEGORIES = 8
 const Chip = ({ children, dim = false }: { children: React.ReactNode; dim?: boolean }) => (
   <span
     style={{
-      fontSize: 10,
+      fontSize: '0.625rem',
       fontFamily: 'var(--font-mono, monospace)',
       padding: '2px 8px',
       borderRadius: 99,
@@ -109,7 +109,7 @@ export default function WelcomeCard() {
         style={{
           margin: 0,
           fontFamily: 'var(--font-mono, monospace)',
-          fontSize: 10,
+          fontSize: '0.625rem',
           lineHeight: 1,
           color: heroColor,
           flexShrink: 0,
@@ -125,7 +125,7 @@ export default function WelcomeCard() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <span style={{
-            fontSize: 20,
+            fontSize: '1.25rem',
             fontWeight: 700,
             color: 'var(--color-text-bright)',
             letterSpacing: '0.02em',
@@ -133,7 +133,7 @@ export default function WelcomeCard() {
             {theme.identity.mascotTitle}
           </span>
           <span style={{
-            fontSize: 11,
+            fontSize: '0.6875rem',
             fontFamily: 'var(--font-mono, monospace)',
             color: 'var(--color-muted)',
           }}>
@@ -141,7 +141,7 @@ export default function WelcomeCard() {
           </span>
         </div>
 
-        <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 12px', fontSize: 12 }}>
+        <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '8px 12px', fontSize: '0.75rem' }}>
           <dt style={{ color: 'var(--color-muted)' }}>Model</dt>
           <dd style={{ margin: 0, fontFamily: 'var(--font-mono, monospace)', color: 'var(--color-accent)' }}>
             {shownModel}
@@ -151,7 +151,7 @@ export default function WelcomeCard() {
           <dd style={{ margin: 0, color: 'var(--color-text-bright)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {projectLabel}
             {projectPath && (
-              <span style={{ color: 'var(--color-muted)', fontFamily: 'var(--font-mono, monospace)', fontSize: 11, marginLeft: 6 }}>
+              <span style={{ color: 'var(--color-muted)', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.6875rem', marginLeft: 6 }}>
                 {projectPath}
               </span>
             )}
@@ -160,7 +160,7 @@ export default function WelcomeCard() {
           {sessionId && (
             <>
               <dt style={{ color: 'var(--color-muted)' }}>Session</dt>
-              <dd style={{ margin: 0, fontFamily: 'var(--font-mono, monospace)', color: 'var(--color-muted)', fontSize: 11 }}>
+              <dd style={{ margin: 0, fontFamily: 'var(--font-mono, monospace)', color: 'var(--color-muted)', fontSize: '0.6875rem' }}>
                 {sessionId.slice(0, 16)}
               </dd>
             </>
@@ -195,7 +195,7 @@ export default function WelcomeCard() {
                   <button
                     onClick={() => setShowAllSkills(true)}
                     style={{
-                      fontSize: 10,
+                      fontSize: '0.625rem',
                       fontFamily: 'var(--font-mono, monospace)',
                       padding: '2px 8px',
                       borderRadius: 99,
@@ -212,7 +212,7 @@ export default function WelcomeCard() {
                   <button
                     onClick={() => setShowAllSkills(false)}
                     style={{
-                      fontSize: 10,
+                      fontSize: '0.625rem',
                       fontFamily: 'var(--font-mono, monospace)',
                       padding: '2px 8px',
                       borderRadius: 99,

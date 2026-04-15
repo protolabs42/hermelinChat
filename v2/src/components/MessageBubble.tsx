@@ -32,7 +32,7 @@ export default function MessageBubble({ message }: Props) {
         padding: '12px 16px',
         borderLeft: '2px solid var(--color-danger)',
         color: 'var(--color-danger)',
-        fontSize: 13,
+        fontSize: '0.8125rem',
         lineHeight: 1.6,
       }}>
         {message.content}
@@ -50,7 +50,7 @@ export default function MessageBubble({ message }: Props) {
       borderLeft: isUser ? '2px solid var(--color-accent)' : 'none',
     }}>
       <div style={{
-        fontSize: 11,
+        fontSize: '0.6875rem',
         fontWeight: 600,
         textTransform: 'uppercase' as const,
         letterSpacing: '0.08em',

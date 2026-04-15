@@ -60,7 +60,7 @@ function ProjectHeader({ onClose }: { onClose: () => void }) {
             style={{
               fontFamily: 'var(--font-mono)',
               fontWeight: 700,
-              fontSize: 13,
+              fontSize: '0.8125rem',
               color: 'var(--color-accent)',
               fontStyle: isScratchpad ? 'italic' : 'normal',
               whiteSpace: 'nowrap',
@@ -72,7 +72,7 @@ function ProjectHeader({ onClose }: { onClose: () => void }) {
           </span>
           <span
             style={{
-              fontSize: 10,
+              fontSize: '0.625rem',
               color: 'var(--color-muted)',
               lineHeight: 1,
               flexShrink: 0,
@@ -102,7 +102,7 @@ function ProjectHeader({ onClose }: { onClose: () => void }) {
               <span
                 style={{
                   fontFamily: 'var(--font-mono)',
-                  fontSize: 12,
+                  fontSize: '0.75rem',
                   color: 'var(--color-success)',
                   whiteSpace: 'nowrap',
                   maxWidth: 80,
@@ -142,7 +142,7 @@ function ProjectHeader({ onClose }: { onClose: () => void }) {
               color: 'var(--color-muted)',
               cursor: 'pointer',
               borderRadius: 8,
-              fontSize: 16,
+              fontSize: '1rem',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -170,7 +170,7 @@ function GroupLabel({ label }: { label: string }) {
   return (
     <div
       style={{
-        fontSize: 9,
+        fontSize: '0.5625rem',
         fontWeight: 700,
         letterSpacing: '1px',
         textTransform: 'uppercase',
@@ -286,7 +286,7 @@ function SessionRow({ session, isActive }: { session: SessionSummary; isActive: 
         borderLeft: isActive ? '2px solid var(--color-accent)' : '2px solid transparent',
         color: 'var(--color-text)',
         fontFamily: 'inherit',
-        fontSize: 13,
+        fontSize: '0.8125rem',
         padding: '8px 12px',
         borderRadius: 8,
         cursor: interactive ? 'pointer' : 'default',
@@ -319,7 +319,7 @@ function SessionRow({ session, isActive }: { session: SessionSummary; isActive: 
               borderRadius: 4,
               color: 'var(--color-text-bright)',
               fontFamily: 'inherit',
-              fontSize: 13,
+              fontSize: '0.8125rem',
               fontWeight: 500,
               padding: '4px 8px',
               outline: 'none',
@@ -343,7 +343,7 @@ function SessionRow({ session, isActive }: { session: SessionSummary; isActive: 
         )}
         <div
           style={{
-            fontSize: 11,
+            fontSize: '0.6875rem',
             color: 'var(--color-muted)',
             display: 'flex',
             gap: 12,
@@ -368,7 +368,7 @@ function SessionRow({ session, isActive }: { session: SessionSummary; isActive: 
       >
         {confirming ? (
           <>
-            <span style={{ fontSize: 11, color: 'var(--color-muted)', marginRight: 4 }}>Delete?</span>
+            <span style={{ fontSize: '0.6875rem', color: 'var(--color-muted)', marginRight: 4 }}>Delete?</span>
             <button
               onClick={commitDelete}
               disabled={busy}
@@ -422,7 +422,7 @@ function actionBtnStyle(color: string): React.CSSProperties {
     color,
     cursor: 'pointer',
     borderRadius: 4,
-    fontSize: 12,
+    fontSize: '0.75rem',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -477,7 +477,7 @@ function NewSessionBar() {
         borderRightStyle: 'none',
         borderBottomStyle: 'none',
         color: 'var(--color-muted)',
-        fontSize: 12,
+        fontSize: '0.75rem',
         cursor: 'pointer',
         textAlign: 'center',
         fontFamily: 'var(--font-mono)',
@@ -539,7 +539,7 @@ export default function SessionSidebar() {
             style={{
               padding: '32px 16px',
               textAlign: 'center',
-              fontSize: 13,
+              fontSize: '0.8125rem',
               color: 'var(--color-muted)',
             }}
           >
