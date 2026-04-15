@@ -22,7 +22,10 @@ export function NousCRTField({ intensity = 50 }: NousCRTFieldProps) {
 
   const pct = clampNum(intensity, 0, 100)
   const factor = pct / 75
-  const canvasOpacity = clampNum(0.9 * factor, 0, 1)
+  // Was 0.9 — painting the CRT field at 90% over chat content was the
+  // 'fog' Inu reported on this theme. 0.3 keeps grid + glow visible
+  // without obscuring text below. Bump back up if effect too subtle.
+  const canvasOpacity = clampNum(0.3 * factor, 0, 1)
 
   const accentHex = theme.colors.accent400
   const accentRgb = hexToRgb(accentHex) || { r: 92, g: 200, b: 230 }

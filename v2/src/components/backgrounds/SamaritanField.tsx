@@ -22,7 +22,10 @@ export function SamaritanField({ intensity = 50 }: SamaritanFieldProps) {
 
   const pct = clampNum(intensity, 0, 100)
   const factor = pct / 75
-  const canvasOpacity = clampNum(0.85 * factor, 0, 1)
+  // Was 0.85 — painting the Samaritan field at 85% over chat content
+  // was the 'fog' Inu reported on this theme. 0.3 keeps particles
+  // visible without greying out text below. Bump back up if too subtle.
+  const canvasOpacity = clampNum(0.3 * factor, 0, 1)
 
   const bgHex = theme.colors.bg
   const bgRgb = hexToRgb(bgHex) || { r: 232, g: 230, b: 225 }
