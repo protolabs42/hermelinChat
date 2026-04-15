@@ -183,7 +183,62 @@ test('heading immediately followed by list (no blank) renders both correctly', (
   assert.equal(bullets, 2)
 })
 
-// ── 7. Real-world shape (mirrors the bug screenshot) ─────────────────────
+// ── 7. Bubble-edge margin trim (AionUi pattern) ──────────────────────────
+
+test('first paragraph has no top margin (tight start of bubble)', () => {
+  const html = markdownToHtml('First paragraph.\n\nSecond paragraph.')
+  // First block's opening tag must not contribute top margin.
+  const firstTag = html.match(/^<(?:p|div)[^>]*style="([^"]*)"/)?.[1]
+  assert.ok(firstTag, 'first block should have a style attribute')
+  assert.doesNotMatch(
+    firstTag!,
+    /margin:\s*(?:0\.[1-9]|[1-9])/,
+    `first block margin should start at 0, got: "${firstTag}"`
+  )
+})
+
+test('last paragraph has no bottom margin (tight end of bubble)', () => {
+  const html = markdownToHtml('First paragraph.\n\nLast paragraph.')
+  // Match the last block's style attribute.
+  const matches = [...html.matchAll(/<(?:p|div)[^>]*style="([^"]*)"/g)]
+  const lastStyle = matches[matches.length - 1]?.[1]
+  assert.ok(lastStyle, 'last block should have a style attribute')
+  // Extract the margin shorthand; the bottom value must be 0.
+  // Accept "margin:0.6em 0 0" (top/right/bottom) or "margin:0 0 0 0" or similar.
+  // Simplest check: ensure the rule ends with 0 (not a non-zero value).
+  const marginMatch = lastStyle!.match(/margin:\s*([^;]+)/)
+  assert.ok(marginMatch, 'last block should declare margin')
+  const marginValue = marginMatch![1].trim()
+  const parts = marginValue.split(/\s+/)
+  // CSS margin: if 1 value → all; 2 values → y, x; 3 values → top, x, bottom; 4 values → top, right, bottom, left
+  let bottom: string
+  if (parts.length === 1) bottom = parts[0]
+  else if (parts.length === 2) bottom = parts[0]
+  else if (parts.length === 3) bottom = parts[2]
+  else bottom = parts[2]
+  assert.ok(
+    bottom === '0' || bottom === '0em' || bottom === '0px',
+    `last block margin-bottom should be 0, got: "${marginValue}"`
+  )
+})
+
+test('single block has both first and last trim (margin 0 on both sides)', () => {
+  const html = markdownToHtml('Only paragraph.')
+  const style = html.match(/<(?:p|div)[^>]*style="([^"]*)"/)?.[1]
+  assert.ok(style)
+  const marginMatch = style!.match(/margin:\s*([^;]+)/)
+  assert.ok(marginMatch)
+  const parts = marginMatch![1].trim().split(/\s+/)
+  // All sides should resolve to 0.
+  for (const p of parts) {
+    assert.ok(
+      p === '0' || p === '0em' || p === '0px',
+      `single-block margin parts should all be 0, got: "${marginMatch![1]}"`
+    )
+  }
+})
+
+// ── 8. Real-world shape (mirrors the bug screenshot) ─────────────────────
 
 test('headings + lists + paragraphs render without excessive <br/> or empty divs', () => {
   const source = [

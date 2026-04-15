@@ -38,7 +38,29 @@ function processInline(text: string): string {
     )
 }
 
-function renderBlock(block: string, codeBlocks: string[]): string {
+/**
+ * Emit `margin:<top> 0 <bottom>`, clamping to 0 at the bubble edges so the
+ * bubble starts and ends flush with its padding. Mirrors AionUi's
+ * .markdown-shadow-body>p:first-child{margin-top:0}/:last-child{margin-bottom:0}
+ * pattern, but inline-styled so we don't need a wrapper stylesheet.
+ */
+function edgeTrimmedMargin(
+  top: string,
+  bottom: string,
+  isFirst: boolean,
+  isLast: boolean
+): string {
+  const t = isFirst ? '0' : top
+  const b = isLast ? '0' : bottom
+  return `margin:${t} 0 ${b}`
+}
+
+function renderBlock(
+  block: string,
+  codeBlocks: string[],
+  isFirst: boolean,
+  isLast: boolean
+): string {
   const trimmed = block.trim()
   if (!trimmed) return ''
 
@@ -53,15 +75,15 @@ function renderBlock(block: string, codeBlocks: string[]): string {
   // Headings — always em, proper hierarchy.
   if (/^### /.test(trimmed)) {
     const content = processInline(trimmed.replace(/^### /, ''))
-    return `<div style="font-size:1.1em;font-weight:600;color:var(--color-text-bright);margin:0.9em 0 0.35em">${content}</div>`
+    return `<div style="font-size:1.1em;font-weight:600;color:var(--color-text-bright);${edgeTrimmedMargin('0.9em', '0.35em', isFirst, isLast)}">${content}</div>`
   }
   if (/^## /.test(trimmed)) {
     const content = processInline(trimmed.replace(/^## /, ''))
-    return `<div style="font-size:1.25em;font-weight:700;color:var(--color-text-bright);margin:1em 0 0.4em">${content}</div>`
+    return `<div style="font-size:1.25em;font-weight:700;color:var(--color-text-bright);${edgeTrimmedMargin('1em', '0.4em', isFirst, isLast)}">${content}</div>`
   }
   if (/^# /.test(trimmed)) {
     const content = processInline(trimmed.replace(/^# /, ''))
-    return `<div style="font-size:1.5em;font-weight:700;color:var(--color-accent);margin:1em 0 0.45em">${content}</div>`
+    return `<div style="font-size:1.5em;font-weight:700;color:var(--color-accent);${edgeTrimmedMargin('1em', '0.45em', isFirst, isLast)}">${content}</div>`
   }
 
   // Lists — require every line to be a list item. Mixed blocks fall through
@@ -74,28 +96,28 @@ function renderBlock(block: string, codeBlocks: string[]): string {
     const items = lines
       .map(
         (l) =>
-          `<div style="padding-left:1.5em;margin:0.2em 0">\u2022 ${processInline(
+          `<div style="padding-left:1.25em;margin:0.2em 0">\u2022 ${processInline(
             l.trim().replace(/^[-*] /, '')
           )}</div>`
       )
       .join('')
-    return `<div style="margin:0.5em 0">${items}</div>`
+    return `<div style="${edgeTrimmedMargin('0.5em', '0.5em', isFirst, isLast)}">${items}</div>`
   }
   if (allOrdered && lines.length > 0) {
     const items = lines
       .map((l) => {
         const m = l.trim().match(/^(\d+)\. (.*)$/)!
-        return `<div style="padding-left:1.5em;margin:0.2em 0">${m[1]}. ${processInline(
+        return `<div style="padding-left:1.25em;margin:0.2em 0">${m[1]}. ${processInline(
           m[2]
         )}</div>`
       })
       .join('')
-    return `<div style="margin:0.5em 0">${items}</div>`
+    return `<div style="${edgeTrimmedMargin('0.5em', '0.5em', isFirst, isLast)}">${items}</div>`
   }
 
   // Plain paragraph — preserve intra-paragraph line breaks as <br/>.
   const content = processInline(trimmed.replace(/\n/g, '<br/>'))
-  return `<p style="margin:0.6em 0">${content}</p>`
+  return `<p style="${edgeTrimmedMargin('0.6em', '0.6em', isFirst, isLast)}">${content}</p>`
 }
 
 type LineKind = 'blank' | 'heading' | 'ul' | 'ol' | 'token' | 'text'
@@ -179,6 +201,54 @@ export function markdownToHtml(text: string): string {
   // 2. Split into blocks by line-kind transitions (not just blank lines).
   const blocks = splitIntoBlocks(withTokens)
 
-  // 3. Render each block.
-  return blocks.map((b) => renderBlock(b, codeBlocks)).filter(Boolean).join('')
+  // 3. Render each block; flag first and last non-empty blocks so their outer
+  //    margins collapse against the bubble edge (AionUi pattern).
+  const rendered = blocks.map((b, idx) => {
+    const isFirst = idx === 0
+    const isLast = idx === blocks.length - 1
+    return renderBlock(b, codeBlocks, isFirst, isLast)
+  }).filter(Boolean)
+
+  // After filtering, the first/last flags above may be wrong because some
+  // blocks returned "". Re-apply edge trim on the surviving endpoints.
+  if (rendered.length >= 1) {
+    rendered[0] = collapseMarginTop(rendered[0])
+    rendered[rendered.length - 1] = collapseMarginBottom(
+      rendered[rendered.length - 1]
+    )
+  }
+
+  return rendered.join('')
+}
+
+/** Replace the first `margin:<top> 0 <bottom>` with `margin:0 0 <bottom>`. */
+function collapseMarginTop(html: string): string {
+  return html.replace(
+    /margin:([^;"]+)/,
+    (_m, value) => `margin:${marginWithTop(value, '0')}`
+  )
+}
+
+/** Replace the first `margin:<top> 0 <bottom>` with `margin:<top> 0 0`. */
+function collapseMarginBottom(html: string): string {
+  return html.replace(
+    /margin:([^;"]+)/,
+    (_m, value) => `margin:${marginWithBottom(value, '0')}`
+  )
+}
+
+function marginWithTop(value: string, newTop: string): string {
+  const parts = value.trim().split(/\s+/)
+  if (parts.length === 1) return `${newTop} ${parts[0]} ${parts[0]}`
+  if (parts.length === 2) return `${newTop} ${parts[1]} ${parts[0]}`
+  if (parts.length === 3) return `${newTop} ${parts[1]} ${parts[2]}`
+  return `${newTop} ${parts[1]} ${parts[2]} ${parts[3]}`
+}
+
+function marginWithBottom(value: string, newBottom: string): string {
+  const parts = value.trim().split(/\s+/)
+  if (parts.length === 1) return `${parts[0]} ${parts[0]} ${newBottom}`
+  if (parts.length === 2) return `${parts[0]} ${parts[1]} ${newBottom}`
+  if (parts.length === 3) return `${parts[0]} ${parts[1]} ${newBottom}`
+  return `${parts[0]} ${parts[1]} ${newBottom} ${parts[3]}`
 }

@@ -61,7 +61,7 @@ export default function MessageBubble({ message }: Props) {
       </div>
       {isUser ? (
         <div style={{
-          lineHeight: 1.8,
+          lineHeight: 1.625,
           whiteSpace: 'pre-wrap' as const,
           color: 'var(--color-text-bright)',
         }}>
@@ -70,7 +70,7 @@ export default function MessageBubble({ message }: Props) {
       ) : (
         <div
           style={{
-            lineHeight: 1.8,
+            lineHeight: 1.625,
             color: 'var(--color-text-bright)',
           }}
           dangerouslySetInnerHTML={{ __html: markdownToHtml(message.content) }}
