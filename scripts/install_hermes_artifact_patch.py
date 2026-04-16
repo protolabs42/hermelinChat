@@ -241,6 +241,12 @@ def _patch_model_tools(path: Path) -> tuple[bool, str]:
         _write_text_with_newline(path, patched, newline)
         return True, "Updated model_tools.py: tools.render_panel_tool -> tools.artifact_tool"
 
+    # Modern hermes (>= ~2026-Q1) auto-discovers tools via tools.registry.
+    # If discover_builtin_tools is wired up, our artifact_tool.py drop into
+    # tools/ is picked up automatically — no import edit required.
+    if "discover_builtin_tools" in text:
+        return False, "model_tools.py uses dynamic tool registry; no patch needed"
+
     anchor = '        "tools.homeassistant_tool",'
     if anchor not in text:
         raise RuntimeError(f"Could not find insertion anchor in {path}")
