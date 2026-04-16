@@ -269,6 +269,7 @@ Expected: version string `1.x`. If not installed, ask Inu.
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
     "strict": true,
     "noEmit": true,
     "esModuleInterop": true,
@@ -279,7 +280,8 @@ Expected: version string `1.x`. If not installed, ask Inu.
 }
 ```
 
-(We rely on `@types/bun` from devDependencies for Bun globals — no explicit `types: ["bun-types"]` needed.)
+- We rely on `@types/bun` from devDependencies for Bun globals — no explicit `types: ["bun-types"]` needed.
+- `allowImportingTsExtensions: true` is required because Bun ESM code imports sibling modules with the `.ts` extension (e.g. `import { x } from "./y.ts"`); stock tsc rejects that without this flag.
 
 - [ ] **Step 4: Install deps + generate lock**
 
