@@ -37,8 +37,8 @@ async function main() {
   assert.equal(isUiUri('https://example.com'), false)
   assert.equal(isUiUri(''), false)
 
-  // All three bundled demos resolve
-  for (const name of ['counter.html', 'clock.html', 'tool-input-echo.html']) {
+  // All bundled demos resolve
+  for (const name of ['counter.html', 'clock.html', 'tool-input-echo.html', 'coedit-proof.html']) {
     const h = await resolveUiResource('ui://aurora-bundled/' + name)
     assert.ok(h.includes('<html'), name + ' should contain <html>')
     assert.ok(h.includes('ui/initialize'), name + ' should send ui/initialize')

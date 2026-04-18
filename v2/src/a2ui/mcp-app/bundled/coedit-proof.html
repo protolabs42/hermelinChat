@@ -1,0 +1,192 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>MCP App: Co-Edit Proof</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: var(--color-background-primary, #0a0a0a);
+        --fg: var(--color-text-primary, #e5e5e5);
+        --accent: var(--color-ring-primary, #5eead4);
+        --muted: var(--color-text-secondary, #737373);
+        --elevated: var(--color-background-tertiary, #171717);
+        --border: var(--color-border-primary, #2a2a2a);
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: var(--font-sans, system-ui, sans-serif);
+        padding: 20px;
+      }
+      .wrap {
+        display: grid;
+        gap: 12px;
+      }
+      .meta {
+        display: flex;
+        justify-content: space-between;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      textarea {
+        width: 100%;
+        min-height: 180px;
+        box-sizing: border-box;
+        resize: vertical;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: var(--elevated);
+        color: var(--fg);
+        padding: 14px;
+        font: inherit;
+      }
+      button {
+        border: none;
+        border-radius: 999px;
+        padding: 10px 14px;
+        background: var(--accent);
+        color: var(--bg);
+        font-weight: 650;
+        cursor: pointer;
+      }
+      .status {
+        color: var(--muted);
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="meta">
+        <span id="revision">rev 1</span>
+        <span id="presence">idle</span>
+      </div>
+      <textarea id="draft">draft one</textarea>
+      <div>
+        <button id="ask">Ask Sophie</button>
+      </div>
+      <div class="status" id="status">Local edits are instant. Sophie only wakes when asked.</div>
+    </div>
+
+    <script>
+      let nextId = 1
+      let revision = 1
+      let surfaceInstanceId = 'coedit-proof-dev'
+      const draftEl = document.getElementById('draft')
+      const revisionEl = document.getElementById('revision')
+      const presenceEl = document.getElementById('presence')
+      const statusEl = document.getElementById('status')
+      const askBtn = document.getElementById('ask')
+
+      function setRevision(value) {
+        revision = value
+        revisionEl.textContent = `rev ${revision}`
+      }
+
+      function applyTheme(vars) {
+        for (const [k, v] of Object.entries(vars || {})) {
+          document.documentElement.style.setProperty(k, v)
+        }
+      }
+
+      function sendInitialize() {
+        const id = nextId++
+        window.parent.postMessage({
+          jsonrpc: '2.0',
+          id,
+          method: 'ui/initialize',
+          params: {
+            appCapabilities: {},
+            clientInfo: { name: 'aurora-coedit-proof', version: '0.1.0' },
+            protocolVersion: '2026-01-26',
+          },
+        }, '*')
+      }
+
+      function buildPatchPayload() {
+        const selection = {
+          start: draftEl.selectionStart,
+          end: draftEl.selectionEnd,
+        }
+        return {
+          type: 'submit_patch',
+          surfaceInstanceId,
+          localRevision: revision,
+          patch: [
+            { op: 'replace', path: '/text', value: draftEl.value }
+          ],
+          selection,
+        }
+      }
+
+      function askSophie() {
+        const payload = buildPatchPayload()
+        const id = nextId++
+        window.parent.postMessage({
+          jsonrpc: '2.0',
+          id,
+          method: 'ui/message',
+          params: {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(payload),
+              },
+            ],
+          },
+        }, '*')
+        statusEl.textContent = 'Asked Sophie to look at the current draft.'
+        presenceEl.textContent = 'sophie waking'
+      }
+
+      askBtn.addEventListener('click', askSophie)
+      draftEl.addEventListener('input', () => {
+        presenceEl.textContent = 'Inu editing'
+        statusEl.textContent = 'Local draft changed. No model call yet.'
+      })
+
+      window.addEventListener('message', (e) => {
+        const msg = e.data
+        if (!msg || typeof msg !== 'object') return
+
+        if (msg.id === 1 && msg.result && msg.result.hostContext && msg.result.hostContext.styles) {
+          applyTheme(msg.result.hostContext.styles.variables)
+        }
+
+        if (msg.method === 'ui/notifications/tool-input') {
+          const args = msg.params && msg.params.arguments ? msg.params.arguments : {}
+          if (typeof args.surfaceInstanceId === 'string') {
+            surfaceInstanceId = args.surfaceInstanceId
+          }
+          if (typeof args.revision === 'number') {
+            setRevision(args.revision)
+          }
+          if (typeof args.text === 'string') {
+            draftEl.value = args.text
+          }
+        }
+
+        if (msg.method === 'ui/notifications/host-patch') {
+          const params = msg.params || {}
+          const patch = Array.isArray(params.patch) ? params.patch : []
+          const replaceText = patch.find((op) => op && op.op === 'replace' && op.path === '/text')
+          if (replaceText && typeof replaceText.value === 'string') {
+            draftEl.value = replaceText.value
+          }
+          if (typeof params.newRevision === 'number') {
+            setRevision(params.newRevision)
+          } else {
+            setRevision(revision + 1)
+          }
+          presenceEl.textContent = `${params.authoredBy || 'host'} patched`
+          statusEl.textContent = 'Applied Sophie patch without reload.'
+        }
+      })
+
+      sendInitialize()
+    </script>
+  </body>
+</html>

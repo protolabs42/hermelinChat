@@ -21,6 +21,7 @@ const BUNDLED_FILENAMES = [
   'counter.html',
   'clock.html',
   'tool-input-echo.html',
+  'coedit-proof.html',
 ] as const
 
 const BUNDLED_CACHE = new Map<string, string>()
@@ -36,16 +37,21 @@ async function ensureBundledCache(): Promise<void> {
   // Browser path: Vite ?raw imports. In node + tsx, the ?raw suffix
   // is meaningless and these imports throw — we catch and fall through.
   try {
-    const [counter, clock, echo] = await Promise.all([
+    const [counter, clock, echo, coeditProof] = await Promise.all([
       import('./bundled/counter.html?raw'),
       import('./bundled/clock.html?raw'),
       import('./bundled/tool-input-echo.html?raw'),
+      import('./bundled/coedit-proof.html?raw'),
     ])
     BUNDLED_CACHE.set('counter.html', (counter as { default: string }).default)
     BUNDLED_CACHE.set('clock.html', (clock as { default: string }).default)
     BUNDLED_CACHE.set(
       'tool-input-echo.html',
       (echo as { default: string }).default
+    )
+    BUNDLED_CACHE.set(
+      'coedit-proof.html',
+      (coeditProof as { default: string }).default
     )
     return
   } catch {
