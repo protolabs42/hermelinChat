@@ -22,6 +22,7 @@ import { useHermesMcpServers } from '../../stores/hermesMcpServers'
 import contactFormRaw from '../examples/contact-form.json?raw'
 import interactiveChartRaw from '../examples/interactive-chart.json?raw'
 import mcpAppEmbedRaw from '../examples/mcp-app-embed.json?raw'
+import mcpAppCoeditProofRaw from '../examples/mcp-app-coedit-proof.json?raw'
 import threeComponentRaw from '../examples/three-component.json?raw'
 import tier1GetTimeRaw from '../examples/tier1-get-time.json?raw'
 import tier2QrServerRaw from '../examples/tier2-qr-server.json?raw'
@@ -51,6 +52,7 @@ const EXAMPLES: Example[] = [
   parse(contactFormRaw, 'contact-form.json'),
   parse(interactiveChartRaw, 'interactive-chart.json'),
   parse(mcpAppEmbedRaw, 'mcp-app-embed.json'),
+  parse(mcpAppCoeditProofRaw, 'mcp-app-coedit-proof.json'),
   parse(threeComponentRaw, 'three-component.json'),
   // Phase 5 tier tests — require local MCP servers running + entries
   // added via Settings → MCP Servers. See docs/phase5-test-servers.md.

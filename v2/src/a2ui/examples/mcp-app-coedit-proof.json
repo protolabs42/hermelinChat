@@ -1,0 +1,51 @@
+{
+  "_description": "Lane 2 co-edit proof surface. Bundled MCP App with local editing, explicit Ask Sophie action, and proof-only patch return path via [[COEDIT_PATCH]] markers.",
+  "messages": [
+    {
+      "version": "v0.9",
+      "createSurface": {
+        "surfaceId": "mcp_app_coedit_proof",
+        "catalogId": "aurora-chat://catalog/v0.1.json"
+      }
+    },
+    {
+      "version": "v0.9",
+      "updateComponents": {
+        "surfaceId": "mcp_app_coedit_proof",
+        "components": [
+          {
+            "id": "root",
+            "component": "Card",
+            "title": "Lane 2 co-edit proof",
+            "subtitle": "Bundled coedit-proof MCP App",
+            "variant": "outlined",
+            "child": "body_col"
+          },
+          {
+            "id": "body_col",
+            "component": "Column",
+            "gap": 12,
+            "children": ["desc_text", "viewer"]
+          },
+          {
+            "id": "desc_text",
+            "component": "Text",
+            "variant": "caption",
+            "text": "Type locally with zero latency, then click Ask Sophie. A proof-only [[COEDIT_PATCH]] marker in the assistant reply should patch the live iframe without reload."
+          },
+          {
+            "id": "viewer",
+            "component": "McpApp",
+            "resourceUri": "ui://aurora-bundled/coedit-proof.html",
+            "server": "aurora-bundled",
+            "height": 420,
+            "toolInput": {
+              "text": "draft one",
+              "revision": 1
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
