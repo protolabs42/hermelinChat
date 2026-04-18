@@ -80,6 +80,14 @@
       const statusEl = document.getElementById('status')
       const askBtn = document.getElementById('ask')
 
+      function setAskEnabled(enabled) {
+        askBtn.disabled = !enabled
+        askBtn.style.opacity = enabled ? '1' : '0.55'
+        askBtn.style.cursor = enabled ? 'pointer' : 'not-allowed'
+      }
+
+      setAskEnabled(false)
+
       function setRevision(value) {
         revision = value
         revisionEl.textContent = `rev ${revision}`
@@ -122,6 +130,11 @@
       }
 
       function askSophie() {
+        if (surfaceInstanceId === 'coedit-proof-dev') {
+          statusEl.textContent = 'Still waiting for host bootstrap. Give it a second, then try again.'
+          presenceEl.textContent = 'bootstrapping'
+          return
+        }
         const payload = buildPatchPayload()
         const id = nextId++
         window.parent.postMessage({
@@ -160,12 +173,17 @@
           const args = msg.params && msg.params.arguments ? msg.params.arguments : {}
           if (typeof args.surfaceInstanceId === 'string') {
             surfaceInstanceId = args.surfaceInstanceId
+            setAskEnabled(true)
           }
           if (typeof args.revision === 'number') {
             setRevision(args.revision)
           }
           if (typeof args.text === 'string') {
             draftEl.value = args.text
+          }
+          if (surfaceInstanceId !== 'coedit-proof-dev') {
+            statusEl.textContent = 'Host bootstrap complete. Ask Sophie when ready.'
+            presenceEl.textContent = 'ready'
           }
         }
 

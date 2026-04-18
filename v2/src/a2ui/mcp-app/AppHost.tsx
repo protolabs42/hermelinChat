@@ -205,7 +205,7 @@ export default function AppHost({
     }
 
     bridge.oninitialized = async () => {
-      if (toolInput) {
+      if (toolInput && !isCoeditProof) {
         bridge.sendToolInput({ arguments: toolInput })
       }
 
