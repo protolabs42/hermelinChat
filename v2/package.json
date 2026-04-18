@@ -12,7 +12,8 @@
     "utils:test": "tsx src/utils/__tests__/session-restore.test.ts",
     "chat:test": "tsx src/components/chat/__tests__/MarkdownView.test.tsx",
     "artifacts:test": "tsx src/stores/__tests__/artifacts.test.ts",
-    "test": "npm run a2ui:test && npm run utils:test && npm run chat:test && npm run artifacts:test"
+    "coedit:test": "tsx src/stores/__tests__/coedit.test.ts",
+    "test": "npm run a2ui:test && npm run utils:test && npm run chat:test && npm run artifacts:test && npm run coedit:test"
   },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "^1.5.0",
