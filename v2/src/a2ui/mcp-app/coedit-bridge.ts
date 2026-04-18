@@ -26,6 +26,12 @@ export interface ParsedCoeditPatchMarker {
   envelope: HostPatchEnvelope
 }
 
+export interface CoeditBootstrapArguments {
+  text: string
+  revision: number
+  surfaceInstanceId: string
+}
+
 const COEDIT_PATCH_RE = /\[\[COEDIT_PATCH\]\]\s*(\{[^\n]+\})/g
 const coeditBridges = new Map<string, AppBridge>()
 
@@ -111,6 +117,22 @@ export function registerCoeditBridge(surfaceInstanceId: string, bridge: AppBridg
 
 export function unregisterCoeditBridge(surfaceInstanceId: string): void {
   coeditBridges.delete(surfaceInstanceId)
+}
+
+export function deliverCoeditBootstrap(
+  target: { postMessage: (message: unknown, targetOrigin: string) => void },
+  args: CoeditBootstrapArguments
+): void {
+  target.postMessage(
+    {
+      jsonrpc: '2.0',
+      method: 'ui/notifications/tool-input',
+      params: {
+        arguments: args,
+      },
+    },
+    '*'
+  )
 }
 
 export async function sendHostPatchNotification(

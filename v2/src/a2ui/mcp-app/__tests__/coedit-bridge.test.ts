@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import {
+  deliverCoeditBootstrap,
   deriveCoeditSurfaceInstanceId,
   parseCoeditMessageContent,
   parseCoeditPatchMarkers,
@@ -61,4 +62,33 @@ test('parseCoeditPatchMarkers ignores malformed or partial marker payloads', () 
     '[[COEDIT_PATCH]] {"surfaceInstanceId":"oops"\n[[COEDIT_PATCH]] not-json'
   )
   assert.deepEqual(matches, [])
+})
+
+test('deliverCoeditBootstrap posts a tool-input notification with arguments', () => {
+  const calls: Array<{ message: unknown; targetOrigin: string }> = []
+  const target = {
+    postMessage(message: unknown, targetOrigin: string) {
+      calls.push({ message, targetOrigin })
+    },
+  }
+
+  deliverCoeditBootstrap(target, {
+    text: 'draft one',
+    revision: 1,
+    surfaceInstanceId: 'sess:surface:viewer',
+  })
+
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].targetOrigin, '*')
+  assert.deepEqual(calls[0].message, {
+    jsonrpc: '2.0',
+    method: 'ui/notifications/tool-input',
+    params: {
+      arguments: {
+        text: 'draft one',
+        revision: 1,
+        surfaceInstanceId: 'sess:surface:viewer',
+      },
+    },
+  })
 })

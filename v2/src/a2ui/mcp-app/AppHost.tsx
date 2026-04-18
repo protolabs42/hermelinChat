@@ -37,6 +37,7 @@ import {
   type CoeditSurfaceInstance,
 } from '../../stores/coedit'
 import {
+  deliverCoeditBootstrap,
   deriveCoeditSurfaceInstanceId,
   parseCoeditMessageContent,
   registerCoeditBridge,
@@ -224,14 +225,22 @@ export default function AppHost({
           const instance = toFrontendInstance(raw as Record<string, unknown>)
           registerInstance(instance)
           registerCoeditBridge(surfaceInstanceId, bridge)
+          const bootstrapArgs = {
+            ...(toolInput ?? {}),
+            surfaceInstanceId,
+            revision: instance.revision,
+            text: String(instance.state.text ?? initialText),
+          }
           await bridge.sendToolInput({
-            arguments: {
-              ...(toolInput ?? {}),
+            arguments: bootstrapArgs,
+          })
+          if (iframe.contentWindow) {
+            deliverCoeditBootstrap(iframe.contentWindow, {
               surfaceInstanceId,
               revision: instance.revision,
               text: String(instance.state.text ?? initialText),
-            },
-          })
+            })
+          }
         } catch (e) {
           console.error('[mcp-app] coedit bootstrap failed:', e)
         }
