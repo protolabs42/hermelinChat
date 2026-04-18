@@ -1,5 +1,6 @@
 mod acp;
 mod artifacts;
+mod coedit;
 mod commands;
 mod hermes_config;
 mod mcp_commands;
@@ -11,8 +12,8 @@ use commands::AcpState;
 use hermes_config::ConfigLock;
 use mcp_proxy::McpPoolState;
 use std::sync::Mutex;
-use tokio::sync::Mutex as TokioMutex;
 use tauri::Manager;
+use tokio::sync::Mutex as TokioMutex;
 
 pub fn run() {
     tauri::Builder::default()
@@ -50,6 +51,10 @@ pub fn run() {
             commands::get_session_messages,
             commands::list_artifacts,
             commands::list_a2ui_batches,
+            coedit::coedit_upsert_surface_instance,
+            coedit::coedit_get_surface_instance,
+            coedit::coedit_submit_patch,
+            coedit::coedit_apply_host_patch,
             commands::get_home_dir,
             commands::get_launch_cwd,
             commands::set_window_title,
