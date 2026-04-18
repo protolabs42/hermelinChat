@@ -1,18 +1,16 @@
 import type { A2UIServerMessage } from './types'
-import type { A2UIBatch } from '../stores/surfaces'
 
-let nextManualBatchSeq = Date.now()
+export interface LocalA2UIEmitRequest {
+  sessionId: string
+  messages: A2UIServerMessage[]
+}
 
-export function buildManualA2UIBatch(
+export function buildManualA2UIEmitRequest(
   sessionId: string,
   messages: A2UIServerMessage[]
-): A2UIBatch {
-  nextManualBatchSeq += 1
+): LocalA2UIEmitRequest {
   return {
-    kind: 'a2ui-surface-batch',
     sessionId,
-    seq: nextManualBatchSeq,
-    timestamp: Date.now(),
     messages,
   }
 }

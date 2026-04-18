@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
 
 use crate::acp::client::AcpClient;
 
@@ -83,6 +83,24 @@ pub fn list_artifacts(session_id: Option<String>) -> Vec<crate::artifacts::Artif
 #[tauri::command]
 pub fn list_a2ui_batches() -> Vec<crate::artifacts::SurfaceBatch> {
     crate::artifacts::list_current_a2ui_batches()
+}
+
+#[derive(serde::Deserialize)]
+pub struct EmitLocalA2uiBatchRequest {
+    #[serde(rename = "sessionId")]
+    pub session_id: String,
+    pub messages: Vec<serde_json::Value>,
+}
+
+#[tauri::command]
+pub fn emit_local_a2ui_batch(
+    app: AppHandle,
+    request: EmitLocalA2uiBatchRequest,
+) -> Result<crate::artifacts::SurfaceBatch, String> {
+    let batch = crate::artifacts::emit_local_a2ui_batch(&request.session_id, request.messages)?;
+    app.emit("a2ui:event", crate::artifacts::A2UIEvent::Batch { batch: batch.clone() })
+        .map_err(|e| e.to_string())?;
+    Ok(batch)
 }
 
 #[derive(serde::Serialize)]

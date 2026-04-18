@@ -5,8 +5,7 @@ import { useSettingsStore } from '../stores/settings'
 import { useSidebarStore } from '../stores/sidebar'
 import { useArtifactStore } from '../stores/artifacts'
 import { useProjectStore, SCRATCHPAD_ID } from '../stores/projects'
-import { useSurfaceStore } from '../stores/surfaces'
-import { buildManualA2UIBatch } from '../a2ui/manual-launch'
+import { buildManualA2UIEmitRequest } from '../a2ui/manual-launch'
 import { useTheme } from '../theme'
 import ProjectSwitcher from './ProjectSwitcher'
 import HermesUpdateModal from './HermesUpdateModal'
@@ -32,8 +31,6 @@ export default function StatusBar() {
   const toggleSidebar = useSidebarStore((s) => s.toggle)
   const artifactCount = useArtifactStore((s) => s.artifacts.length)
   const toggleArtifacts = useArtifactStore((s) => s.togglePanel)
-  const addSurfaceAnchor = useChatStore((s) => s.addSurfaceAnchor)
-  const handleSurfaceEvent = useSurfaceStore((s) => s.handleEvent)
   const { theme } = useTheme()
 
   const activeProjectId = useProjectStore((s) => s.activeProjectId)
@@ -66,13 +63,12 @@ export default function StatusBar() {
     }).catch(() => {})
   }
 
-  const launchCoeditProof = () => {
+  const launchCoeditProof = async () => {
     if (!sessionId) return
     try {
       const parsed = JSON.parse(coeditProofRaw) as ExampleFile
-      const batch = buildManualA2UIBatch(sessionId, parsed.messages as never[])
-      handleSurfaceEvent({ kind: 'Batch', batch })
-      addSurfaceAnchor('mcp_app_coedit_proof')
+      const request = buildManualA2UIEmitRequest(sessionId, parsed.messages as never[])
+      await invoke('emit_local_a2ui_batch', { request })
     } catch (e) {
       console.error('Failed to launch co-edit proof surface:', e)
     }

@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -389,6 +389,67 @@ pub fn list_current_a2ui_batches() -> Vec<SurfaceBatch> {
     all
 }
 
+pub fn emit_local_a2ui_batch(
+    session_id: &str,
+    messages: Vec<serde_json::Value>,
+) -> Result<SurfaceBatch, String> {
+    let session_id = session_id.trim();
+    if session_id.is_empty() {
+        return Err("session_id is required".to_string());
+    }
+
+    let session_dir = a2ui_dir().join("session");
+    std::fs::create_dir_all(&session_dir).map_err(|e| e.to_string())?;
+
+    let next_seq = next_a2ui_seq(&session_dir, session_id);
+    let batch = SurfaceBatch {
+        kind: "a2ui-surface-batch".to_string(),
+        session_id: session_id.to_string(),
+        seq: next_seq,
+        timestamp: SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| e.to_string())?
+            .as_secs_f64(),
+        messages,
+    };
+
+    let path = session_dir.join(format!("{}.{}.json", session_id, next_seq));
+    write_json_atomic(&path, &batch)?;
+    Ok(batch)
+}
+
+fn next_a2ui_seq(session_dir: &Path, session_id: &str) -> u64 {
+    let prefix = format!("{session_id}.");
+    std::fs::read_dir(session_dir)
+        .ok()
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .filter(|name| name.starts_with(&prefix) && name.ends_with(".json"))
+        .filter_map(|name| {
+            name.strip_prefix(&prefix)
+                .and_then(|rest| rest.strip_suffix(".json"))
+                .and_then(|seq| seq.parse::<u64>().ok())
+        })
+        .max()
+        .unwrap_or(0)
+        + 1
+}
+
+fn write_json_atomic<T: Serialize>(path: &Path, payload: &T) -> Result<(), String> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| "target path has no parent directory".to_string())?;
+    std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+
+    let tmp_path = parent.join(format!(".{}.tmp", uuid::Uuid::new_v4()));
+    let body = serde_json::to_vec_pretty(payload).map_err(|e| e.to_string())?;
+    std::fs::write(&tmp_path, body).map_err(|e| e.to_string())?;
+    std::fs::rename(&tmp_path, path).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 fn a2ui_dir() -> PathBuf {
     if let Ok(dir) = std::env::var("HERMELIN_A2UI_DIR") {
         return PathBuf::from(dir);
@@ -443,5 +504,55 @@ mod tests {
 
         let ids: Vec<String> = visible.into_iter().map(|artifact| artifact.id).collect();
         assert_eq!(ids, vec!["alpha".to_string(), "legacy".to_string()]);
+    }
+
+    #[test]
+    fn emit_local_a2ui_batch_persists_and_lists_transport_batches() {
+        let temp = tempfile::TempDir::new().expect("temp dir");
+        let root = temp.path();
+        let session_dir = root.join("session");
+        fs::create_dir_all(&session_dir).expect("session dir");
+
+        std::env::set_var("HERMELIN_A2UI_DIR", root);
+        let batch = emit_local_a2ui_batch(
+            "sess-local",
+            vec![serde_json::json!({
+                "version": "v0.9",
+                "createSurface": {
+                    "surfaceId": "mcp_app_coedit_proof",
+                    "catalogId": "aurora-chat://catalog/v0.1.json"
+                }
+            })],
+        )
+        .expect("emit local batch");
+
+        let all = list_current_a2ui_batches();
+        std::env::remove_var("HERMELIN_A2UI_DIR");
+
+        assert_eq!(batch.kind, "a2ui-surface-batch");
+        assert_eq!(batch.session_id, "sess-local");
+        assert_eq!(batch.seq, 1);
+        assert_eq!(all.len(), 1);
+        assert_eq!(all[0].session_id, "sess-local");
+        assert_eq!(
+            all[0].messages[0]["createSurface"]["surfaceId"],
+            "mcp_app_coedit_proof"
+        );
+    }
+
+    #[test]
+    fn emit_local_a2ui_batch_increments_seq_per_session() {
+        let temp = tempfile::TempDir::new().expect("temp dir");
+        let root = temp.path();
+        let session_dir = root.join("session");
+        fs::create_dir_all(&session_dir).expect("session dir");
+
+        std::env::set_var("HERMELIN_A2UI_DIR", root);
+        let first = emit_local_a2ui_batch("sess-local", vec![]).expect("first batch");
+        let second = emit_local_a2ui_batch("sess-local", vec![]).expect("second batch");
+        std::env::remove_var("HERMELIN_A2UI_DIR");
+
+        assert_eq!(first.seq, 1);
+        assert_eq!(second.seq, 2);
     }
 }
