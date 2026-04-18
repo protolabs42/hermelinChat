@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "aurora-chat://catalog/v0.1.json",
   "title": "Aurora Chat A2UI Catalog",
-  "description": "Component + function catalog for Aurora Chat A2UI surfaces. Conforms to A2UI protocol v0.9. Includes the basic A2UI components (Text, Button, TextField, CheckBox, ChoicePicker, Column, Row, Card, List, Divider, Icon, Image) and Aurora Chat visual extensions (Chart, Map, Mermaid, Table, Logs, Markdown, HtmlEmbed, IframeEmbed, McpApp).",
+  "description": "Component + function catalog for Aurora Chat A2UI surfaces. Conforms to A2UI protocol v0.9. Includes the basic A2UI components (Text, Button, TextField, CheckBox, ChoicePicker, Column, Row, Card, List, Divider, Icon, Image), Aurora Chat visual extensions (Chart, Map, Mermaid, Table, Logs, Markdown, HtmlEmbed, IframeEmbed, McpApp), and domain-specific typed renderers (VerdictCard for ninja-shelf rugcheck/smart-money/launchpad verdicts).",
   "version": "0.1.0",
   "a2uiVersion": "v0.9",
   "type": "object",
@@ -513,6 +513,22 @@
         }
       },
       "required": ["resourceUri", "server"]
+    },
+
+    "VerdictCard": {
+      "description": "Aurora Chat extension: typed ninja-shelf verdict artifact. Renders three composer rows (rugcheck / smart-money / launchpad), a pool-vault-discounted holder distribution bar, and a provenance footer. Use inline (Lane 1) for per-message scoped token analyses. Pool vaults are excluded from the untrusted-concentration sum as correctness-as-design.",
+      "allOf": [{ "$ref": "#/$defs/BaseComponent" }],
+      "properties": {
+        "component": { "const": "VerdictCard" },
+        "data": {
+          "description": "Inline schema object OR a JSON Pointer binding into the surface data model. Schema fields: ca, ticker, chain, venue, age_hours, verdict {rugcheck, smart_money, launchpad}, holders {top: [{address, pct, is_pool_vault, vault_label, is_creator, is_insider_cluster}], total_holders}, provenance [{source, fetched_at}], loading.",
+          "oneOf": [
+            { "type": "object" },
+            { "$ref": "#/$defs/JsonPointer" }
+          ]
+        }
+      },
+      "required": ["data"]
     }
   },
 

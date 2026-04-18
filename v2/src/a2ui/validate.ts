@@ -58,6 +58,7 @@ const KNOWN_COMPONENT_TYPES = new Set<string>([
   'HtmlEmbed',
   'IframeEmbed',
   'McpApp',
+  'VerdictCard',
 ])
 
 /** Required fields per component type (beyond id/component). */
@@ -84,6 +85,7 @@ const REQUIRED_FIELDS: Record<string, readonly string[]> = {
   HtmlEmbed: ['html'],
   IframeEmbed: ['url'],
   McpApp: ['resourceUri', 'server'],
+  VerdictCard: ['data'],
 }
 
 /** Extract all referenced component ids from a children/child field. */

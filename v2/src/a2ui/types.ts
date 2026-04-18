@@ -253,6 +253,55 @@ export interface McpAppComponent extends BaseComponent {
   toolName?: string
 }
 
+/* VerdictCard — ninja-shelf verdict artifact. Domain-specific typed catalog
+ * extension. Helpers + renderer live in
+ * v2/src/a2ui/renderer/components/VerdictCardComponent.tsx. */
+
+export interface VerdictRow {
+  status?: string
+  confidence?: number
+  summary?: string
+}
+
+export interface VerdictHolderEntry {
+  address: string
+  pct: number
+  is_pool_vault?: boolean
+  vault_label?: string
+  is_creator?: boolean
+  is_insider_cluster?: boolean
+}
+
+export interface VerdictProvenanceEntry {
+  source: string
+  fetched_at?: number
+}
+
+export interface VerdictCardData {
+  ca?: string
+  ticker?: string
+  chain?: string
+  venue?: string
+  age_hours?: number
+  verdict?: {
+    rugcheck?: VerdictRow
+    smart_money?: VerdictRow
+    launchpad?: VerdictRow
+  }
+  holders?: {
+    top?: VerdictHolderEntry[]
+    total_holders?: number
+  }
+  provenance?: VerdictProvenanceEntry[]
+  loading?: boolean
+}
+
+export interface VerdictCardComponent extends BaseComponent {
+  component: 'VerdictCard'
+  /** Inline schema data OR a JsonPointer-shape {path} into the surface data model. */
+  data: VerdictCardData | JsonPointer
+}
+
 /** Discriminated union of every component type in the catalog. */
 export type Component =
   | TextComponent
@@ -277,6 +326,7 @@ export type Component =
   | HtmlEmbedComponent
   | IframeEmbedComponent
   | McpAppComponent
+  | VerdictCardComponent
 
 /* =============================================================================
  * Protocol envelope types — A2UI v0.9 server→client messages

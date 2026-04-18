@@ -17,6 +17,7 @@ import { LayoutComponents } from './components/LayoutComponents'
 import { InputComponents } from './components/InputComponents'
 import { DataVizComponents } from './components/DataVizComponents'
 import { EmbedComponents } from './components/EmbedComponents'
+import { VerdictCardRender } from './components/VerdictCardComponent'
 
 /** Shared props every component renderer receives. */
 export interface RenderProps {
@@ -55,6 +56,8 @@ const REGISTRY: Record<string, (p: RenderProps) => React.ReactNode> = {
   HtmlEmbed: EmbedComponents.HtmlEmbed,
   IframeEmbed: EmbedComponents.IframeEmbed,
   McpApp: EmbedComponents.McpApp,
+  // Domain-specific typed extensions
+  VerdictCard: VerdictCardRender,
 }
 
 export function RenderNode({

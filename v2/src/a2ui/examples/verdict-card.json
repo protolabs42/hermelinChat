@@ -1,0 +1,87 @@
+{
+  "_description": "VerdictCard typed A2UI component — ninja-shelf verdict artifact inline in chat. Exercises all three composer rows (rugcheck / smart-money / launchpad), holder distribution with pool-vault tagging, and provenance footer. Pool vaults at position 0 should show dimmed and be excluded from the 'untrusted' concentration sum shown in the section header.",
+  "messages": [
+    {
+      "version": "v0.9",
+      "createSurface": {
+        "surfaceId": "verdict_example",
+        "catalogId": "aurora-chat://catalog/v0.1.json",
+        "sendDataModel": false
+      }
+    },
+    {
+      "version": "v0.9",
+      "updateComponents": {
+        "surfaceId": "verdict_example",
+        "components": [
+          {
+            "id": "root",
+            "component": "VerdictCard",
+            "data": {
+              "ca": "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+              "ticker": "EXAMPLE",
+              "chain": "solana",
+              "venue": "pumpswap",
+              "age_hours": 3.4,
+              "verdict": {
+                "rugcheck": {
+                  "status": "ok",
+                  "confidence": 0.9,
+                  "summary": "mint + freeze revoked, LP locked, no blacklist"
+                },
+                "smart_money": {
+                  "status": "whale_solo",
+                  "confidence": 0.5,
+                  "summary": "one wallet holds 22% — monitored address"
+                },
+                "launchpad": {
+                  "status": "clean",
+                  "confidence": 0.8,
+                  "summary": "standard pump.fun launch, creator not on watchlist"
+                }
+              },
+              "holders": {
+                "top": [
+                  {
+                    "address": "PumPSwAPpooLvAuLTxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                    "pct": 34.2,
+                    "is_pool_vault": true,
+                    "vault_label": "PumpSwap pool"
+                  },
+                  {
+                    "address": "Whale111111111111111111111111111111111111",
+                    "pct": 22.1
+                  },
+                  {
+                    "address": "Creator22222222222222222222222222222222222",
+                    "pct": 8.3,
+                    "is_creator": true
+                  },
+                  {
+                    "address": "Insider33333333333333333333333333333333333",
+                    "pct": 4.7,
+                    "is_insider_cluster": true
+                  },
+                  {
+                    "address": "Holder44444444444444444444444444444444444",
+                    "pct": 2.1
+                  },
+                  {
+                    "address": "Holder55555555555555555555555555555555555",
+                    "pct": 1.8
+                  }
+                ],
+                "total_holders": 842
+              },
+              "provenance": [
+                { "source": "rugcheck.xyz", "fetched_at": 1745000000 },
+                { "source": "helius", "fetched_at": 1745000060 },
+                { "source": "birdeye", "fetched_at": 1745000120 }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
