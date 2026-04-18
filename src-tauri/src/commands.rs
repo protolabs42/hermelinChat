@@ -76,8 +76,8 @@ pub fn get_session_messages(session_id: String, limit: Option<usize>) -> Result<
 }
 
 #[tauri::command]
-pub fn list_artifacts() -> Vec<crate::artifacts::Artifact> {
-    crate::artifacts::list_current_artifacts()
+pub fn list_artifacts(session_id: Option<String>) -> Vec<crate::artifacts::Artifact> {
+    crate::artifacts::list_current_artifacts_for_session(session_id.as_deref())
 }
 
 #[tauri::command]

@@ -1,4 +1,4 @@
-use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher, Event, EventKind};
+use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -17,6 +17,7 @@ pub struct Artifact {
     pub live: Option<bool>,
     pub refresh_seconds: Option<f64>,
     pub timestamp: Option<f64>,
+    pub session_id: Option<String>,
     #[serde(skip_deserializing)]
     pub persistent: Option<bool>,
 }
@@ -24,9 +25,16 @@ pub struct Artifact {
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "kind")]
 pub enum ArtifactEvent {
-    Update { artifact: Artifact },
-    Remove { id: String },
-    List { artifacts: Vec<Artifact> },
+    Update {
+        artifact: Artifact,
+    },
+    Remove {
+        id: String,
+        session_id: Option<String>,
+    },
+    List {
+        artifacts: Vec<Artifact>,
+    },
 }
 
 pub fn start_watcher(app: &AppHandle) {
@@ -51,7 +59,9 @@ pub fn start_watcher(app: &AppHandle) {
         // Watch for changes
         let (tx, rx) = mpsc::channel();
         let mut watcher = match RecommendedWatcher::new(
-            move |res: Result<Event, notify::Error>| { let _ = tx.send(res); },
+            move |res: Result<Event, notify::Error>| {
+                let _ = tx.send(res);
+            },
             Config::default().with_poll_interval(Duration::from_secs(2)),
         ) {
             Ok(w) => w,
@@ -85,7 +95,12 @@ pub fn start_watcher(app: &AppHandle) {
                                     if is_artifact_json(path) {
                                         if let Some(mut artifact) = read_artifact(path) {
                                             artifact.persistent = detect_persistent(path);
-                                            let _ = app_handle.emit("artifact:event", ArtifactEvent::Update { artifact: artifact.clone() });
+                                            let _ = app_handle.emit(
+                                                "artifact:event",
+                                                ArtifactEvent::Update {
+                                                    artifact: artifact.clone(),
+                                                },
+                                            );
                                             known.insert(artifact.id.clone(), artifact);
                                         }
                                     }
@@ -93,10 +108,17 @@ pub fn start_watcher(app: &AppHandle) {
                             }
                             EventKind::Remove(_) => {
                                 for path in &event.paths {
-                                    let stem = path.file_stem().map(|s| s.to_string_lossy().to_string());
+                                    let stem =
+                                        path.file_stem().map(|s| s.to_string_lossy().to_string());
                                     if let Some(id) = stem {
-                                        if known.remove(&id).is_some() {
-                                            let _ = app_handle.emit("artifact:event", ArtifactEvent::Remove { id });
+                                        if let Some(removed) = known.remove(&id) {
+                                            let _ = app_handle.emit(
+                                                "artifact:event",
+                                                ArtifactEvent::Remove {
+                                                    id,
+                                                    session_id: removed.session_id.clone(),
+                                                },
+                                            );
                                         }
                                     }
                                 }
@@ -121,7 +143,10 @@ pub fn start_watcher(app: &AppHandle) {
 
 fn is_artifact_json(path: &Path) -> bool {
     path.extension().map(|e| e == "json").unwrap_or(false)
-        && !path.file_name().map(|n| n.to_string_lossy().starts_with('_')).unwrap_or(false)
+        && !path
+            .file_name()
+            .map(|n| n.to_string_lossy().starts_with('_'))
+            .unwrap_or(false)
 }
 
 fn detect_persistent(path: &Path) -> Option<bool> {
@@ -165,14 +190,26 @@ fn read_artifact(path: &Path) -> Option<Artifact> {
     Some(artifact)
 }
 
-/// List all current artifacts (called by frontend on mount).
-pub fn list_current_artifacts() -> Vec<Artifact> {
+fn artifact_matches_session(artifact: &Artifact, session_id: Option<&str>) -> bool {
+    match artifact.session_id.as_deref() {
+        Some(bound_session) => session_id == Some(bound_session),
+        None => true,
+    }
+}
+
+pub fn list_current_artifacts_for_session(session_id: Option<&str>) -> Vec<Artifact> {
     let dir = artifacts_dir();
     let mut known: HashMap<String, Artifact> = HashMap::new();
     scan_artifacts(&dir, &mut known);
-    let mut list: Vec<Artifact> = known.into_values().collect();
+    let mut list: Vec<Artifact> = known
+        .into_values()
+        .filter(|artifact| artifact_matches_session(artifact, session_id))
+        .collect();
     list.sort_by(|a, b| {
-        b.timestamp.unwrap_or(0.0).partial_cmp(&a.timestamp.unwrap_or(0.0)).unwrap_or(std::cmp::Ordering::Equal)
+        b.timestamp
+            .unwrap_or(0.0)
+            .partial_cmp(&a.timestamp.unwrap_or(0.0))
+            .unwrap_or(std::cmp::Ordering::Equal)
     });
     list
 }
@@ -333,7 +370,10 @@ fn scan_a2ui_batches(session_dir: &Path, known: &mut HashMap<String, Vec<Surface
             let path = entry.path();
             if is_a2ui_batch_json(&path) {
                 if let Some(batch) = read_a2ui_batch(&path) {
-                    known.entry(batch.session_id.clone()).or_default().push(batch);
+                    known
+                        .entry(batch.session_id.clone())
+                        .or_default()
+                        .push(batch);
                 }
             }
         }
@@ -359,13 +399,49 @@ fn a2ui_dir() -> PathBuf {
     #[cfg(windows)]
     {
         if let Some(app_data) = std::env::var_os("LOCALAPPDATA") {
-            return PathBuf::from(app_data)
-                .join("hermes")
-                .join("a2ui-surfaces");
+            return PathBuf::from(app_data).join("hermes").join("a2ui-surfaces");
         }
     }
     let home = std::env::var("HOME")
         .or_else(|_| std::env::var("USERPROFILE"))
         .unwrap_or_else(|_| ".".to_string());
     PathBuf::from(home).join(".hermes").join("a2ui-surfaces")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    fn write_artifact(path: &Path, body: &str) {
+        fs::write(path, body).expect("write artifact");
+    }
+
+    #[test]
+    fn list_current_artifacts_filters_to_current_session_but_keeps_legacy() {
+        let temp = tempfile::TempDir::new().expect("temp dir");
+        let root = temp.path();
+        let session_dir = root.join("session");
+        fs::create_dir_all(&session_dir).expect("session dir");
+
+        write_artifact(
+            &session_dir.join("alpha.json"),
+            r#"{"id":"alpha","type":"table","title":"Alpha","timestamp":3,"session_id":"sess-a"}"#,
+        );
+        write_artifact(
+            &session_dir.join("beta.json"),
+            r#"{"id":"beta","type":"table","title":"Beta","timestamp":2,"session_id":"sess-b"}"#,
+        );
+        write_artifact(
+            &session_dir.join("legacy.json"),
+            r#"{"id":"legacy","type":"table","title":"Legacy","timestamp":1}"#,
+        );
+
+        std::env::set_var("HERMELIN_ARTIFACT_DIR", root);
+        let visible = list_current_artifacts_for_session(Some("sess-a"));
+        std::env::remove_var("HERMELIN_ARTIFACT_DIR");
+
+        let ids: Vec<String> = visible.into_iter().map(|artifact| artifact.id).collect();
+        assert_eq!(ids, vec!["alpha".to_string(), "legacy".to_string()]);
+    }
 }

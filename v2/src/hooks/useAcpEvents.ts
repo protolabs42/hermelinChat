@@ -3,7 +3,7 @@ import { listen } from '@tauri-apps/api/event'
 import { invoke } from '@tauri-apps/api/core'
 import type { AcpEvent } from '../types/acp'
 import { useChatStore } from '../stores/chat'
-import { useArtifactStore } from '../stores/artifacts'
+import { useArtifactStore, type Artifact } from '../stores/artifacts'
 import { useSurfaceStore, type A2UIEvent } from '../stores/surfaces'
 
 export function useAcpEvents() {
@@ -137,11 +137,27 @@ export function useAcpEvents() {
     // When resuming a session from the sidebar, the session load
     // handler will fetch that session's artifacts/surfaces.
 
+    // Load the right legacy artifacts whenever the active chat session changes.
+    // This prevents the deprecated side panel from bleeding artifacts across sessions.
+    const unsubSession = useChatStore.subscribe((state, prev) => {
+      if (state.sessionId === prev.sessionId) return
+      if (!state.sessionId) {
+        useArtifactStore.getState().replaceArtifacts([])
+        return
+      }
+      invoke<Artifact[]>('list_artifacts', { sessionId: state.sessionId })
+        .then((artifacts) => {
+          useArtifactStore.getState().replaceArtifacts(artifacts)
+        })
+        .catch((e: unknown) => console.error('Failed to load session artifacts:', e))
+    })
+
     return () => {
       unlistenAcp.then((fn) => fn())
       unlistenArtifact.then((fn) => fn())
       unlistenA2ui.then((fn) => fn())
       document.removeEventListener('visibilitychange', onVisibility)
+      unsubSession()
     }
   }, [])
 }
