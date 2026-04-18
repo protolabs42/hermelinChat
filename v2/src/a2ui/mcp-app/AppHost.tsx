@@ -31,10 +31,23 @@ import { buildCsp, type DeclaredCsp } from './csp'
 import { getThemeContext } from './theme-bridge'
 import { useHermesMcpServers } from '../../stores/hermesMcpServers'
 import { useA2UI } from '../renderer/context'
+import { useChatStore } from '../../stores/chat'
+import {
+  useCoeditStore,
+  type CoeditSurfaceInstance,
+} from '../../stores/coedit'
+import {
+  deriveCoeditSurfaceInstanceId,
+  parseCoeditMessageContent,
+  registerCoeditBridge,
+  unregisterCoeditBridge,
+} from './coedit-bridge'
 import {
   tauriReadResource,
   tauriCallTool,
   tauriListResources,
+  tauriSubmitCoeditPatch,
+  tauriUpsertCoeditSurfaceInstance,
 } from './tauri-proxy'
 
 interface AppHostProps {
@@ -53,6 +66,23 @@ interface AppHostProps {
 }
 
 const BUNDLED_SERVER_NAME = 'aurora-bundled'
+const COEDIT_PROOF_URI = 'ui://aurora-bundled/coedit-proof.html'
+
+function toFrontendInstance(raw: Record<string, unknown>): CoeditSurfaceInstance {
+  return {
+    surfaceInstanceId: String(raw.surface_instance_id ?? ''),
+    sessionId: String(raw.session_id ?? ''),
+    surfaceId: String(raw.surface_id ?? ''),
+    server: String(raw.server ?? ''),
+    resourceUri: String(raw.resource_uri ?? ''),
+    state: (raw.state_json ?? {}) as Record<string, unknown>,
+    revision: Number(raw.revision ?? 0),
+    updatedAt: Number(raw.updated_at ?? Date.now()),
+    selection: null,
+    pendingOutboundPatch: null,
+    presence: {},
+  }
+}
 
 export default function AppHost({
   componentId,
@@ -71,6 +101,14 @@ export default function AppHost({
   const [iframeHeight, setIframeHeight] = useState<number>(height)
 
   const a2uiCtx = useA2UI()
+  const sessionId = useChatStore((s) => s.sessionId)
+  const registerInstance = useCoeditStore((s) => s.registerInstance)
+  const setPresence = useCoeditStore((s) => s.setPresence)
+
+  const isCoeditProof = resourceUri === COEDIT_PROOF_URI && !!sessionId
+  const surfaceInstanceId = isCoeditProof
+    ? deriveCoeditSurfaceInstanceId(sessionId, surfaceId, componentId)
+    : null
 
   // Derive server "state" from hermesMcpServers store.
   // The new store is config-based — Rust handles connections lazily.
@@ -170,6 +208,35 @@ export default function AppHost({
       if (toolInput) {
         bridge.sendToolInput({ arguments: toolInput })
       }
+
+      if (isCoeditProof && surfaceInstanceId && sessionId) {
+        try {
+          const initialText = typeof toolInput?.text === 'string' ? toolInput.text : 'draft one'
+          const raw = await tauriUpsertCoeditSurfaceInstance({
+            surfaceInstanceId,
+            sessionId,
+            surfaceId,
+            server,
+            resourceUri,
+            stateJson: { text: initialText },
+            revision: 1,
+          })
+          const instance = toFrontendInstance(raw as Record<string, unknown>)
+          registerInstance(instance)
+          registerCoeditBridge(surfaceInstanceId, bridge)
+          await bridge.sendToolInput({
+            arguments: {
+              ...(toolInput ?? {}),
+              surfaceInstanceId,
+              revision: instance.revision,
+              text: String(instance.state.text ?? initialText),
+            },
+          })
+        } catch (e) {
+          console.error('[mcp-app] coedit bootstrap failed:', e)
+        }
+      }
+
       // If a toolName is specified, call the tool via Tauri proxy and push the
       // result to the iframe. This completes the full MCP Apps tool→UI flow for
       // passive-display apps (like qr-server) that only render on tool result.
@@ -207,6 +274,46 @@ export default function AppHost({
     // onmessage is for chat-bot style messages from the app. Relay to Aurora
     // via the A2UI action channel for any agent-side handling.
     bridge.onmessage = async ({ role, content }) => {
+      const parsed = parseCoeditMessageContent(content)
+      if (parsed && parsed.type === 'submit_patch') {
+        try {
+          const raw = await tauriSubmitCoeditPatch({
+            surfaceInstanceId: parsed.surfaceInstanceId,
+            baseRevision: parsed.localRevision,
+            patch: parsed.patch,
+            selection: parsed.selection ?? null,
+          })
+          const updated = toFrontendInstance(raw as Record<string, unknown>)
+          registerInstance(updated)
+          setPresence(parsed.surfaceInstanceId, 'user', 'submitted')
+          a2uiCtx.emitAction({
+            action: {
+              name: 'mcpAppMessage',
+              surfaceId,
+              sourceComponentId: componentId,
+              timestamp: new Date().toISOString(),
+              context: {
+                server,
+                resourceUri,
+                role,
+                content,
+                coedit: {
+                  surfaceInstanceId: parsed.surfaceInstanceId,
+                  localRevision: parsed.localRevision,
+                  patch: parsed.patch,
+                  selection: parsed.selection ?? null,
+                  persistedRevision: updated.revision,
+                },
+              },
+            },
+          })
+          return {}
+        } catch (e) {
+          console.error('[mcp-app] coedit submit failed:', e)
+          return { isError: true }
+        }
+      }
+
       a2uiCtx.emitAction({
         action: {
           name: 'mcpAppMessage',
@@ -235,8 +342,11 @@ export default function AppHost({
         bridge.teardownResource({}).catch(() => {})
         bridgeRef.current = null
       }
+      if (surfaceInstanceId) {
+        unregisterCoeditBridge(surfaceInstanceId)
+      }
     }
-  }, [])
+  }, [surfaceInstanceId])
 
   // Show waiting state while the server config is loading / not ready
   if (server !== BUNDLED_SERVER_NAME && serverState !== 'ready') {
