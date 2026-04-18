@@ -6,9 +6,6 @@
     <style>
       :root {
         color-scheme: light dark;
-        /* Canonical MCP Apps spec keys from McpUiStyleVariableKey enum.
-           Host sets these in ui/initialize response; fallbacks apply when
-           running outside an MCP-Apps-compliant host. */
         --bg: var(--color-background-primary, #0a0a0a);
         --fg: var(--color-text-primary, #e5e5e5);
         --accent: var(--color-ring-primary, #5eead4);
@@ -41,17 +38,15 @@
     <div class="count" id="count">0</div>
     <button id="btn">Increment</button>
     <script>
-      let nextId = 1
       let count = 0
+      let initialized = false
       const countEl = document.getElementById('count')
       const btn = document.getElementById('btn')
 
-      // 1. Send ui/initialize on load
-      function initialize() {
-        const id = nextId++
+      function sendInit() {
         window.parent.postMessage({
           jsonrpc: '2.0',
-          id,
+          id: 1,
           method: 'ui/initialize',
           params: {
             appCapabilities: {},
@@ -61,20 +56,28 @@
         }, '*')
       }
 
-      // 2. Listen for host messages
+      function sendInitialized() {
+        if (initialized) return
+        initialized = true
+        window.parent.postMessage({
+          jsonrpc: '2.0',
+          method: 'ui/notifications/initialized',
+          params: {},
+        }, '*')
+      }
+
       window.addEventListener('message', (e) => {
         const msg = e.data
         if (!msg || typeof msg !== 'object') return
 
-        // a) ui/initialize response → apply hostContext theme variables
         if (msg.id === 1 && msg.result && msg.result.hostContext && msg.result.hostContext.styles && msg.result.hostContext.styles.variables) {
           const vars = msg.result.hostContext.styles.variables
           for (const [k, v] of Object.entries(vars)) {
             document.documentElement.style.setProperty(k, v)
           }
+          sendInitialized()
         }
 
-        // b) ui/notifications/tool-input → reset count to startAt if provided
         if (msg.method === 'ui/notifications/tool-input') {
           const start = msg.params && msg.params.arguments && msg.params.arguments.startAt
           if (typeof start === 'number') {
@@ -84,13 +87,12 @@
         }
       })
 
-      // 3. Increment locally
       btn.addEventListener('click', () => {
         count += 1
         countEl.textContent = String(count)
       })
 
-      initialize()
+      sendInit()
     </script>
   </body>
 </html>

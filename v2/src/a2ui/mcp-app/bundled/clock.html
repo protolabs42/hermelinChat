@@ -6,7 +6,6 @@
     <style>
       :root {
         color-scheme: light dark;
-        /* Canonical MCP Apps spec keys from McpUiStyleVariableKey enum. */
         --bg: var(--color-background-primary, #0a0a0a);
         --fg: var(--color-text-primary, #e5e5e5);
         --accent: var(--color-ring-primary, #5eead4);
@@ -57,26 +56,41 @@
       <div class="sw" style="background:var(--color-text-primary)"></div>
     </div>
     <script>
-      let nextId = 1
-      window.parent.postMessage({
-        jsonrpc: '2.0',
-        id: nextId++,
-        method: 'ui/initialize',
-        params: {
-          appCapabilities: {},
-          appInfo: { name: 'aurora-clock-demo', version: '0.1.0' },
-          protocolVersion: '2026-01-26',
-        },
-      }, '*')
+      let initialized = false
 
-      // Apply hostContext.styles.variables when the host responds to ui/initialize
+      function sendInit() {
+        window.parent.postMessage({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'ui/initialize',
+          params: {
+            appCapabilities: {},
+            appInfo: { name: 'aurora-clock-demo', version: '0.1.0' },
+            protocolVersion: '2026-01-26',
+          },
+        }, '*')
+      }
+
+      function sendInitialized() {
+        if (initialized) return
+        initialized = true
+        window.parent.postMessage({
+          jsonrpc: '2.0',
+          method: 'ui/notifications/initialized',
+          params: {},
+        }, '*')
+      }
+
       window.addEventListener('message', (e) => {
         const m = e.data
-        if (m && m.id === 1 && m.result && m.result.hostContext && m.result.hostContext.styles && m.result.hostContext.styles.variables) {
+        if (!m || typeof m !== 'object') return
+
+        if (m.id === 1 && m.result && m.result.hostContext && m.result.hostContext.styles && m.result.hostContext.styles.variables) {
           const vars = m.result.hostContext.styles.variables
           for (const [k, v] of Object.entries(vars)) {
             document.documentElement.style.setProperty(k, v)
           }
+          sendInitialized()
         }
       })
 
@@ -84,6 +98,7 @@
       const tick = () => { el.textContent = new Date().toLocaleTimeString('en-GB') }
       tick()
       setInterval(tick, 1000)
+      sendInit()
     </script>
   </body>
 </html>

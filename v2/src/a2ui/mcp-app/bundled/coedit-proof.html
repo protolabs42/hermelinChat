@@ -113,6 +113,14 @@
         }, '*')
       }
 
+      function sendInitialized() {
+        window.parent.postMessage({
+          jsonrpc: '2.0',
+          method: 'ui/notifications/initialized',
+          params: {},
+        }, '*')
+      }
+
       function buildPatchPayload() {
         const selection = {
           start: draftEl.selectionStart,
@@ -167,6 +175,7 @@
 
         if (msg.id === 1 && msg.result && msg.result.hostContext && msg.result.hostContext.styles) {
           applyTheme(msg.result.hostContext.styles.variables)
+          sendInitialized()
         }
 
         if (msg.method === 'ui/notifications/tool-input') {
