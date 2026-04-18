@@ -282,7 +282,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             }],
           }))
         } else if (event.status === 'connected') {
-          set({ connectionStatus: event.status, sessionId: null, isStreaming: false })
+          set((s) => ({ connectionStatus: event.status, sessionId: s.sessionId, isStreaming: false }))
         } else {
           set({ connectionStatus: event.status, isStreaming: false })
         }

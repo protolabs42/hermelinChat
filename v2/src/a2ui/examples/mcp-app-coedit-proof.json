@@ -1,5 +1,5 @@
 {
-  "_description": "Lane 2 co-edit proof surface. Bundled MCP App with local editing, explicit Ask Sophie action, and proof-only patch return path via [[COEDIT_PATCH]] markers.",
+  "_description": "Lane 2 co-edit proof surface. Bundled MCP App with local editing, explicit Ask Aurora action, and proof-only patch return path via [[COEDIT_PATCH]] markers.",
   "messages": [
     {
       "version": "v0.9",
@@ -31,7 +31,7 @@
             "id": "desc_text",
             "component": "Text",
             "variant": "caption",
-            "text": "Type locally with zero latency, then click Ask Sophie. A proof-only [[COEDIT_PATCH]] marker in the assistant reply should patch the live iframe without reload."
+            "text": "Type locally with zero latency, then click Ask Aurora. A proof-only [[COEDIT_PATCH]] marker in the assistant reply should patch the live iframe without reload."
           },
           {
             "id": "viewer",

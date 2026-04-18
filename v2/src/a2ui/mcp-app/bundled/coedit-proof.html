@@ -65,9 +65,9 @@
       </div>
       <textarea id="draft">draft one</textarea>
       <div>
-        <button id="ask">Ask Sophie</button>
+        <button id="ask">Ask Aurora</button>
       </div>
-      <div class="status" id="status">Local edits are instant. Sophie only wakes when asked.</div>
+      <div class="status" id="status">Local edits are instant. Aurora only wakes when asked.</div>
     </div>
 
     <script>
@@ -129,7 +129,7 @@
         }
       }
 
-      function askSophie() {
+      function askAurora() {
         if (surfaceInstanceId === 'coedit-proof-dev') {
           statusEl.textContent = 'Still waiting for host bootstrap. Give it a second, then try again.'
           presenceEl.textContent = 'bootstrapping'
@@ -151,11 +151,11 @@
             ],
           },
         }, '*')
-        statusEl.textContent = 'Asked Sophie to look at the current draft.'
-        presenceEl.textContent = 'sophie waking'
+        statusEl.textContent = 'Asked Aurora to look at the current draft.'
+        presenceEl.textContent = 'aurora thinking'
       }
 
-      askBtn.addEventListener('click', askSophie)
+      askBtn.addEventListener('click', askAurora)
       draftEl.addEventListener('input', () => {
         presenceEl.textContent = 'Inu editing'
         statusEl.textContent = 'Local draft changed. No model call yet.'
@@ -182,7 +182,7 @@
             draftEl.value = args.text
           }
           if (surfaceInstanceId !== 'coedit-proof-dev') {
-            statusEl.textContent = 'Host bootstrap complete. Ask Sophie when ready.'
+            statusEl.textContent = 'Host bootstrap complete. Ask Aurora when ready.'
             presenceEl.textContent = 'ready'
           }
         }
@@ -200,7 +200,7 @@
             setRevision(revision + 1)
           }
           presenceEl.textContent = `${params.authoredBy || 'host'} patched`
-          statusEl.textContent = 'Applied Sophie patch without reload.'
+          statusEl.textContent = 'Applied assistant patch without reload.'
         }
       })
 

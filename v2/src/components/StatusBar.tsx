@@ -287,17 +287,21 @@ export default function StatusBar() {
         {import.meta.env.DEV && (
           <button
             onClick={launchCoeditProof}
-            disabled={!sessionId}
-            title={sessionId ? 'Launch co-edit proof surface in the current session' : 'Start a chat session first'}
+            disabled={!sessionId || status !== 'connected'}
+            title={
+              sessionId && status === 'connected'
+                ? 'Launch co-edit proof surface in the current session'
+                : 'Wait for Aurora to finish connecting and create a live session first'
+            }
             style={{
               ...btnStyle,
               width: 'auto',
               padding: '0 12px',
               fontFamily: 'var(--font-mono, monospace)',
               fontSize: 11,
-              color: sessionId ? 'var(--color-accent)' : 'var(--color-muted)',
+              color: sessionId && status === 'connected' ? 'var(--color-accent)' : 'var(--color-muted)',
               border: '1px solid var(--color-border)',
-              opacity: sessionId ? 1 : 0.55,
+              opacity: sessionId && status === 'connected' ? 1 : 0.55,
             }}
           >
             coedit proof

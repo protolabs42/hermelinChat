@@ -8,9 +8,9 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "a2ui:validate": "tsx src/a2ui/validate-examples.ts",
-    "a2ui:test": "tsx src/a2ui/mcp-app/__tests__/csp.test.ts && tsx src/a2ui/mcp-app/__tests__/resolver.test.ts && tsx src/a2ui/__tests__/verdict-card.test.ts && tsx src/a2ui/__tests__/manual-launch.test.ts",
+    "a2ui:test": "tsx src/a2ui/mcp-app/__tests__/csp.test.ts && tsx src/a2ui/mcp-app/__tests__/resolver.test.ts && tsx src/a2ui/__tests__/verdict-card.test.ts && tsx src/a2ui/__tests__/manual-launch.test.ts && tsx src/a2ui/__tests__/dev-mode.test.ts",
     "utils:test": "tsx src/utils/__tests__/session-restore.test.ts",
-    "chat:test": "tsx src/components/chat/__tests__/MarkdownView.test.tsx",
+    "chat:test": "tsx src/components/chat/__tests__/MarkdownView.test.tsx && tsx src/stores/__tests__/chat.test.ts",
     "artifacts:test": "tsx src/stores/__tests__/artifacts.test.ts",
     "coedit:test": "tsx src/stores/__tests__/coedit.test.ts && tsx src/a2ui/mcp-app/__tests__/coedit-bridge.test.ts",
     "test": "npm run a2ui:test && npm run utils:test && npm run chat:test && npm run artifacts:test && npm run coedit:test"
