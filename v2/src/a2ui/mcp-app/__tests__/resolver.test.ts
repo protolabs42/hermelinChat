@@ -42,6 +42,8 @@ async function main() {
     const h = await resolveUiResource('ui://aurora-bundled/' + name)
     assert.ok(h.includes('<html'), name + ' should contain <html>')
     assert.ok(h.includes('ui/initialize'), name + ' should send ui/initialize')
+    assert.ok(h.includes('appInfo'), name + ' should use appInfo in ui/initialize params')
+    assert.ok(!h.includes('clientInfo'), name + ' should not use stale clientInfo in ui/initialize params')
   }
 
   console.log('✓ resolver tests passed')
