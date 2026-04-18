@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { applyHostPatchEnvelope, parseCoeditPatchMarkers } from '../a2ui/mcp-app/coedit-bridge'
 import type { AcpEvent } from '../types/acp'
 import { persistSurfaceAnchor } from '../a2ui/surface-anchors'
 
@@ -14,17 +15,45 @@ function flushTextBuffer(set: (fn: (s: ChatStore) => Partial<ChatStore>) => void
   const role = _textRole
   _textBuffer = ''
   _flushTimer = null
+  const pendingPatchEnvelopes: Array<ReturnType<typeof parseCoeditPatchMarkers>[number]['envelope']> = []
 
   set((s) => {
     const msgs = s.messages.slice()
     const last = msgs[msgs.length - 1]
     if (last && last.role === role) {
-      msgs[msgs.length - 1] = { ...last, content: last.content + text }
+      const nextContent = last.content + text
+      const nextMessage = { ...last, content: nextContent }
+      if (role === 'assistant') {
+        const applied = new Set(last.appliedCoeditPatchMarkers ?? [])
+        const freshMatches = parseCoeditPatchMarkers(nextContent).filter((match) => !applied.has(match.raw))
+        for (const match of freshMatches) {
+          applied.add(match.raw)
+          pendingPatchEnvelopes.push(match.envelope)
+        }
+        if (applied.size > 0) {
+          nextMessage.appliedCoeditPatchMarkers = Array.from(applied)
+        }
+      }
+      msgs[msgs.length - 1] = nextMessage
     } else {
-      msgs.push({ id: genId(), role, content: text, timestamp: Date.now() })
+      const nextMessage: ChatMessage = { id: genId(), role, content: text, timestamp: Date.now() }
+      if (role === 'assistant') {
+        const freshMatches = parseCoeditPatchMarkers(text)
+        if (freshMatches.length > 0) {
+          nextMessage.appliedCoeditPatchMarkers = freshMatches.map((match) => match.raw)
+          for (const match of freshMatches) {
+            pendingPatchEnvelopes.push(match.envelope)
+          }
+        }
+      }
+      msgs.push(nextMessage)
     }
     return { messages: msgs }
   })
+
+  for (const envelope of pendingPatchEnvelopes) {
+    void applyHostPatchEnvelope(envelope)
+  }
 }
 
 function bufferText(text: string, role: 'assistant' | 'thinking', set: (fn: (s: ChatStore) => Partial<ChatStore>) => void, _get?: () => ChatStore) {
@@ -51,6 +80,7 @@ export interface ChatMessage {
   diffPath?: string
   diffOld?: string | null
   diffNew?: string
+  appliedCoeditPatchMarkers?: string[]
   /** For role='surface': id of the A2UI surface to render inline here. */
   surfaceId?: string
 }

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import {
   deriveCoeditSurfaceInstanceId,
   parseCoeditMessageContent,
+  parseCoeditPatchMarkers,
 } from '../coedit-bridge'
 
 function test(name: string, fn: () => void) {
@@ -42,4 +43,22 @@ test('parseCoeditMessageContent extracts JSON payload from text block', () => {
 test('parseCoeditMessageContent returns null for non-json text', () => {
   const payload = parseCoeditMessageContent([{ type: 'text', text: 'hello world' }])
   assert.equal(payload, null)
+})
+
+test('parseCoeditPatchMarkers extracts single-line patch envelopes from assistant text', () => {
+  const matches = parseCoeditPatchMarkers(
+    'Here is the rewrite.\n[[COEDIT_PATCH]] {"surfaceInstanceId":"sess:surface:cmp","baseRevision":2,"patch":[{"op":"replace","path":"/text","value":"hi"}],"authoredBy":"sophie"}'
+  )
+
+  assert.equal(matches.length, 1)
+  assert.equal(matches[0].envelope.surfaceInstanceId, 'sess:surface:cmp')
+  assert.equal(matches[0].envelope.baseRevision, 2)
+  assert.equal(matches[0].envelope.authoredBy, 'sophie')
+})
+
+test('parseCoeditPatchMarkers ignores malformed or partial marker payloads', () => {
+  const matches = parseCoeditPatchMarkers(
+    '[[COEDIT_PATCH]] {"surfaceInstanceId":"oops"\n[[COEDIT_PATCH]] not-json'
+  )
+  assert.deepEqual(matches, [])
 })
