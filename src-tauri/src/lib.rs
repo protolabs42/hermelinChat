@@ -3,6 +3,7 @@ mod artifacts;
 mod coedit;
 mod commands;
 mod hermes_config;
+pub mod lane2;
 mod mcp_commands;
 mod mcp_proxy;
 mod projects;

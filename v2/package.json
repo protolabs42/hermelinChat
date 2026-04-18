@@ -13,7 +13,8 @@
     "chat:test": "tsx src/components/chat/__tests__/MarkdownView.test.tsx && tsx src/stores/__tests__/chat.test.ts",
     "artifacts:test": "tsx src/stores/__tests__/artifacts.test.ts",
     "coedit:test": "tsx src/stores/__tests__/coedit.test.ts && tsx src/a2ui/mcp-app/__tests__/coedit-bridge.test.ts",
-    "test": "npm run a2ui:test && npm run utils:test && npm run chat:test && npm run artifacts:test && npm run coedit:test"
+    "lane2:test": "tsx src/lane2/__tests__/schema.test.ts",
+    "test": "npm run a2ui:test && npm run utils:test && npm run chat:test && npm run artifacts:test && npm run coedit:test && npm run lane2:test"
   },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "^1.5.0",
