@@ -30,6 +30,11 @@ ARTIFACT_TOOLSETS_BLOCK = '''
             "start_runner",
             "tail_runner_log",
             "stop_runner",
+            "open_workspace",
+            "split_pane",
+            "focus_panel",
+            "arrange_layout",
+            "close_panel",
             "artifact_bridge_command",
             "artifact_bridge_read_state"
         ],
