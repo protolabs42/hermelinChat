@@ -21,6 +21,13 @@ function formatFocusTarget(target: FocusTarget | null): string | null {
 
 function buildActionLabel(workspace: WorkspaceState, focusLabel: string | null): string {
   const threadId = workspace.continuity.activeThreadId ?? workspace.resident.sessionId
+  const activeInvocation = workspace.resident.activeInvocationId
+    ? workspace.invocations[workspace.resident.activeInvocationId] ?? null
+    : null
+
+  if (activeInvocation?.recoveryActionLabel) {
+    return activeInvocation.recoveryActionLabel
+  }
 
   if (workspace.resident.activeInvocationId) {
     return threadId ? `Resume thread ${threadId}` : 'Resume remembered work'
@@ -38,10 +45,16 @@ export function buildWorkspaceRowSummary(workspace: WorkspaceState): WorkspaceRo
   const unresolvedCount = workspace.attention.unresolvedTargets.length
   const surfaceCount = workspace.resident.activeSurfaceIds.length
   const actionLabel = buildActionLabel(workspace, focusLabel)
+  const activeInvocation = workspace.resident.activeInvocationId
+    ? workspace.invocations[workspace.resident.activeInvocationId] ?? null
+    : null
 
   if (workspace.resident.activeInvocationId) {
-    const details = [focusLabel, unresolvedCount > 0 ? `${unresolvedCount} unresolved` : null, surfaceCount > 0 ? `${surfaceCount} surface${surfaceCount === 1 ? '' : 's'}` : null]
-      .filter((value): value is string => Boolean(value))
+    const details = [
+      activeInvocation?.summary ?? focusLabel,
+      unresolvedCount > 0 ? `${unresolvedCount} unresolved` : null,
+      surfaceCount > 0 ? `${surfaceCount} surface${surfaceCount === 1 ? '' : 's'}` : null,
+    ].filter((value): value is string => Boolean(value))
 
     return {
       status: 'remembered-active',
@@ -73,10 +86,13 @@ export function buildWorkspaceContinuityCard(workspace: WorkspaceState): Workspa
   const unresolvedCount = workspace.attention.unresolvedTargets.length
 
   if (summary.status === 'remembered-active') {
+    const activeInvocation = workspace.resident.activeInvocationId
+      ? workspace.invocations[workspace.resident.activeInvocationId] ?? null
+      : null
     return {
       tone: 'active',
       label: summary.headline,
-      detail: formatFocusTarget(workspace.attention.primaryFocus) ?? 'Workspace remembers in-progress work',
+      detail: activeInvocation?.summary ?? formatFocusTarget(workspace.attention.primaryFocus) ?? 'Workspace remembers in-progress work',
       actionLabel: summary.actionLabel,
     }
   }

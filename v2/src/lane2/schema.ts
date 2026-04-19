@@ -47,6 +47,8 @@ export interface InvocationEnvelope {
   invocationId: string
   kind: InvocationKind
   target: string
+  summary: string | null
+  recoveryActionLabel: string | null
   initiatedBy: 'aurora'
   workspaceId: string
   sessionId: string | null

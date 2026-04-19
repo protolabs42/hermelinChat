@@ -102,6 +102,11 @@ function buildBackgroundHoldings(
   return holdings
 }
 
+function formatInvocationSummary(primaryFocus: FocusTarget | null): string | null {
+  if (!primaryFocus) return 'Working in remembered context'
+  return `Working in ${primaryFocus.kind} ${primaryFocus.id}`
+}
+
 function buildLiveInvocation(
   isStreaming: boolean | undefined,
   workspaceId: string,
@@ -124,6 +129,8 @@ function buildLiveInvocation(
       invocationId,
       kind: 'background',
       target: 'live-session',
+      summary: formatInvocationSummary(primaryFocus),
+      recoveryActionLabel: sessionId ? `Resume thread ${sessionId}` : 'Resume remembered work',
       initiatedBy: 'aurora',
       workspaceId,
       sessionId,

@@ -11,11 +11,31 @@ test('buildWorkspaceRowSummary marks remembered active work without pretending r
   workspace.attention.primaryFocus = { kind: 'surface', id: 'surface-a' }
   workspace.attention.unresolvedTargets = [{ kind: 'surface', id: 'surface-a' }]
   workspace.resident.activeSurfaceIds = ['surface-a', 'surface-b']
+  workspace.invocations['live:sess-1'] = {
+    invocationId: 'live:sess-1',
+    kind: 'background',
+    target: 'live-session',
+    summary: 'Working in surface surface-a',
+    recoveryActionLabel: 'Resume thread sess-1',
+    initiatedBy: 'aurora',
+    workspaceId: 'forge',
+    sessionId: 'sess-1',
+    surfaceId: 'surface-a',
+    threadId: 'sess-1',
+    contextRefs: [
+      { kind: 'workspace', id: 'forge' },
+      { kind: 'thread', id: 'sess-1' },
+      { kind: 'surface', id: 'surface-a' },
+    ],
+    status: 'active',
+    createdAt: 1700,
+    updatedAt: 1700,
+  }
 
   assert.deepEqual(buildWorkspaceRowSummary(workspace), {
     status: 'remembered-active',
     headline: 'Remembered active work',
-    detail: 'surface surface-a • 1 unresolved • 2 surfaces',
+    detail: 'Working in surface surface-a • 1 unresolved • 2 surfaces',
     actionLabel: 'Resume thread sess-1',
   })
 })
@@ -63,11 +83,31 @@ test('buildWorkspaceContinuityCard surfaces remembered active work for the curre
   workspace.resident.activeInvocationId = 'live:sess-3'
   workspace.attention.primaryFocus = { kind: 'surface', id: 'surface-b' }
   workspace.attention.unresolvedTargets = [{ kind: 'surface', id: 'surface-b' }]
+  workspace.invocations['live:sess-3'] = {
+    invocationId: 'live:sess-3',
+    kind: 'background',
+    target: 'live-session',
+    summary: 'Working in surface surface-b',
+    recoveryActionLabel: 'Resume thread sess-3',
+    initiatedBy: 'aurora',
+    workspaceId: 'forge',
+    sessionId: 'sess-3',
+    surfaceId: 'surface-b',
+    threadId: 'sess-3',
+    contextRefs: [
+      { kind: 'workspace', id: 'forge' },
+      { kind: 'thread', id: 'sess-3' },
+      { kind: 'surface', id: 'surface-b' },
+    ],
+    status: 'active',
+    createdAt: 2000,
+    updatedAt: 2000,
+  }
 
   assert.deepEqual(buildWorkspaceContinuityCard(workspace), {
     tone: 'active',
     label: 'Remembered active work',
-    detail: 'surface surface-b',
+    detail: 'Working in surface surface-b',
     actionLabel: 'Resume thread sess-3',
   })
 })

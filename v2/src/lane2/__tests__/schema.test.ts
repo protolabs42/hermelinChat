@@ -37,6 +37,8 @@ test('workspace state can hold typed invocation envelopes', () => {
     invocationId: 'inv-1',
     kind: 'subagent',
     target: 'delegate_task',
+    summary: null,
+    recoveryActionLabel: null,
     initiatedBy: 'aurora',
     workspaceId: 'ws-1',
     sessionId: null,
