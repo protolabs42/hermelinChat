@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import {
   clampArtifactPanelWidth,
   filterArtifactsForSession,
+  useArtifactStore,
   shouldAcceptArtifactEvent,
   type Artifact,
 } from '../artifacts'
@@ -63,4 +64,36 @@ test('clampArtifactPanelWidth keeps persisted widths inside workspace bounds', (
   assert.equal(clampArtifactPanelWidth(120), 280)
   assert.equal(clampArtifactPanelWidth(420), 420)
   assert.equal(clampArtifactPanelWidth(1200, 1000), 600)
+})
+
+test('selecting an artifact clears pinned surface mode', () => {
+  useArtifactStore.setState({
+    artifacts: [],
+    activeId: null,
+    panelOpen: false,
+    panelWidth: 420,
+    pinnedSurfaceId: 'surface-1',
+  })
+
+  useArtifactStore.getState().setActiveId('artifact-2')
+
+  const state = useArtifactStore.getState()
+  assert.equal(state.activeId, 'artifact-2')
+  assert.equal(state.pinnedSurfaceId, null)
+})
+
+test('pinning a surface opens the panel and keeps surface mode explicit', () => {
+  useArtifactStore.setState({
+    artifacts: [],
+    activeId: 'artifact-3',
+    panelOpen: false,
+    panelWidth: 420,
+    pinnedSurfaceId: null,
+  })
+
+  useArtifactStore.getState().pinSurface('surface-9')
+
+  const state = useArtifactStore.getState()
+  assert.equal(state.panelOpen, true)
+  assert.equal(state.pinnedSurfaceId, 'surface-9')
 })

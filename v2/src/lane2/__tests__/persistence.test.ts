@@ -41,6 +41,10 @@ test('buildWorkspaceSnapshot seeds resident continuity from live state', () => {
   assert.equal(next.chrome.artifactPanelWidth, 512)
   assert.equal(next.chrome.activeArtifactId, 'artifact-1')
   assert.equal(next.chrome.pinnedSurfaceId, 'surface-b')
+  assert.deepEqual(next.attention.primaryFocus, { kind: 'surface', id: 'surface-b' })
+  assert.deepEqual(next.attention.pinnedTargets, [{ kind: 'surface', id: 'surface-b' }])
+  assert.deepEqual(next.continuity.pinnedSurfaceIds, ['surface-b'])
+  assert.deepEqual(next.resident.focusTarget, { kind: 'surface', id: 'surface-b' })
 })
 
 test('buildWorkspaceSnapshot clamps artifact panel width into sane workspace bounds', () => {
@@ -61,6 +65,28 @@ test('buildWorkspaceSnapshot clamps artifact panel width into sane workspace bou
 
   assert.equal(next.chrome.sidebarWidth, 220)
   assert.equal(next.chrome.artifactPanelWidth, 280)
+})
+
+test('buildWorkspaceSnapshot falls back to active artifact focus when no surface is pinned', () => {
+  const next = buildWorkspaceSnapshot({
+    orderedSurfaceIds: ['surface-a'],
+    projectId: 'proj-1',
+    sessionId: 'sess-1',
+    chrome: {
+      sidebarOpen: false,
+      sidebarWidth: 280,
+      artifactPanelOpen: true,
+      artifactPanelWidth: 420,
+      activeArtifactId: 'artifact-9',
+      pinnedSurfaceId: null,
+    },
+    now: 789,
+  })
+
+  assert.deepEqual(next.attention.primaryFocus, { kind: 'artifact', id: 'artifact-9' })
+  assert.deepEqual(next.attention.pinnedTargets, [])
+  assert.deepEqual(next.continuity.pinnedSurfaceIds, [])
+  assert.deepEqual(next.resident.focusTarget, { kind: 'artifact', id: 'artifact-9' })
 })
 
 test('extractProjectIdFromWorkspace reads project context ids', () => {

@@ -98,7 +98,7 @@ export const useArtifactStore = create<ArtifactStore>((set) => ({
   panelWidth: DEFAULT_ARTIFACT_PANEL_WIDTH,
   pinnedSurfaceId: null,
 
-  setActiveId: (id) => set({ activeId: id }),
+  setActiveId: (id) => set({ activeId: id, pinnedSurfaceId: null }),
   setPanelWidth: (width) => set({ panelWidth: clampArtifactPanelWidth(width) }),
   openPanel: () => set({ panelOpen: true }),
   closePanel: () => set({ panelOpen: false }),

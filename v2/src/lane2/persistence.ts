@@ -1,5 +1,6 @@
 import {
   createEmptyWorkspaceState,
+  type FocusTarget,
   type WorkspaceState,
   type WorkspaceSurface,
   type WorkspaceChromeState,
@@ -44,6 +45,29 @@ function buildChromeState(
   }
 }
 
+function buildPrimaryFocus(
+  chrome: WorkspaceChromeState,
+  orderedSurfaceIds: string[],
+  sessionId: string | null
+): FocusTarget | null {
+  if (chrome.pinnedSurfaceId) {
+    return { kind: 'surface', id: chrome.pinnedSurfaceId }
+  }
+  if (chrome.artifactPanelOpen && chrome.activeArtifactId) {
+    return { kind: 'artifact', id: chrome.activeArtifactId }
+  }
+  const lastSurfaceId = orderedSurfaceIds.length > 0
+    ? orderedSurfaceIds[orderedSurfaceIds.length - 1]
+    : null
+  if (lastSurfaceId) {
+    return { kind: 'surface', id: lastSurfaceId }
+  }
+  if (sessionId) {
+    return { kind: 'thread', id: sessionId }
+  }
+  return null
+}
+
 function buildSurface(
   surfaceId: string,
   workspaceId: string,
@@ -77,6 +101,11 @@ export function buildWorkspaceSnapshot(args: {
   const now = args.now ?? Date.now()
   const workspaceId = args.workspaceId ?? args.existing?.workspaceId ?? DEFAULT_WORKSPACE_ID
   const base = args.existing ?? createEmptyWorkspaceState({ workspaceId, sessionId: args.sessionId, now })
+  const chrome = buildChromeState(args.chrome, base)
+  const primaryFocus = buildPrimaryFocus(chrome, args.orderedSurfaceIds, args.sessionId)
+  const pinnedTargets: FocusTarget[] = chrome.pinnedSurfaceId
+    ? [{ kind: 'surface', id: chrome.pinnedSurfaceId }]
+    : []
   const heldContextIds = projectContextId(args.projectId) ? [projectContextId(args.projectId)!] : []
   const surfaces = Object.fromEntries(
     args.orderedSurfaceIds.map((surfaceId) => [
@@ -91,9 +120,16 @@ export function buildWorkspaceSnapshot(args: {
     resident: {
       ...base.resident,
       activeSurfaceIds: [...args.orderedSurfaceIds],
+      focusTarget: primaryFocus,
       heldContextIds,
       sessionId: args.sessionId,
       workspaceId,
+      updatedAt: now,
+    },
+    attention: {
+      ...base.attention,
+      primaryFocus,
+      pinnedTargets,
       updatedAt: now,
     },
     surfaces,
@@ -101,9 +137,10 @@ export function buildWorkspaceSnapshot(args: {
       ...base.continuity,
       activeThreadId: args.sessionId,
       lastActiveSurfaceId: args.orderedSurfaceIds.length > 0 ? args.orderedSurfaceIds[args.orderedSurfaceIds.length - 1] : null,
+      pinnedSurfaceIds: chrome.pinnedSurfaceId ? [chrome.pinnedSurfaceId] : [],
       localAnchorIds: [...args.orderedSurfaceIds],
     },
-    chrome: buildChromeState(args.chrome, base),
+    chrome,
     updatedAt: now,
   }
 }
