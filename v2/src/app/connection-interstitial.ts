@@ -68,12 +68,14 @@ export function buildConnectionInterstitialModel(
     }
   }
 
-  if (args.rememberedSessionId) {
+  const rememberedSessionId = args.preferFreshSession ? null : args.rememberedSessionId
+
+  if (rememberedSessionId) {
     return {
       title: 'Loading remembered thread',
       detail: args.workspaceId
-        ? `Reopening ${args.rememberedSessionId} in ws:${args.workspaceId}.`
-        : `Reopening ${args.rememberedSessionId}.`,
+        ? `Reopening ${rememberedSessionId} in ws:${args.workspaceId}.`
+        : `Reopening ${rememberedSessionId}.`,
       hint: 'This restores the remembered thread context, not any interrupted tool execution.',
       steps: buildSteps('resume-thread'),
       showRecovery: args.elapsedMs >= STALLED_AFTER_MS,

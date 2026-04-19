@@ -32,9 +32,10 @@ function Spinner() {
 
 export default function ConnectionInterstitial({ model, startupStartedAt }: Props) {
   const { theme } = useTheme()
+  const [attemptStartedAt, setAttemptStartedAt] = useState(startupStartedAt)
   const [elapsedMs, setElapsedMs] = useState(() => Date.now() - startupStartedAt)
   const [busyAction, setBusyAction] = useState<'retry' | 'fresh' | 'scratchpad' | null>(null)
-  const [forceFreshSession, setForceFreshSession] = useState(false)
+  const [recoveryIntent, setRecoveryIntent] = useState<'fresh' | 'scratchpad' | null>(null)
   const activeProjectId = useProjectStore((s) => s.activeProjectId)
   const getActiveProject = useProjectStore((s) => s.getActiveProject)
   const workspaceHydrated = useWorkspaceStore((s) => s.hydrated)
@@ -44,36 +45,44 @@ export default function ConnectionInterstitial({ model, startupStartedAt }: Prop
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      setElapsedMs(Date.now() - startupStartedAt)
+      setElapsedMs(Date.now() - attemptStartedAt)
     }, 500)
     return () => window.clearInterval(timer)
+  }, [attemptStartedAt])
+
+  useEffect(() => {
+    setAttemptStartedAt(startupStartedAt)
+    setElapsedMs(Date.now() - startupStartedAt)
   }, [startupStartedAt])
 
   const effectiveModel = useMemo(() => {
-    const rememberedSessionId = forceFreshSession
-      ? null
-      : activeWorkspace?.continuity.activeThreadId
-        ?? activeWorkspace?.resident.sessionId
-        ?? null
+    const rememberedSessionId = activeWorkspace?.continuity.activeThreadId
+      ?? activeWorkspace?.resident.sessionId
+      ?? null
     return buildConnectionInterstitialModel({
       connectionStatus,
       elapsedMs,
       rememberedSessionId,
+      preferFreshSession: recoveryIntent === 'fresh' || recoveryIntent === 'scratchpad',
       sessionId,
       workspaceHydrated,
-      workspaceId: activeWorkspace?.workspaceId ?? null,
+      workspaceId: recoveryIntent === 'scratchpad' ? 'scratchpad' : activeWorkspace?.workspaceId ?? null,
     }) ?? model
-  }, [activeWorkspace, connectionStatus, elapsedMs, forceFreshSession, model, sessionId, workspaceHydrated])
+  }, [activeWorkspace, connectionStatus, elapsedMs, model, recoveryIntent, sessionId, workspaceHydrated])
 
   const activeProject = getActiveProject()
-  const currentProjectLabel = activeProjectId === SCRATCHPAD_ID || !activeProjectId
+  const currentProjectLabel = recoveryIntent === 'scratchpad'
     ? 'Scratchpad'
-    : activeProject?.name ?? 'current project'
+    : activeProjectId === SCRATCHPAD_ID || !activeProjectId
+      ? 'Scratchpad'
+      : activeProject?.name ?? 'current project'
 
   const handleRetry = async () => {
     try {
       setBusyAction('retry')
-      setForceFreshSession(false)
+      setRecoveryIntent(null)
+      setAttemptStartedAt(Date.now())
+      setElapsedMs(0)
       useChatStore.setState({ connectionStatus: 'connecting' })
       await invoke('acp_reconnect')
     } catch (error) {
@@ -86,7 +95,9 @@ export default function ConnectionInterstitial({ model, startupStartedAt }: Prop
   const handleFreshSession = async () => {
     try {
       setBusyAction('fresh')
-      setForceFreshSession(true)
+      setRecoveryIntent('fresh')
+      setAttemptStartedAt(Date.now())
+      setElapsedMs(0)
       useChatStore.getState().reset()
       useChatStore.setState({ connectionStatus: 'connecting' })
       let cwd: string | null = activeProject?.path || null
@@ -104,7 +115,9 @@ export default function ConnectionInterstitial({ model, startupStartedAt }: Prop
   const handleScratchpad = async () => {
     try {
       setBusyAction('scratchpad')
-      setForceFreshSession(false)
+      setRecoveryIntent('scratchpad')
+      setAttemptStartedAt(Date.now())
+      setElapsedMs(0)
       await useProjectStore.getState().setActiveProject(SCRATCHPAD_ID)
       useChatStore.setState({ connectionStatus: 'connecting' })
     } catch (error) {

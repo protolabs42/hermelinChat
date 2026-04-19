@@ -74,6 +74,21 @@ test('fresh-session startup stays honest when there is no remembered thread to r
   assert.equal(model?.steps[2]?.status, 'active')
 })
 
+test('fresh-session preference suppresses stale remembered-thread copy during recovery', () => {
+  const model = buildConnectionInterstitialModel({
+    connectionStatus: 'connected',
+    elapsedMs: 3_000,
+    rememberedSessionId: 'sess-stale',
+    preferFreshSession: true,
+    sessionId: null,
+    workspaceHydrated: true,
+    workspaceId: 'forge',
+  })
+
+  assert.equal(model?.title, 'Starting a fresh session')
+  assert.doesNotMatch(model?.detail ?? '', /sess-stale/)
+})
+
 test('recovery affordances appear once startup feels stalled', () => {
   const model = buildConnectionInterstitialModel({
     connectionStatus: 'connected',
