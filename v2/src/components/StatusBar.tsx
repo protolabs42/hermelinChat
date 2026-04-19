@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useChatStore } from '../stores/chat'
 import { useSettingsStore } from '../stores/settings'
@@ -10,7 +10,9 @@ import { buildManualA2UIEmitRequest } from '../a2ui/manual-launch'
 import { useTheme } from '../theme'
 import ProjectSwitcher from './ProjectSwitcher'
 import WorkspaceSwitcher from './WorkspaceSwitcher'
+import WorkspaceTabs from './WorkspaceTabs'
 import HermesUpdateModal from './HermesUpdateModal'
+import { buildWorkspaceStripModel } from '../app/workspace-strip'
 import { activateWorkspaceSnapshot } from '../lane2/workspace-activation'
 import { buildWorkspaceContinuityCard } from '../lane2/workspace-summary'
 import coeditProofRaw from '../a2ui/examples/mcp-app-coedit-proof.json?raw'
@@ -41,17 +43,28 @@ export default function StatusBar() {
   const gitInfo = useProjectStore((s) => s.gitInfo)
   const getActiveProject = useProjectStore((s) => s.getActiveProject)
   const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace)
+  const workspaces = useWorkspaceStore((s) => s.workspaces)
+  const loadWorkspaces = useWorkspaceStore((s) => s.loadWorkspaces)
 
   const activeProject = getActiveProject()
   const isScratchpad = !activeProjectId || activeProjectId === SCRATCHPAD_ID
   const currentGitInfo = activeProjectId ? gitInfo[activeProjectId] : null
-  const workspaceLabel = activeWorkspace?.workspaceId ?? 'default'
   const continuityCard = activeWorkspace ? buildWorkspaceContinuityCard(activeWorkspace) : null
+  const stripWorkspaces = workspaces.length > 0
+    ? workspaces
+    : activeWorkspace
+    ? [activeWorkspace]
+    : []
+  const workspaceStrip = useMemo(() => buildWorkspaceStripModel({
+    activeWorkspaceId: activeWorkspace?.workspaceId ?? null,
+    maxVisibleCount: 4,
+    workspaces: stripWorkspaces,
+  }), [activeWorkspace?.workspaceId, stripWorkspaces])
 
   const [switcherOpen, setSwitcherOpen] = useState(false)
   const [workspaceSwitcherOpen, setWorkspaceSwitcherOpen] = useState(false)
   const projectNameRef = useRef<HTMLSpanElement>(null)
-  const workspaceNameRef = useRef<HTMLSpanElement>(null)
+  const workspaceStripRef = useRef<HTMLDivElement>(null)
 
   const openSwitcher = () => setSwitcherOpen(true)
   const closeSwitcher = () => setSwitcherOpen(false)
@@ -66,8 +79,8 @@ export default function StatusBar() {
   }
 
   const getWorkspaceSwitcherAnchor = (): DOMRect | 'center' => {
-    if (workspaceNameRef.current) {
-      return workspaceNameRef.current.getBoundingClientRect()
+    if (workspaceStripRef.current) {
+      return workspaceStripRef.current.getBoundingClientRect()
     }
     return 'center'
   }
@@ -94,7 +107,8 @@ export default function StatusBar() {
 
   useEffect(() => {
     refreshUpdateInfo()
-  }, [])
+    void loadWorkspaces()
+  }, [loadWorkspaces])
 
   const dotColor =
     status === 'connected' ? 'var(--color-success)' :
@@ -146,6 +160,50 @@ export default function StatusBar() {
       })
     } catch (e) {
       console.error('Failed to resume current workspace continuity:', e)
+    }
+  }
+
+  const handleSelectWorkspace = async (workspaceId: string) => {
+    const targetWorkspace = stripWorkspaces.find((workspace) => workspace.workspaceId === workspaceId)
+    if (!targetWorkspace) {
+      openWorkspaceSwitcher()
+      return
+    }
+
+    try {
+      await activateWorkspaceSnapshot(targetWorkspace, {
+        setActiveWorkspace: useWorkspaceStore.getState().setActiveWorkspace,
+        hydrateActiveProject: useProjectStore.getState().hydrateActiveProject,
+        resetChat: () => {
+          useChatStore.getState().reset()
+        },
+        restoreSurfaceAnchors: (surfaceIds) => {
+          useChatStore.getState().restoreSurfaceAnchors(surfaceIds)
+        },
+        foregroundFocusTarget: (target) => {
+          if (!target) return
+          const artifactStore = useArtifactStore.getState()
+          if (target.kind === 'surface') {
+            artifactStore.pinSurface(target.id)
+            return
+          }
+          if (target.kind === 'artifact') {
+            artifactStore.openPanel()
+            artifactStore.setActiveId(target.id)
+          }
+        },
+        loadSession: async (sessionId, cwd) => {
+          await invoke('acp_load_session', { sessionId, cwd })
+        },
+        newSession: async (cwd) => {
+          await invoke('acp_new_session', { cwd })
+        },
+        getHomeDir: async () => await invoke<string>('get_home_dir').catch(() => null),
+        getProjectPath: (projectId) => useProjectStore.getState().projects[projectId]?.path ?? null,
+        getCurrentProjectPath: () => useProjectStore.getState().getActiveProject()?.path ?? null,
+      })
+    } catch (e) {
+      console.error(`Failed to activate workspace ${workspaceId}:`, e)
     }
   }
 
@@ -226,26 +284,19 @@ export default function StatusBar() {
           title={status}
         />
 
-        {/* Workspace breadcrumb */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span
-            ref={workspaceNameRef}
-            onClick={openWorkspaceSwitcher}
-            style={{
-              color: 'var(--color-text-bright)',
-              cursor: 'pointer',
-              textDecorationLine: 'underline',
-              textDecorationStyle: 'dashed',
-              textUnderlineOffset: 3,
-              fontFamily: 'var(--font-mono, monospace)',
-              fontSize: 12,
-              fontWeight: 600,
+        <div ref={workspaceStripRef} style={{ display: 'flex', alignItems: 'center', minWidth: 0, maxWidth: '100%' }}>
+          <WorkspaceTabs
+            tabs={workspaceStrip.visibleTabs}
+            overflowCount={workspaceStrip.overflowCount}
+            onCreateWorkspace={openWorkspaceSwitcher}
+            onOpenOverflow={openWorkspaceSwitcher}
+            onSelectWorkspace={(workspaceId) => {
+              void handleSelectWorkspace(workspaceId)
             }}
-          >
-            ws:{workspaceLabel}
-          </span>
-          <span style={{ color: 'var(--color-muted)', opacity: 0.5 }}>/</span>
+          />
         </div>
+
+        <span style={{ color: 'var(--color-muted)', opacity: 0.35 }}>•</span>
 
         {/* Project breadcrumb */}
         {activeProjectId === null ? (
