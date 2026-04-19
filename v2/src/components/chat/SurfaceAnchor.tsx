@@ -16,6 +16,7 @@ import { useSurfaceStore } from '../../stores/surfaces'
 import { useChatStore } from '../../stores/chat'
 import { useArtifactStore } from '../../stores/artifacts'
 import type { ActionMessage, ErrorMessage } from '../../a2ui/types'
+import { buildSurfaceAnchorLoadingCopy } from '../../app/right-pane-state'
 
 interface Props {
   surfaceId: string
@@ -69,13 +70,13 @@ export default function SurfaceAnchor({ surfaceId }: Props) {
           padding: 16,
           fontFamily: 'var(--font-mono, monospace)',
           fontSize: 12,
-          color: 'var(--color-muted)',
+          color: isPinned ? 'var(--color-accent)' : 'var(--color-muted)',
           background: 'var(--color-elevated)',
-          border: '1px dashed var(--color-border)',
+          border: `1px dashed ${isPinned ? 'var(--color-accent)' : 'var(--color-border)'}`,
           borderRadius: 8,
         }}
       >
-        A2UI surface "{surfaceId}" is loading…
+        {buildSurfaceAnchorLoadingCopy({ isPinned, surfaceId })}
       </div>
     )
   }

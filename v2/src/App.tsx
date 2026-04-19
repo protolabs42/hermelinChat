@@ -9,7 +9,6 @@ import ChatView from './components/ChatView'
 import MessageInput from './components/MessageInput'
 import SettingsPanel from './components/SettingsPanel'
 import SessionSidebar from './components/SessionSidebar'
-import ArtifactPanel from './components/ArtifactPanel'
 import RightPaneStack from './components/RightPaneStack'
 import { AlignmentMascot } from './components/AlignmentMascot'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -21,6 +20,7 @@ import ConnectionInterstitial from './components/ConnectionInterstitial'
 import { useWorkspaceStore } from './stores/workspaces'
 import { usePaneStore } from './stores/panes'
 import { buildConnectionInterstitialModel } from './app/connection-interstitial'
+import { resolveRightPaneLayout } from './app/right-pane-state'
 
 export default function App() {
   useAcpEvents()
@@ -51,6 +51,12 @@ export default function App() {
     })
   }, [activeWorkspace, connectionStatus, sessionId, startupStartedAt, workspaceHydrated])
 
+  const effectiveRightPaneLayout = useMemo(() => resolveRightPaneLayout({
+    panelOpen,
+    pinnedSurfaceId,
+    storedLayout: rightPaneLayout,
+  }), [panelOpen, pinnedSurfaceId, rightPaneLayout])
+
   // Set initial window title
   useEffect(() => {
     invoke('set_window_title', { title: 'Aurora Chat' }).catch(() => {})
@@ -67,13 +73,9 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (!panelOpen || rightPaneLayout.mode !== 'hidden') return
-    if (pinnedSurfaceId) {
-      usePaneStore.getState().setLayout({ mode: 'single', primaryPane: 'surfaces' })
-      return
-    }
-    usePaneStore.getState().setLayout({ mode: 'single', primaryPane: 'artifacts' })
-  }, [panelOpen, pinnedSurfaceId, rightPaneLayout.mode])
+    if (effectiveRightPaneLayout === rightPaneLayout) return
+    usePaneStore.getState().setLayout(effectiveRightPaneLayout)
+  }, [effectiveRightPaneLayout, rightPaneLayout])
 
   if (interstitialModel) {
     return (
@@ -111,15 +113,11 @@ export default function App() {
             </ErrorBoundary>
           </div>
 
-          {rightPaneLayout.mode !== 'hidden' ? (
+          {effectiveRightPaneLayout.mode !== 'hidden' && (
             <ErrorBoundary label="RightPaneStack">
-              <RightPaneStack />
+              <RightPaneStack layoutOverride={effectiveRightPaneLayout} />
             </ErrorBoundary>
-          ) : panelOpen ? (
-            <ErrorBoundary label="ArtifactPanel">
-              <ArtifactPanel />
-            </ErrorBoundary>
-          ) : null}
+          )}
         </div>
 
         {/* Settings panel (right overlay) */}

@@ -10,6 +10,7 @@ import { usePaneStore } from '../stores/panes'
 import { useSurfaceStore } from '../stores/surfaces'
 import { useChatStore } from '../stores/chat'
 import type { WorkspacePaneId } from '../lane2/schema'
+import { buildSurfacePaneEmptyState } from '../app/right-pane-state'
 
 function paneCopy(paneId: WorkspacePaneId): {
   title: string
@@ -123,12 +124,18 @@ export function SurfacePaneView(args: {
   pinnedSurfaceTitle: string | null
   surfaceIds: string[]
 }) {
+  const emptyState = buildSurfacePaneEmptyState({
+    liveSurfaceCount: args.surfaceIds.length,
+    pinnedSurfaceId: args.pinnedSurfaceId,
+    pinnedSurfaceTitle: args.pinnedSurfaceTitle,
+  })
+
   return (
     <div style={{ minHeight: 0, flex: 1, display: 'flex', flexDirection: 'column', gap: 12, padding: 14 }}>
       {args.pinnedSurfaceId ? (
         <div style={{ display: 'grid', gap: 6 }}>
           <div style={{ color: 'var(--color-accent)', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            Pinned Surface
+            {args.surfaceIds.length > 0 ? 'Pinned Surface' : 'Restoring pinned surface'}
           </div>
           <div style={{ color: 'var(--color-text-bright)', fontSize: 13, fontWeight: 700 }}>
             {args.pinnedSurfaceTitle || args.pinnedSurfaceId}
@@ -163,7 +170,7 @@ export function SurfacePaneView(args: {
           ))}
         </div>
       ) : (
-        <EmptyRenderer title="No live surfaces" detail="Launch or restore a surface to keep it docked here" />
+        <EmptyRenderer title={emptyState.title} detail={emptyState.detail} />
       )}
     </div>
   )
@@ -482,16 +489,26 @@ export function RightPaneStackView(args: {
   )
 }
 
-export default function RightPaneStack() {
+export default function RightPaneStack(args?: {
+  layoutOverride?: ReturnType<typeof usePaneStore.getState>['layout']
+}) {
   const closePane = usePaneStore((s) => s.closePane)
-  const layout = usePaneStore((s) => s.layout)
+  const closeLegacyPanel = useArtifactStore((s) => s.closePanel)
+  const storedLayout = usePaneStore((s) => s.layout)
   const panelWidth = useArtifactStore((s) => s.panelWidth)
   const setPanelWidth = useArtifactStore((s) => s.setPanelWidth)
 
+  const handleClosePane = (paneId: WorkspacePaneId) => {
+    closePane(paneId)
+    if (paneId === 'artifacts' || paneId === 'surfaces') {
+      closeLegacyPanel()
+    }
+  }
+
   return (
     <RightPaneStackView
-      closePane={closePane}
-      layout={layout}
+      closePane={handleClosePane}
+      layout={args?.layoutOverride ?? storedLayout}
       panelWidth={panelWidth}
       setPanelWidth={setPanelWidth}
     />

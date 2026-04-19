@@ -72,3 +72,15 @@ test('SurfacePaneView surfaces the pinned surface before the list', () => {
   assert.match(html, /coedit-proof/)
   assert.match(html, /surface-1/)
 })
+
+test('SurfacePaneView shows a restoring state instead of contradicting itself when a pinned surface has not reconnected yet', () => {
+  const html = renderToStaticMarkup(createElement(SurfacePaneView, {
+    pinnedSurfaceId: 'surface-2',
+    pinnedSurfaceTitle: 'coedit proof',
+    surfaceIds: [],
+  }))
+
+  assert.match(html, /Restoring pinned surface/)
+  assert.match(html, /coedit proof is pinned for this workspace\. Waiting for the live surface runtime to reconnect\./)
+  assert.doesNotMatch(html, /No live surfaces/)
+})
