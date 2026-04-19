@@ -5,9 +5,11 @@ import { useSettingsStore } from '../stores/settings'
 import { useSidebarStore } from '../stores/sidebar'
 import { useArtifactStore } from '../stores/artifacts'
 import { useProjectStore, SCRATCHPAD_ID } from '../stores/projects'
+import { useWorkspaceStore } from '../stores/workspaces'
 import { buildManualA2UIEmitRequest } from '../a2ui/manual-launch'
 import { useTheme } from '../theme'
 import ProjectSwitcher from './ProjectSwitcher'
+import WorkspaceSwitcher from './WorkspaceSwitcher'
 import HermesUpdateModal from './HermesUpdateModal'
 import coeditProofRaw from '../a2ui/examples/mcp-app-coedit-proof.json?raw'
 
@@ -36,20 +38,33 @@ export default function StatusBar() {
   const activeProjectId = useProjectStore((s) => s.activeProjectId)
   const gitInfo = useProjectStore((s) => s.gitInfo)
   const getActiveProject = useProjectStore((s) => s.getActiveProject)
+  const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace)
 
   const activeProject = getActiveProject()
   const isScratchpad = !activeProjectId || activeProjectId === SCRATCHPAD_ID
   const currentGitInfo = activeProjectId ? gitInfo[activeProjectId] : null
+  const workspaceLabel = activeWorkspace?.workspaceId ?? 'default'
 
   const [switcherOpen, setSwitcherOpen] = useState(false)
+  const [workspaceSwitcherOpen, setWorkspaceSwitcherOpen] = useState(false)
   const projectNameRef = useRef<HTMLSpanElement>(null)
+  const workspaceNameRef = useRef<HTMLSpanElement>(null)
 
   const openSwitcher = () => setSwitcherOpen(true)
   const closeSwitcher = () => setSwitcherOpen(false)
+  const openWorkspaceSwitcher = () => setWorkspaceSwitcherOpen(true)
+  const closeWorkspaceSwitcher = () => setWorkspaceSwitcherOpen(false)
 
   const getSwitcherAnchor = (): DOMRect | 'center' => {
     if (projectNameRef.current) {
       return projectNameRef.current.getBoundingClientRect()
+    }
+    return 'center'
+  }
+
+  const getWorkspaceSwitcherAnchor = (): DOMRect | 'center' => {
+    if (workspaceNameRef.current) {
+      return workspaceNameRef.current.getBoundingClientRect()
     }
     return 'center'
   }
@@ -168,6 +183,27 @@ export default function StatusBar() {
           style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor, flexShrink: 0 }}
           title={status}
         />
+
+        {/* Workspace breadcrumb */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span
+            ref={workspaceNameRef}
+            onClick={openWorkspaceSwitcher}
+            style={{
+              color: 'var(--color-text-bright)',
+              cursor: 'pointer',
+              textDecorationLine: 'underline',
+              textDecorationStyle: 'dashed',
+              textUnderlineOffset: 3,
+              fontFamily: 'var(--font-mono, monospace)',
+              fontSize: 12,
+              fontWeight: 600,
+            }}
+          >
+            ws:{workspaceLabel}
+          </span>
+          <span style={{ color: 'var(--color-muted)', opacity: 0.5 }}>/</span>
+        </div>
 
         {/* Project breadcrumb */}
         {activeProjectId === null ? (
@@ -338,6 +374,13 @@ export default function StatusBar() {
         <ProjectSwitcher
           anchor={getSwitcherAnchor()}
           onClose={closeSwitcher}
+        />
+      )}
+
+      {workspaceSwitcherOpen && (
+        <WorkspaceSwitcher
+          anchor={getWorkspaceSwitcherAnchor()}
+          onClose={closeWorkspaceSwitcher}
         />
       )}
 
