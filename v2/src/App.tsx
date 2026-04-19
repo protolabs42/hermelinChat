@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useAcpEvents } from './hooks/useAcpEvents'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
@@ -16,25 +16,36 @@ import { useArtifactStore } from './stores/artifacts'
 import { useChatStore } from './stores/chat'
 import { useSidebarStore } from './stores/sidebar'
 import ProjectSwitcher from './components/ProjectSwitcher'
-
-function LoadingScreen() {
-  return (
-    <div className="flex items-center justify-center h-screen bg-(--color-bg)">
-      <span className="text-(--color-muted) text-[13px] animate-aurora-pulse">
-        connecting to Aurora...
-      </span>
-    </div>
-  )
-}
+import ConnectionInterstitial from './components/ConnectionInterstitial'
+import { useWorkspaceStore } from './stores/workspaces'
+import { buildConnectionInterstitialModel } from './app/connection-interstitial'
 
 export default function App() {
   useAcpEvents()
   useKeyboardShortcuts()
 
   const connectionStatus = useChatStore((s) => s.connectionStatus)
+  const sessionId = useChatStore((s) => s.sessionId)
   const panelOpen = useArtifactStore((s) => s.panelOpen)
   const projectSwitcherOpen = useSidebarStore((s) => s.projectSwitcherOpen)
   const closeProjectSwitcher = useSidebarStore((s) => s.closeProjectSwitcher)
+  const workspaceHydrated = useWorkspaceStore((s) => s.hydrated)
+  const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace)
+  const startupStartedAt = useMemo(() => Date.now(), [])
+
+  const interstitialModel = useMemo(() => {
+    const rememberedSessionId = activeWorkspace?.continuity.activeThreadId
+      ?? activeWorkspace?.resident.sessionId
+      ?? null
+    return buildConnectionInterstitialModel({
+      connectionStatus,
+      elapsedMs: Date.now() - startupStartedAt,
+      rememberedSessionId,
+      sessionId,
+      workspaceHydrated,
+      workspaceId: activeWorkspace?.workspaceId ?? null,
+    })
+  }, [activeWorkspace, connectionStatus, sessionId, startupStartedAt, workspaceHydrated])
 
   // Set initial window title
   useEffect(() => {
@@ -51,10 +62,13 @@ export default function App() {
     return unsub
   }, [])
 
-  if (connectionStatus === 'connecting') {
+  if (interstitialModel) {
     return (
       <ThemeProvider>
-        <LoadingScreen />
+        <ConnectionInterstitial
+          model={interstitialModel}
+          startupStartedAt={startupStartedAt}
+        />
       </ThemeProvider>
     )
   }
