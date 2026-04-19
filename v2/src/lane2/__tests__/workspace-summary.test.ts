@@ -128,6 +128,46 @@ test('buildWorkspaceContinuityCard shows unresolved remembered work when focus i
   })
 })
 
+test('buildWorkspaceRowSummary surfaces waiting-for-tool semantics with a user-meaningful label', () => {
+  const workspace = createEmptyWorkspaceState({ workspaceId: 'forge', sessionId: 'sess-6', now: 2_150 })
+  workspace.attention.primaryFocus = { kind: 'thread', id: 'sess-6' }
+  workspace.attention.unresolvedTargets = [
+    {
+      kind: 'invocation',
+      id: 'tool-1',
+      reason: 'waiting-for-tool',
+      label: 'Waiting on tool result',
+    },
+  ]
+
+  assert.deepEqual(buildWorkspaceRowSummary(workspace), {
+    status: 'ready',
+    headline: 'Waiting on tool result',
+    detail: 'Ready in thread sess-6',
+    actionLabel: 'Open thread sess-6',
+  })
+})
+
+test('buildWorkspaceContinuityCard prefers semantic unresolved labels over generic unresolved counts', () => {
+  const workspace = createEmptyWorkspaceState({ workspaceId: 'proof', sessionId: 'sess-7', now: 2_200 })
+  workspace.attention.primaryFocus = { kind: 'surface', id: 'surface-coedit' }
+  workspace.attention.unresolvedTargets = [
+    {
+      kind: 'surface',
+      id: 'surface-coedit',
+      reason: 'coedit-open',
+      label: 'Coedit proof open',
+    },
+  ]
+
+  assert.deepEqual(buildWorkspaceContinuityCard(workspace), {
+    tone: 'ready',
+    label: 'Coedit proof open',
+    detail: 'Ready in surface surface-coedit',
+    actionLabel: 'Open surface surface-coedit',
+  })
+})
+
 test('buildWorkspaceContinuityCard returns null for a quiet waiting workspace', () => {
   const workspace = createEmptyWorkspaceState({ workspaceId: 'archive', now: 2200 })
   workspace.resident.stance = 'waiting'

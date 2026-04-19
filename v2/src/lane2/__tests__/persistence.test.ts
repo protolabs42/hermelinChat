@@ -194,7 +194,7 @@ test('buildWorkspaceSnapshot falls back to waiting stance with no session', () =
   assert.deepEqual(next.attention.backgroundHoldings, [])
 })
 
-test('buildWorkspaceSnapshot scaffolds a live invocation while streaming', () => {
+test('buildWorkspaceSnapshot scaffolds semantic unresolved posture while streaming', () => {
   const next = buildWorkspaceSnapshot({
     orderedSurfaceIds: ['surface-a'],
     projectId: 'proj-1',
@@ -204,7 +204,12 @@ test('buildWorkspaceSnapshot scaffolds a live invocation while streaming', () =>
   })
 
   assert.equal(next.resident.activeInvocationId, 'live:sess-1')
-  assert.deepEqual(next.attention.unresolvedTargets, [{ kind: 'surface', id: 'surface-a' }])
+  assert.deepEqual(next.attention.unresolvedTargets, [{
+    kind: 'surface',
+    id: 'surface-a',
+    reason: 'draft-in-progress',
+    label: 'Draft in progress',
+  }])
   assert.deepEqual(next.invocations['live:sess-1'], {
     invocationId: 'live:sess-1',
     kind: 'background',

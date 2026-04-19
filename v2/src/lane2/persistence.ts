@@ -1,6 +1,7 @@
 import {
   createEmptyWorkspaceState,
   type FocusTarget,
+  type UnresolvedTarget,
   type WorkspaceState,
   type WorkspaceSurface,
   type WorkspaceChromeState,
@@ -149,8 +150,13 @@ function buildLiveInvocation(
 function buildUnresolvedTargets(
   isStreaming: boolean | undefined,
   primaryFocus: FocusTarget | null
-): FocusTarget[] {
-  return isStreaming && primaryFocus ? [primaryFocus] : []
+): UnresolvedTarget[] {
+  if (!isStreaming || !primaryFocus) return []
+  return [{
+    ...primaryFocus,
+    reason: 'draft-in-progress',
+    label: 'Draft in progress',
+  }]
 }
 
 function buildRuntimeState(

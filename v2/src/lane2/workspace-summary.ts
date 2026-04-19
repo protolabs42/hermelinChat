@@ -1,4 +1,4 @@
-import type { FocusTarget, WorkspaceState } from './schema'
+import type { FocusTarget, UnresolvedTarget, WorkspaceState } from './schema'
 
 export interface WorkspaceRowSummary {
   status: 'remembered-active' | 'ready' | 'idle'
@@ -40,6 +40,10 @@ function buildActionLabel(workspace: WorkspaceState, focusLabel: string | null):
   return 'Open workspace'
 }
 
+function semanticUnresolvedTarget(workspace: WorkspaceState): UnresolvedTarget | null {
+  return workspace.attention.unresolvedTargets.find((target) => Boolean(target.label || target.reason)) ?? null
+}
+
 export function buildWorkspaceRowSummary(workspace: WorkspaceState): WorkspaceRowSummary {
   const focusLabel = formatFocusTarget(workspace.attention.primaryFocus)
   const unresolvedCount = workspace.attention.unresolvedTargets.length
@@ -48,11 +52,12 @@ export function buildWorkspaceRowSummary(workspace: WorkspaceState): WorkspaceRo
   const activeInvocation = workspace.resident.activeInvocationId
     ? workspace.invocations[workspace.resident.activeInvocationId] ?? null
     : null
+  const semanticUnresolved = semanticUnresolvedTarget(workspace)
 
   if (workspace.resident.activeInvocationId) {
     const details = [
       activeInvocation?.summary ?? focusLabel,
-      unresolvedCount > 0 ? `${unresolvedCount} unresolved` : null,
+      semanticUnresolved?.label ?? (unresolvedCount > 0 ? `${unresolvedCount} unresolved` : null),
       surfaceCount > 0 ? `${surfaceCount} surface${surfaceCount === 1 ? '' : 's'}` : null,
     ].filter((value): value is string => Boolean(value))
 
@@ -65,6 +70,15 @@ export function buildWorkspaceRowSummary(workspace: WorkspaceState): WorkspaceRo
   }
 
   if (focusLabel) {
+    if (semanticUnresolved?.label) {
+      return {
+        status: 'ready',
+        headline: semanticUnresolved.label,
+        detail: `Ready in ${focusLabel}`,
+        actionLabel,
+      }
+    }
+
     return {
       status: 'ready',
       headline: `Ready in ${focusLabel}`,
@@ -84,6 +98,7 @@ export function buildWorkspaceRowSummary(workspace: WorkspaceState): WorkspaceRo
 export function buildWorkspaceContinuityCard(workspace: WorkspaceState): WorkspaceContinuityCard | null {
   const summary = buildWorkspaceRowSummary(workspace)
   const unresolvedCount = workspace.attention.unresolvedTargets.length
+  const semanticUnresolved = semanticUnresolvedTarget(workspace)
 
   if (summary.status === 'remembered-active') {
     const activeInvocation = workspace.resident.activeInvocationId
@@ -100,8 +115,8 @@ export function buildWorkspaceContinuityCard(workspace: WorkspaceState): Workspa
   if (summary.status === 'ready' && unresolvedCount > 0) {
     return {
       tone: 'ready',
-      label: `${unresolvedCount} unresolved remembered`,
-      detail: summary.headline,
+      label: semanticUnresolved?.label ?? `${unresolvedCount} unresolved remembered`,
+      detail: semanticUnresolved?.label ? summary.detail : summary.headline,
       actionLabel: summary.actionLabel,
     }
   }

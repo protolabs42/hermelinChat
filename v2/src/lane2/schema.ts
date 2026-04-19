@@ -10,9 +10,20 @@ export type ResidentStance =
 
 export type FocusTargetKind = 'surface' | 'thread' | 'memory' | 'artifact' | 'invocation'
 
+export type UnresolvedTargetReason =
+  | 'waiting-for-tool'
+  | 'draft-in-progress'
+  | 'coedit-open'
+  | 'session-booting'
+
 export interface FocusTarget {
   kind: FocusTargetKind
   id: string
+}
+
+export interface UnresolvedTarget extends FocusTarget {
+  reason?: UnresolvedTargetReason
+  label?: string
 }
 
 export interface ResidentState {
@@ -101,7 +112,7 @@ export interface WorkspaceAttention {
   primaryFocus: FocusTarget | null
   backgroundHoldings: FocusTarget[]
   pinnedTargets: FocusTarget[]
-  unresolvedTargets: FocusTarget[]
+  unresolvedTargets: UnresolvedTarget[]
   updatedAt: number
 }
 
