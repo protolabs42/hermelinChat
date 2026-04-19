@@ -157,6 +157,42 @@ test('buildWorkspaceSnapshot preserves explicit inline anchor ordering when prov
   assert.deepEqual(next.continuity.localAnchorIds, ['surface-b', 'surface-a'])
 })
 
+test('buildWorkspaceSnapshot derives resident stance and background holdings from live posture', () => {
+  const next = buildWorkspaceSnapshot({
+    orderedSurfaceIds: ['surface-a', 'surface-b'],
+    projectId: 'proj-1',
+    sessionId: 'sess-1',
+    isStreaming: true,
+    chrome: {
+      sidebarOpen: false,
+      sidebarWidth: 280,
+      artifactPanelOpen: true,
+      artifactPanelWidth: 420,
+      activeArtifactId: 'artifact-2',
+      pinnedSurfaceId: 'surface-b',
+    },
+    now: 1100,
+  })
+
+  assert.equal(next.resident.stance, 'building')
+  assert.deepEqual(next.attention.backgroundHoldings, [
+    { kind: 'surface', id: 'surface-a' },
+    { kind: 'artifact', id: 'artifact-2' },
+  ])
+})
+
+test('buildWorkspaceSnapshot falls back to waiting stance with no session', () => {
+  const next = buildWorkspaceSnapshot({
+    orderedSurfaceIds: [],
+    projectId: null,
+    sessionId: null,
+    now: 1200,
+  })
+
+  assert.equal(next.resident.stance, 'waiting')
+  assert.deepEqual(next.attention.backgroundHoldings, [])
+})
+
 test('extractProjectIdFromWorkspace reads project context ids', () => {
   const workspace = createEmptyWorkspaceState({ workspaceId: 'ws-1' })
   workspace.resident.heldContextIds = ['memory:abc', 'project:scratchpad']

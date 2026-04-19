@@ -73,6 +73,35 @@ function buildPrimaryFocus(
   return null
 }
 
+function buildResidentStance(
+  isStreaming: boolean | undefined,
+  sessionId: string | null
+): WorkspaceState['resident']['stance'] {
+  if (isStreaming) return 'building'
+  if (sessionId) return 'attending'
+  return 'waiting'
+}
+
+function buildBackgroundHoldings(
+  primaryFocus: FocusTarget | null,
+  chrome: WorkspaceChromeState,
+  orderedSurfaceIds: string[]
+): FocusTarget[] {
+  const holdings: FocusTarget[] = []
+  for (const surfaceId of orderedSurfaceIds) {
+    if (primaryFocus?.kind === 'surface' && primaryFocus.id === surfaceId) continue
+    holdings.push({ kind: 'surface', id: surfaceId })
+  }
+  if (
+    chrome.artifactPanelOpen
+    && chrome.activeArtifactId
+    && !(primaryFocus?.kind === 'artifact' && primaryFocus.id === chrome.activeArtifactId)
+  ) {
+    holdings.push({ kind: 'artifact', id: chrome.activeArtifactId })
+  }
+  return holdings
+}
+
 function buildRuntimeState(
   surfaceIds: string[],
   liveSurfaces: Record<string, SurfaceState> | undefined,
@@ -130,6 +159,7 @@ export function buildWorkspaceSnapshot(args: {
   anchorSurfaceIds?: string[]
   chrome?: WorkspaceChromeState
   existing?: WorkspaceState | null
+  isStreaming?: boolean
   liveSurfaces?: Record<string, SurfaceState>
   now?: number
   orderedSurfaceIds: string[]
@@ -142,6 +172,8 @@ export function buildWorkspaceSnapshot(args: {
   const base = args.existing ?? createEmptyWorkspaceState({ workspaceId, sessionId: args.sessionId, now })
   const chrome = buildChromeState(args.chrome, base)
   const primaryFocus = buildPrimaryFocus(chrome, args.orderedSurfaceIds, args.sessionId)
+  const stance = buildResidentStance(args.isStreaming, args.sessionId)
+  const backgroundHoldings = buildBackgroundHoldings(primaryFocus, chrome, args.orderedSurfaceIds)
   const pinnedTargets: FocusTarget[] = chrome.pinnedSurfaceId
     ? [{ kind: 'surface', id: chrome.pinnedSurfaceId }]
     : []
@@ -166,12 +198,14 @@ export function buildWorkspaceSnapshot(args: {
       focusTarget: primaryFocus,
       heldContextIds,
       sessionId: args.sessionId,
+      stance,
       workspaceId,
       updatedAt: now,
     },
     attention: {
       ...base.attention,
       primaryFocus,
+      backgroundHoldings,
       pinnedTargets,
       updatedAt: now,
     },

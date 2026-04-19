@@ -186,6 +186,7 @@ export function useAcpEvents() {
         const anchorSurfaceIds = useChatStore.getState().messages
           .filter((message) => message.role === 'surface' && typeof message.surfaceId === 'string')
           .map((message) => message.surfaceId as string)
+        const isStreaming = useChatStore.getState().isStreaming
         const existing = useWorkspaceStore.getState().activeWorkspace
         const artifactState = useArtifactStore.getState()
         const sidebarState = useSidebarStore.getState()
@@ -201,6 +202,7 @@ export function useAcpEvents() {
           existing,
           liveSurfaces,
           anchorSurfaceIds,
+          isStreaming,
           orderedSurfaceIds,
           projectId,
           sessionId,
