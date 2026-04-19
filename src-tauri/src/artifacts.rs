@@ -473,6 +473,9 @@ fn a2ui_dir() -> PathBuf {
 mod tests {
     use super::*;
     use std::fs;
+    use std::sync::Mutex;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     fn write_artifact(path: &Path, body: &str) {
         fs::write(path, body).expect("write artifact");
@@ -480,6 +483,7 @@ mod tests {
 
     #[test]
     fn list_current_artifacts_filters_to_current_session_but_keeps_legacy() {
+        let _guard = ENV_LOCK.lock().expect("env lock");
         let temp = tempfile::TempDir::new().expect("temp dir");
         let root = temp.path();
         let session_dir = root.join("session");
@@ -508,6 +512,7 @@ mod tests {
 
     #[test]
     fn emit_local_a2ui_batch_persists_and_lists_transport_batches() {
+        let _guard = ENV_LOCK.lock().expect("env lock");
         let temp = tempfile::TempDir::new().expect("temp dir");
         let root = temp.path();
         let session_dir = root.join("session");
@@ -542,6 +547,7 @@ mod tests {
 
     #[test]
     fn emit_local_a2ui_batch_increments_seq_per_session() {
+        let _guard = ENV_LOCK.lock().expect("env lock");
         let temp = tempfile::TempDir::new().expect("temp dir");
         let root = temp.path();
         let session_dir = root.join("session");

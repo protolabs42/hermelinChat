@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 
 import A2UISurface from '../a2ui/renderer/A2UISurface'
 import type { ActionMessage, ErrorMessage } from '../a2ui/types'
+import type { ProjectWorkContext, ProjectWorkIssue } from '../app/project-work-context'
 import { ArtifactBody, EmptyRenderer } from './ArtifactPanel'
 import { clampArtifactPanelWidth, useArtifactStore, type Artifact } from '../stores/artifacts'
 import { usePaneStore } from '../stores/panes'
 import { useSurfaceStore } from '../stores/surfaces'
 import { useWorkspaceStore } from '../stores/workspaces'
+import { useProjectStore } from '../stores/projects'
 import { useChatStore } from '../stores/chat'
 import type { WorkspacePaneId } from '../lane2/schema'
 import { buildSurfacePaneEmptyState } from '../app/right-pane-state'
@@ -119,6 +121,162 @@ function ArtifactPaneContent() {
   )
 
   return <ArtifactPaneView activeArtifact={activeArtifact} artifactCount={artifacts.length} />
+}
+
+function issueMeta(issue: ProjectWorkIssue): string {
+  const parts = [issue.id]
+  if (issue.issue_type) parts.push(issue.issue_type)
+  if (issue.priority !== null) parts.push(`P${issue.priority}`)
+  return parts.join(' · ')
+}
+
+function IssueList(args: { title: string; issues: ProjectWorkIssue[] }) {
+  if (args.issues.length === 0) return null
+
+  return (
+    <div style={{ display: 'grid', gap: 8 }}>
+      <div style={{ color: 'var(--color-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        {args.title}
+      </div>
+      {args.issues.map((issue) => (
+        <div
+          key={issue.id}
+          style={{
+            display: 'grid',
+            gap: 4,
+            border: '1px solid var(--color-border)',
+            borderRadius: 10,
+            padding: '10px 12px',
+            background: 'color-mix(in srgb, var(--color-elevated) 78%, transparent)',
+          }}
+        >
+          <div style={{ color: 'var(--color-text-bright)', fontSize: 13, fontWeight: 700 }}>
+            {issue.title}
+          </div>
+          <div style={{ color: 'var(--color-muted)', fontFamily: 'var(--font-mono, monospace)', fontSize: 11 }}>
+            {issueMeta(issue)}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export function PlanPaneView(args: { context: ProjectWorkContext | null; loading: boolean }) {
+  if (args.loading) {
+    return <EmptyRenderer title="Loading plan" detail="Reading project notes and active bead context…" />
+  }
+  if (!args.context) {
+    return <EmptyRenderer title="No project context" detail="Open a real project workspace to pull planning context into this pane" />
+  }
+
+  const activeIssue = args.context.in_progress_issues[0] ?? null
+  const darkFactoryNotes = args.context.dark_factory_notes?.trim() ?? ''
+
+  return (
+    <div style={{ minHeight: 0, flex: 1, overflow: 'auto', display: 'grid', gap: 14, padding: 14 }}>
+      {activeIssue && (
+        <div style={{ display: 'grid', gap: 8 }}>
+          <div style={{ color: 'var(--color-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            Active bead
+          </div>
+          <div style={{ color: 'var(--color-text-bright)', fontSize: 14, fontWeight: 700 }}>
+            {activeIssue.title}
+          </div>
+          <div style={{ color: 'var(--color-muted)', fontFamily: 'var(--font-mono, monospace)', fontSize: 11 }}>
+            {issueMeta(activeIssue)}
+          </div>
+        </div>
+      )}
+
+      {darkFactoryNotes ? (
+        <div style={{ display: 'grid', gap: 8 }}>
+          <div style={{ color: 'var(--color-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            Dark factory notes
+          </div>
+          <div style={{ color: 'var(--color-text)', fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+            {darkFactoryNotes}
+          </div>
+          {args.context.dark_factory_path && (
+            <div style={{ color: 'var(--color-muted)', fontFamily: 'var(--font-mono, monospace)', fontSize: 11 }}>
+              {args.context.dark_factory_path}
+            </div>
+          )}
+        </div>
+      ) : activeIssue ? (
+        <div style={{ color: 'var(--color-text)', fontSize: 13, lineHeight: 1.6 }}>
+          {activeIssue.title}. Use the tasks pane for the live work queue and ready follow-ups.
+        </div>
+      ) : (
+        <EmptyRenderer title="No active plan" detail={args.context.error ?? 'No in-progress bead or dark-factory notes found for this workspace yet'} />
+      )}
+    </div>
+  )
+}
+
+export function TasksPaneView(args: { context: ProjectWorkContext | null; loading: boolean }) {
+  if (args.loading) {
+    return <EmptyRenderer title="Loading tasks" detail="Reading bd ready and in-progress issues…" />
+  }
+  if (!args.context) {
+    return <EmptyRenderer title="No project context" detail="Open a real project workspace to pull tracked work into this pane" />
+  }
+
+  const hasIssues = args.context.in_progress_issues.length > 0 || args.context.ready_issues.length > 0
+  if (!hasIssues) {
+    return <EmptyRenderer title="No tracked work" detail={args.context.error ?? 'No in-progress or ready bd issues were found for this repo'} />
+  }
+
+  return (
+    <div style={{ minHeight: 0, flex: 1, overflow: 'auto', display: 'grid', gap: 14, padding: 14 }}>
+      <IssueList title="In progress" issues={args.context.in_progress_issues} />
+      <IssueList title="Ready next" issues={args.context.ready_issues} />
+    </div>
+  )
+}
+
+function ProjectWorkPaneContent(args: { paneId: 'plan' | 'tasks' }) {
+  const activeProject = useProjectStore((s) => s.getActiveProject())
+  const [context, setContext] = useState<ProjectWorkContext | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!activeProject?.path) {
+      setContext(null)
+      return
+    }
+
+    let cancelled = false
+    setLoading(true)
+    invoke<ProjectWorkContext>('get_project_work_context', { path: activeProject.path })
+      .then((result) => {
+        if (!cancelled) setContext(result)
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setContext({
+            repo_path: activeProject.path,
+            has_bd: false,
+            in_progress_issues: [],
+            ready_issues: [],
+            dark_factory_notes: null,
+            dark_factory_path: null,
+            error: error instanceof Error ? error.message : String(error),
+          })
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeProject?.path])
+
+  return args.paneId === 'plan'
+    ? <PlanPaneView context={context} loading={loading} />
+    : <TasksPaneView context={context} loading={loading} />
 }
 
 export function SurfacePaneView(args: {
@@ -242,6 +400,9 @@ function SurfacePaneContent() {
 }
 
 function PaneContent({ paneId }: { paneId: WorkspacePaneId }) {
+  if (paneId === 'plan' || paneId === 'tasks') {
+    return <ProjectWorkPaneContent paneId={paneId} />
+  }
   if (paneId === 'artifacts') return <ArtifactPaneContent />
   if (paneId === 'surfaces') return <SurfacePaneContent />
   return null
@@ -322,9 +483,7 @@ function PaneCard({ paneId, closePane }: {
           flex: 1,
         }}
       >
-        {paneId === 'artifacts' || paneId === 'surfaces' ? (
-          <PaneContent paneId={paneId} />
-        ) : (
+        {paneId === 'context' ? (
           <>
             <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
               {copy.description}
@@ -343,6 +502,8 @@ function PaneCard({ paneId, closePane }: {
               This pane shell is workspace-scoped now. Real {copy.title.toLowerCase()} content plugs into the same slot next.
             </div>
           </>
+        ) : (
+          <PaneContent paneId={paneId} />
         )}
       </div>
     </section>

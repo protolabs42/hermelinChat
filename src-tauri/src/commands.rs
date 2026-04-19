@@ -4,6 +4,67 @@ use tauri::{AppHandle, Emitter, State};
 
 use crate::acp::client::AcpClient;
 
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct ProjectWorkIssue {
+    pub id: String,
+    pub title: String,
+    pub status: String,
+    pub priority: Option<i64>,
+    pub issue_type: Option<String>,
+}
+
+#[derive(Clone, serde::Serialize)]
+pub struct ProjectWorkContext {
+    pub repo_path: String,
+    pub has_bd: bool,
+    pub in_progress_issues: Vec<ProjectWorkIssue>,
+    pub ready_issues: Vec<ProjectWorkIssue>,
+    pub dark_factory_notes: Option<String>,
+    pub dark_factory_path: Option<String>,
+    pub error: Option<String>,
+}
+
+fn read_dark_factory_notes(repo_path: &str) -> (Option<String>, Option<String>) {
+    let candidates = [
+        PathBuf::from(repo_path)
+            .join(".dark-factory")
+            .join("notes.md"),
+        PathBuf::from(format!("{repo_path}-dark-factory"))
+            .join(".dark-factory")
+            .join("notes.md"),
+    ];
+
+    for candidate in candidates {
+        if candidate.exists() {
+            if let Ok(content) = std::fs::read_to_string(&candidate) {
+                return (Some(content), Some(candidate.display().to_string()));
+            }
+        }
+    }
+
+    (None, None)
+}
+
+fn run_bd_json(repo_path: &str, args: &[&str]) -> Result<Vec<ProjectWorkIssue>, String> {
+    let output = std::process::Command::new("bd")
+        .current_dir(repo_path)
+        .args(args)
+        .output()
+        .map_err(|e| format!("Failed to run bd {}: {e}", args.join(" ")))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(if stderr.is_empty() {
+            format!("bd {} exited with status {}", args.join(" "), output.status)
+        } else {
+            stderr
+        });
+    }
+
+    serde_json::from_slice::<Vec<ProjectWorkIssue>>(&output.stdout)
+        .map_err(|e| format!("Failed to parse bd {} JSON: {e}", args.join(" ")))
+}
+
 pub struct AcpState(pub Mutex<Option<AcpClient>>);
 
 #[tauri::command]
@@ -15,7 +76,11 @@ pub fn acp_new_session(state: State<'_, AcpState>, cwd: Option<String>) -> Resul
 }
 
 #[tauri::command]
-pub fn acp_load_session(state: State<'_, AcpState>, session_id: String, cwd: Option<String>) -> Result<String, String> {
+pub fn acp_load_session(
+    state: State<'_, AcpState>,
+    session_id: String,
+    cwd: Option<String>,
+) -> Result<String, String> {
     let guard = state.0.lock().map_err(|e| e.to_string())?;
     let client = guard.as_ref().ok_or("ACP client not initialized")?;
     client.load_session(&session_id, cwd.as_deref())?;
@@ -35,10 +100,7 @@ pub fn acp_send_prompt(
 }
 
 #[tauri::command]
-pub fn acp_cancel(
-    state: State<'_, AcpState>,
-    session_id: String,
-) -> Result<String, String> {
+pub fn acp_cancel(state: State<'_, AcpState>, session_id: String) -> Result<String, String> {
     let guard = state.0.lock().map_err(|e| e.to_string())?;
     let client = guard.as_ref().ok_or("ACP client not initialized")?;
     client.cancel(&session_id)?;
@@ -62,7 +124,11 @@ pub fn acp_reconnect(app: tauri::AppHandle, state: State<'_, AcpState>) -> Resul
 #[tauri::command]
 pub fn acp_status(state: State<'_, AcpState>) -> String {
     let guard = state.0.lock().unwrap_or_else(|e| e.into_inner());
-    if guard.is_some() { "connected".to_string() } else { "disconnected".to_string() }
+    if guard.is_some() {
+        "connected".to_string()
+    } else {
+        "disconnected".to_string()
+    }
 }
 
 #[tauri::command]
@@ -71,13 +137,59 @@ pub fn list_sessions(limit: Option<usize>) -> Result<Vec<crate::sessions::Sessio
 }
 
 #[tauri::command]
-pub fn get_session_messages(session_id: String, limit: Option<usize>) -> Result<Vec<crate::sessions::SessionMessage>, String> {
+pub fn get_session_messages(
+    session_id: String,
+    limit: Option<usize>,
+) -> Result<Vec<crate::sessions::SessionMessage>, String> {
     crate::sessions::get_session_messages(&session_id, limit.unwrap_or(200))
 }
 
 #[tauri::command]
 pub fn list_artifacts(session_id: Option<String>) -> Vec<crate::artifacts::Artifact> {
     crate::artifacts::list_current_artifacts_for_session(session_id.as_deref())
+}
+
+#[tauri::command]
+pub fn get_project_work_context(path: String) -> Result<ProjectWorkContext, String> {
+    if !Path::new(&path).exists() {
+        return Err(format!("Project path does not exist: {path}"));
+    }
+
+    let (dark_factory_notes, dark_factory_path) = read_dark_factory_notes(&path);
+
+    let in_progress_result = run_bd_json(&path, &["list", "--json"]);
+    let ready_result = run_bd_json(&path, &["ready", "--json"]);
+
+    let has_bd = in_progress_result.is_ok() || ready_result.is_ok();
+
+    let in_progress_issues = in_progress_result
+        .as_ref()
+        .map(|issues| {
+            issues
+                .iter()
+                .filter(|issue| issue.status == "in_progress")
+                .cloned()
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    let ready_issues = ready_result.clone().unwrap_or_default();
+
+    let error = if has_bd {
+        in_progress_result.err().or(ready_result.err())
+    } else {
+        Some("bd is unavailable for this project context".to_string())
+    };
+
+    Ok(ProjectWorkContext {
+        repo_path: path,
+        has_bd,
+        in_progress_issues,
+        ready_issues,
+        dark_factory_notes,
+        dark_factory_path,
+        error,
+    })
 }
 
 #[tauri::command]
@@ -98,8 +210,13 @@ pub fn emit_local_a2ui_batch(
     request: EmitLocalA2uiBatchRequest,
 ) -> Result<crate::artifacts::SurfaceBatch, String> {
     let batch = crate::artifacts::emit_local_a2ui_batch(&request.session_id, request.messages)?;
-    app.emit("a2ui:event", crate::artifacts::A2UIEvent::Batch { batch: batch.clone() })
-        .map_err(|e| e.to_string())?;
+    app.emit(
+        "a2ui:event",
+        crate::artifacts::A2UIEvent::Batch {
+            batch: batch.clone(),
+        },
+    )
+    .map_err(|e| e.to_string())?;
     Ok(batch)
 }
 
@@ -136,7 +253,13 @@ fn run_git(dir: &Path, args: &[&str]) -> Option<String> {
         .args(args)
         .output()
         .ok()
-        .and_then(|o| if o.status.success() { String::from_utf8(o.stdout).ok() } else { None })
+        .and_then(|o| {
+            if o.status.success() {
+                String::from_utf8(o.stdout).ok()
+            } else {
+                None
+            }
+        })
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
 }
@@ -240,12 +363,7 @@ fn check_hermes_update_inner(hermes_bin: &str) -> VersionInfo {
     pip_version_info(hermes_bin)
 }
 
-fn stream_command(
-    app: &tauri::AppHandle,
-    program: &str,
-    args: &[&str],
-    log: &mut String,
-) -> bool {
+fn stream_command(app: &tauri::AppHandle, program: &str, args: &[&str], log: &mut String) -> bool {
     use std::io::{BufRead, BufReader};
     use std::process::Stdio;
     use tauri::Emitter;
@@ -361,7 +479,11 @@ pub fn apply_hermes_update(app: tauri::AppHandle) -> UpdateResult {
         log.push_str(&line);
         let _ = app.emit("hermes-update:log", &line);
     }
-    let verdict = if verified { "✓ verified: at latest\n" } else { "⚠ still behind upstream\n" };
+    let verdict = if verified {
+        "✓ verified: at latest\n"
+    } else {
+        "⚠ still behind upstream\n"
+    };
     log.push_str(verdict);
     let _ = app.emit("hermes-update:log", verdict);
 
@@ -391,7 +513,11 @@ pub struct HermesBannerHero {
 #[tauri::command]
 pub fn get_hermes_banner_hero() -> HermesBannerHero {
     let Some(home) = dirs::home_dir() else {
-        return HermesBannerHero { art: String::new(), color: None, skin: None };
+        return HermesBannerHero {
+            art: String::new(),
+            color: None,
+            skin: None,
+        };
     };
 
     // Active skin from config.yaml → display.skin (default "hermelin")
@@ -399,10 +525,18 @@ pub fn get_hermes_banner_hero() -> HermesBannerHero {
     let active_skin: String = std::fs::read_to_string(&config_path)
         .ok()
         .and_then(|s| serde_yaml::from_str::<serde_yaml::Value>(&s).ok())
-        .and_then(|v| v.get("display").and_then(|d| d.get("skin")).and_then(|s| s.as_str()).map(String::from))
+        .and_then(|v| {
+            v.get("display")
+                .and_then(|d| d.get("skin"))
+                .and_then(|s| s.as_str())
+                .map(String::from)
+        })
         .unwrap_or_else(|| "hermelin".to_string());
 
-    let skin_path = home.join(".hermes").join("skins").join(format!("{active_skin}.yaml"));
+    let skin_path = home
+        .join(".hermes")
+        .join("skins")
+        .join(format!("{active_skin}.yaml"));
     let fallback_path = home.join(".hermes").join("skins").join("hermelin.yaml");
 
     let skin_yaml = std::fs::read_to_string(&skin_path)
@@ -411,10 +545,18 @@ pub fn get_hermes_banner_hero() -> HermesBannerHero {
         .and_then(|s| serde_yaml::from_str::<serde_yaml::Value>(&s).ok());
 
     let Some(yaml) = skin_yaml else {
-        return HermesBannerHero { art: String::new(), color: None, skin: Some(active_skin) };
+        return HermesBannerHero {
+            art: String::new(),
+            color: None,
+            skin: Some(active_skin),
+        };
     };
 
-    let raw = yaml.get("banner_hero").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let raw = yaml
+        .get("banner_hero")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
 
     // Extract the first hex color we see inside [#rrggbb] or [bold #rrggbb] tags.
     let color = raw.split('[').find_map(|seg| {
@@ -424,7 +566,11 @@ pub fn get_hermes_banner_hero() -> HermesBannerHero {
             .chars()
             .take_while(|c| c.is_ascii_hexdigit() || *c == '#')
             .collect();
-        if hex.len() == 7 { Some(hex) } else { None }
+        if hex.len() == 7 {
+            Some(hex)
+        } else {
+            None
+        }
     });
 
     // Strip rich-format tags: [anything] and [/]
@@ -439,7 +585,11 @@ pub fn get_hermes_banner_hero() -> HermesBannerHero {
         }
     }
 
-    HermesBannerHero { art: art.trim_end().to_string(), color, skin: Some(active_skin) }
+    HermesBannerHero {
+        art: art.trim_end().to_string(),
+        color,
+        skin: Some(active_skin),
+    }
 }
 
 #[derive(serde::Serialize)]
@@ -451,24 +601,39 @@ pub struct HermesSkills {
 #[tauri::command]
 pub fn get_hermes_skills() -> HermesSkills {
     let Some(skills_dir) = dirs::home_dir().map(|h| h.join(".hermes").join("skills")) else {
-        return HermesSkills { total: 0, categories: vec![] };
+        return HermesSkills {
+            total: 0,
+            categories: vec![],
+        };
     };
     if !skills_dir.is_dir() {
-        return HermesSkills { total: 0, categories: vec![] };
+        return HermesSkills {
+            total: 0,
+            categories: vec![],
+        };
     }
 
     let mut categories: Vec<String> = Vec::new();
     let mut total: usize = 0;
 
     let Ok(entries) = std::fs::read_dir(&skills_dir) else {
-        return HermesSkills { total: 0, categories: vec![] };
+        return HermesSkills {
+            total: 0,
+            categories: vec![],
+        };
     };
 
     for entry in entries.flatten() {
         let path = entry.path();
-        if !path.is_dir() { continue; }
-        let Some(name) = path.file_name().and_then(|n| n.to_str()) else { continue };
-        if name.starts_with('.') || name.starts_with('_') { continue; }
+        if !path.is_dir() {
+            continue;
+        }
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        if name.starts_with('.') || name.starts_with('_') {
+            continue;
+        }
         categories.push(name.to_string());
 
         if let Ok(sub) = std::fs::read_dir(&path) {
@@ -492,17 +657,30 @@ pub fn get_hermes_toolsets() -> HermesToolsets {
         .filter(|p| p.exists());
 
     let Some(path) = config_path else {
-        return HermesToolsets { enabled: vec![], model: None };
+        return HermesToolsets {
+            enabled: vec![],
+            model: None,
+        };
     };
 
     let contents = match std::fs::read_to_string(&path) {
         Ok(s) => s,
-        Err(_) => return HermesToolsets { enabled: vec![], model: None },
+        Err(_) => {
+            return HermesToolsets {
+                enabled: vec![],
+                model: None,
+            }
+        }
     };
 
     let yaml: serde_yaml::Value = match serde_yaml::from_str(&contents) {
         Ok(v) => v,
-        Err(_) => return HermesToolsets { enabled: vec![], model: None },
+        Err(_) => {
+            return HermesToolsets {
+                enabled: vec![],
+                model: None,
+            }
+        }
     };
 
     let enabled = yaml

@@ -4,8 +4,10 @@ import { renderToStaticMarkup } from 'react-dom/server'
 
 import {
   ArtifactPaneView,
+  PlanPaneView,
   RightPaneStackView,
   SurfacePaneView,
+  TasksPaneView,
 } from '../RightPaneStack'
 import { usePaneStore } from '../../stores/panes'
 
@@ -40,7 +42,7 @@ test('returns no markup while the right rail is hidden', () => {
 test('renders a single Plan pane with orientation copy', () => {
   const html = render({ mode: 'single', primaryPane: 'plan' })
   assert.match(html, />Plan</)
-  assert.match(html, /Capture the next slice before you type yourself into a corner/)
+  assert.match(html, /No project context|Loading plan/)
   assert.match(html, /Hide plan pane/)
 })
 
@@ -48,7 +50,47 @@ test('renders stacked Plan and Tasks panes with both headers visible', () => {
   const html = render({ mode: 'stacked', primaryPane: 'tasks', secondaryPane: 'plan' })
   assert.match(html, />Tasks</)
   assert.match(html, />Plan</)
-  assert.match(html, /Track the current slice instead of juggling it in your head/)
+  assert.match(html, /No project context|Loading tasks/)
+})
+
+test('PlanPaneView renders dark factory notes and active bead context when available', () => {
+  const html = renderToStaticMarkup(createElement(PlanPaneView, {
+    loading: false,
+    context: {
+      repo_path: '/home/inu/hermelinChat',
+      has_bd: true,
+      in_progress_issues: [{ id: 'hermelinChat-1di', title: 'Workspace switch restoration choreography', status: 'in_progress', priority: 1, issue_type: 'feature' }],
+      ready_issues: [],
+      dark_factory_notes: '## Tonight\n- tighten pane choreography',
+      dark_factory_path: '/home/inu/hermelinChat-dark-factory/.dark-factory/notes.md',
+      error: null,
+    },
+  }))
+
+  assert.match(html, /Active bead/)
+  assert.match(html, /Workspace switch restoration choreography/)
+  assert.match(html, /Dark factory notes/)
+  assert.match(html, /tighten pane choreography/)
+})
+
+test('TasksPaneView renders in-progress and ready issue groups from bd context', () => {
+  const html = renderToStaticMarkup(createElement(TasksPaneView, {
+    loading: false,
+    context: {
+      repo_path: '/home/inu/hermelinChat',
+      has_bd: true,
+      in_progress_issues: [{ id: 'hermelinChat-1di', title: 'Workspace switch restoration choreography', status: 'in_progress', priority: 1, issue_type: 'feature' }],
+      ready_issues: [{ id: 'hermelinChat-0k4', title: 'Live pane/window headers', status: 'open', priority: 3, issue_type: 'feature' }],
+      dark_factory_notes: null,
+      dark_factory_path: null,
+      error: null,
+    },
+  }))
+
+  assert.match(html, /In progress/)
+  assert.match(html, /Ready next/)
+  assert.match(html, /Workspace switch restoration choreography/)
+  assert.match(html, /Live pane\/window headers/)
 })
 
 test('ArtifactPaneView shows an honest empty state when no artifact is selected', () => {

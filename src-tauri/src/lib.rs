@@ -51,6 +51,7 @@ pub fn run() {
             commands::list_sessions,
             commands::get_session_messages,
             commands::list_artifacts,
+            commands::get_project_work_context,
             commands::list_a2ui_batches,
             commands::emit_local_a2ui_batch,
             coedit::coedit_upsert_surface_instance,
