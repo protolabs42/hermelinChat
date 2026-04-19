@@ -45,6 +45,8 @@
 
 ## What failed
 - First `npm run app:test` failed because `tsx` was not installed yet in this worktree (`sh: 1: tsx: not found`). Fixed by running `npm ci`.
+- `git pull --rebase` could not run before the first push because this fresh dark-factory branch had no upstream yet. Fixed by pushing with `git push -u origin HEAD`.
+- `bd dolt pull` / `bd dolt push` failed with `Error: no store available`. Git push still succeeded, so the landed code is on origin, but bead-store sync remains an environment/tooling problem to check in daylight.
 - `npm run build` still emits the pre-existing Vite warnings about browser externalization and large chunks. Build completed successfully; this slice did not touch those paths.
 
 ## What was learned
