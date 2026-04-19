@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import { createEmptyWorkspaceState } from '../schema'
-import { buildWorkspaceRowSummary } from '../workspace-summary'
+import { buildWorkspaceContinuityCard, buildWorkspaceRowSummary } from '../workspace-summary'
 
 test('buildWorkspaceRowSummary marks remembered active work without pretending resumability', () => {
   const workspace = createEmptyWorkspaceState({ workspaceId: 'forge', sessionId: 'sess-1', now: 1700 })
@@ -56,4 +56,41 @@ test('buildWorkspaceRowSummary shows a quiet waiting workspace honestly', () => 
     detail: 'No active thread or surface remembered',
     actionLabel: 'Open workspace',
   })
+})
+
+test('buildWorkspaceContinuityCard surfaces remembered active work for the current workspace', () => {
+  const workspace = createEmptyWorkspaceState({ workspaceId: 'forge', sessionId: 'sess-3', now: 2000 })
+  workspace.resident.activeInvocationId = 'live:sess-3'
+  workspace.attention.primaryFocus = { kind: 'surface', id: 'surface-b' }
+  workspace.attention.unresolvedTargets = [{ kind: 'surface', id: 'surface-b' }]
+
+  assert.deepEqual(buildWorkspaceContinuityCard(workspace), {
+    tone: 'active',
+    label: 'Remembered active work',
+    detail: 'surface surface-b',
+    actionLabel: 'Resume thread sess-3',
+  })
+})
+
+test('buildWorkspaceContinuityCard shows unresolved remembered work when focus is ready but not active', () => {
+  const workspace = createEmptyWorkspaceState({ workspaceId: 'lab', sessionId: 'sess-4', now: 2100 })
+  workspace.attention.primaryFocus = { kind: 'thread', id: 'sess-4' }
+  workspace.attention.unresolvedTargets = [
+    { kind: 'thread', id: 'sess-4' },
+    { kind: 'surface', id: 'surface-z' },
+  ]
+
+  assert.deepEqual(buildWorkspaceContinuityCard(workspace), {
+    tone: 'ready',
+    label: '2 unresolved remembered',
+    detail: 'Ready in thread sess-4',
+    actionLabel: 'Open thread sess-4',
+  })
+})
+
+test('buildWorkspaceContinuityCard returns null for a quiet waiting workspace', () => {
+  const workspace = createEmptyWorkspaceState({ workspaceId: 'archive', now: 2200 })
+  workspace.resident.stance = 'waiting'
+
+  assert.equal(buildWorkspaceContinuityCard(workspace), null)
 })

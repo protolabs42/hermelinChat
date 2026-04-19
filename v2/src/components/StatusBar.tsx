@@ -11,6 +11,7 @@ import { useTheme } from '../theme'
 import ProjectSwitcher from './ProjectSwitcher'
 import WorkspaceSwitcher from './WorkspaceSwitcher'
 import HermesUpdateModal from './HermesUpdateModal'
+import { buildWorkspaceContinuityCard } from '../lane2/workspace-summary'
 import coeditProofRaw from '../a2ui/examples/mcp-app-coedit-proof.json?raw'
 
 interface VersionInfo {
@@ -44,6 +45,7 @@ export default function StatusBar() {
   const isScratchpad = !activeProjectId || activeProjectId === SCRATCHPAD_ID
   const currentGitInfo = activeProjectId ? gitInfo[activeProjectId] : null
   const workspaceLabel = activeWorkspace?.workspaceId ?? 'default'
+  const continuityCard = activeWorkspace ? buildWorkspaceContinuityCard(activeWorkspace) : null
 
   const [switcherOpen, setSwitcherOpen] = useState(false)
   const [workspaceSwitcherOpen, setWorkspaceSwitcherOpen] = useState(false)
@@ -270,6 +272,71 @@ export default function StatusBar() {
               </>
             )}
           </div>
+        )}
+
+        {continuityCard && (
+          <>
+            <span style={{ color: 'var(--color-muted)', opacity: 0.35 }}>•</span>
+            <div
+              title={continuityCard.actionLabel}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '5px 10px',
+                borderRadius: 999,
+                border: '1px solid var(--color-border)',
+                background: continuityCard.tone === 'active'
+                  ? 'color-mix(in srgb, var(--color-accent) 10%, transparent)'
+                  : 'var(--color-elevated)',
+                maxWidth: 360,
+              }}
+            >
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: continuityCard.tone === 'active'
+                    ? 'var(--color-accent)'
+                    : 'var(--color-warning, #f9e2af)',
+                  flexShrink: 0,
+                }}
+              />
+              <span
+                style={{
+                  color: 'var(--color-text-bright)',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {continuityCard.label}
+              </span>
+              <span
+                style={{
+                  color: 'var(--color-muted)',
+                  fontSize: 11,
+                  minWidth: 0,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {continuityCard.detail}
+              </span>
+              <span
+                style={{
+                  color: continuityCard.tone === 'active' ? 'var(--color-accent)' : 'var(--color-text-bright)',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {continuityCard.actionLabel}
+              </span>
+            </div>
+          </>
         )}
 
         {status === 'disconnected' && (

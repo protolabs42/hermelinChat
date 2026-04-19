@@ -7,6 +7,13 @@ export interface WorkspaceRowSummary {
   actionLabel: string
 }
 
+export interface WorkspaceContinuityCard {
+  tone: 'active' | 'ready'
+  label: string
+  detail: string
+  actionLabel: string
+}
+
 function formatFocusTarget(target: FocusTarget | null): string | null {
   if (!target) return null
   return `${target.kind} ${target.id}`
@@ -59,4 +66,29 @@ export function buildWorkspaceRowSummary(workspace: WorkspaceState): WorkspaceRo
     detail: 'No active thread or surface remembered',
     actionLabel,
   }
+}
+
+export function buildWorkspaceContinuityCard(workspace: WorkspaceState): WorkspaceContinuityCard | null {
+  const summary = buildWorkspaceRowSummary(workspace)
+  const unresolvedCount = workspace.attention.unresolvedTargets.length
+
+  if (summary.status === 'remembered-active') {
+    return {
+      tone: 'active',
+      label: summary.headline,
+      detail: formatFocusTarget(workspace.attention.primaryFocus) ?? 'Workspace remembers in-progress work',
+      actionLabel: summary.actionLabel,
+    }
+  }
+
+  if (summary.status === 'ready' && unresolvedCount > 0) {
+    return {
+      tone: 'ready',
+      label: `${unresolvedCount} unresolved remembered`,
+      detail: summary.headline,
+      actionLabel: summary.actionLabel,
+    }
+  }
+
+  return null
 }
