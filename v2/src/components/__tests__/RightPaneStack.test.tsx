@@ -21,13 +21,27 @@ function test(name: string, fn: () => void) {
   }
 }
 
-function render(layout: ReturnType<typeof usePaneStore.getState>['layout']) {
+function render(
+  layout: ReturnType<typeof usePaneStore.getState>['layout'],
+  options?: {
+    headerModel?: {
+      cwdLabel: string | null
+      cwdTitle: string | null
+      branchLabel: string | null
+      branchDirty: boolean
+      tokenBudgetLabel: string | null
+      activityLabel: string | null
+      activityTitle: string | null
+    }
+  }
+) {
   return renderToStaticMarkup(
     createElement(RightPaneStackView, {
       closePane: () => {},
       layout,
       panelWidth: 420,
       setPanelWidth: () => {},
+      headerModel: options?.headerModel,
     })
   )
 }
@@ -40,10 +54,27 @@ test('returns no markup while the right rail is hidden', () => {
 })
 
 test('renders a single Plan pane with orientation copy', () => {
-  const html = render({ mode: 'single', primaryPane: 'plan' })
+  const html = render(
+    { mode: 'single', primaryPane: 'plan' },
+    {
+      headerModel: {
+        cwdLabel: '/…/hermelinChat/v2',
+        cwdTitle: '/home/inu/hermelinChat/v2',
+        branchLabel: 'feat/live-pane-headers',
+        branchDirty: true,
+        tokenBudgetLabel: '29k left',
+        activityLabel: 'Aurora · just now',
+        activityTitle: 'Aurora activity at 4/19/2026, 3:58:00 PM',
+      },
+    }
+  )
   assert.match(html, />Plan</)
   assert.match(html, /No project context|Loading plan/)
   assert.match(html, /Hide plan pane/)
+  assert.match(html, /\/…\/hermelinChat\/v2/)
+  assert.match(html, /feat\/live-pane-headers/)
+  assert.match(html, /29k left/)
+  assert.match(html, /Aurora · just now/)
 })
 
 test('renders stacked Plan and Tasks panes with both headers visible', () => {

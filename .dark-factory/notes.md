@@ -56,3 +56,48 @@
 ## Exact next move
 - Continue `hermelinChat-0k4` by applying the same live-header treatment to the right-rail panes, using `hermelinChat-14n` as the concrete follow-through handle.
 - After pane parity lands, circle back to `hermelinChat-5mz` / `hermelinChat-678` for the next CLI-native workspace substrate slice.
+
+### Cycle 1
+
+exit_code: 0
+commits_ahead_of_source: 2
+dirty_status:
+```
+(clean)
+```
+log_file: /home/inu/hermelinChat-dark-factory/20260419-154626-advance-hermelin-one-honest-slice-at-a-time-whil/.dark-factory/cycle-01.log
+
+### Cycle 2 choice
+- Picked `hermelinChat-14n` to finish the live-header follow-through for right-rail panes.
+- Why this over `hermelinChat-5mz` / `hermelinChat-678`: the pane stack already existed, the missing trust signal was obvious dead chrome in the right rail, and parity with the chat pane was a smaller, more landable slice than starting a new CLI-workspace substrate thread.
+- Slice target: reuse the live cwd / branch / token headroom / activity metadata in `RightPaneStack` without forking another formatting path, and lock the new chrome with a static render test before wiring the real store-backed data.
+
+## What shipped
+- Added shared `v2/src/components/PaneHeaderMetaRow.tsx` so the compact live metadata row is rendered from one place instead of duplicated between panes.
+- Rewired `v2/src/components/chat/ChatPaneHeader.tsx` to use that shared view, keeping the main chat pane behavior unchanged while removing duplicated chip markup.
+- Extended `v2/src/components/RightPaneStack.tsx` so every right-rail pane now shows the same live cwd / branch dirty state / token headroom / last-activity row under its title chrome.
+- Extended `v2/src/components/__tests__/RightPaneStack.test.tsx` so the right-rail shell is locked against regressing back to dead headers.
+- Closed `hermelinChat-14n` after the right-rail parity slice landed.
+
+## What passed
+- `npx tsx src/components/__tests__/RightPaneStack.test.tsx`
+- `npm run app:test`
+- `npm run build`
+- `npm test`
+
+## What failed
+- `npm run build` still emits the pre-existing Vite browser-externalization / chunk-size warnings. The build completed successfully; this slice did not touch those code-splitting paths.
+
+## What was learned
+- The live header can be treated as a shared view primitive rather than a chat-only widget, which keeps future pane/window chrome work from cloning chip markup again.
+- `RightPaneStackView` was already pure enough that a simple injected `headerModel` made SSR coverage easy; no extra harness was needed to lock the header behavior.
+
+## Exact next move
+- Move to `hermelinChat-5mz` and pick the thinnest real CLI-native workspace substrate slice, likely a spec-backed mount/session model rather than a wide implementation jump.
+- If that substrate pick turns out too conceptual in the next cycle, fall back to `hermelinChat-678` with one narrow bridge affordance that makes workspace control more real.
+
+### Cycle 2
+
+exit_code: 0
+commits_ahead_of_source: 3
+log_file: /home/inu/hermelinChat-dark-factory/20260419-154626-advance-hermelin-one-honest-slice-at-a-time-whil/.dark-factory/cycle-02.log

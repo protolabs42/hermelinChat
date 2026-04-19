@@ -15,6 +15,8 @@ import { useChatStore } from '../stores/chat'
 import type { WorkspacePaneId } from '../lane2/schema'
 import { buildSurfacePaneEmptyState } from '../app/right-pane-state'
 import { buildWorkspaceRestoreState } from '../app/workspace-restore-state'
+import { buildChatPaneHeaderModel, type ChatPaneHeaderModel } from '../app/pane-header'
+import { PaneHeaderMetaRow } from './PaneHeaderMetaRow'
 
 function paneCopy(paneId: WorkspacePaneId): {
   title: string
@@ -408,9 +410,14 @@ function PaneContent({ paneId }: { paneId: WorkspacePaneId }) {
   return null
 }
 
-function PaneCard({ paneId, closePane }: {
+function PaneCard({
+  paneId,
+  closePane,
+  headerModel,
+}: {
   paneId: WorkspacePaneId
   closePane: (paneId: WorkspacePaneId) => void
+  headerModel?: ChatPaneHeaderModel
 }) {
   const copy = paneCopy(paneId)
 
@@ -427,49 +434,58 @@ function PaneCard({ paneId, closePane }: {
       <div
         style={{
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          padding: '12px 14px',
+          flexDirection: 'column',
+          gap: 2,
           borderBottom: '1px solid var(--color-border)',
         }}
       >
-        <div style={{ minWidth: 0 }}>
-          <div
-            style={{
-              color: 'var(--color-muted)',
-              fontSize: 10,
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              marginBottom: 4,
-            }}
-          >
-            {copy.eyebrow}
-          </div>
-          <div style={{ color: 'var(--color-text-bright)', fontSize: 13, fontWeight: 700 }}>
-            {copy.title}
-          </div>
-        </div>
-        <button
-          onClick={() => closePane(paneId)}
-          title={`Hide ${paneId} pane`}
+        <div
           style={{
-            background: 'transparent',
-            border: '1px solid var(--color-border)',
-            color: 'var(--color-muted)',
-            borderRadius: 8,
-            cursor: 'pointer',
-            width: 28,
-            height: 28,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 14,
-            flexShrink: 0,
+            justifyContent: 'space-between',
+            gap: 12,
+            padding: '12px 14px',
           }}
         >
-          ×
-        </button>
+          <div style={{ minWidth: 0 }}>
+            <div
+              style={{
+                color: 'var(--color-muted)',
+                fontSize: 10,
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                marginBottom: 4,
+              }}
+            >
+              {copy.eyebrow}
+            </div>
+            <div style={{ color: 'var(--color-text-bright)', fontSize: 13, fontWeight: 700 }}>
+              {copy.title}
+            </div>
+          </div>
+          <button
+            onClick={() => closePane(paneId)}
+            title={`Hide ${paneId} pane`}
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-muted)',
+              borderRadius: 8,
+              cursor: 'pointer',
+              width: 28,
+              height: 28,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 14,
+              flexShrink: 0,
+            }}
+          >
+            ×
+          </button>
+        </div>
+        {headerModel && <PaneHeaderMetaRow model={headerModel} padding="0 14px 12px" />}
       </div>
 
       <div
@@ -515,6 +531,7 @@ export function RightPaneStackView(args: {
   layout: ReturnType<typeof usePaneStore.getState>['layout']
   panelWidth: number
   setPanelWidth: (width: number) => void
+  headerModel?: ChatPaneHeaderModel
 }) {
   const { closePane, layout, panelWidth, setPanelWidth } = args
   const resizeCleanupRef = useRef<(() => void) | null>(null)
@@ -652,7 +669,7 @@ export function RightPaneStackView(args: {
               borderTop: index > 0 ? '1px solid var(--color-border)' : undefined,
             }}
           >
-            <PaneCard paneId={paneId} closePane={closePane} />
+            <PaneCard paneId={paneId} closePane={closePane} headerModel={args.headerModel} />
           </div>
         ))}
       </div>
@@ -668,6 +685,24 @@ export default function RightPaneStack(args?: {
   const storedLayout = usePaneStore((s) => s.layout)
   const panelWidth = useArtifactStore((s) => s.panelWidth)
   const setPanelWidth = useArtifactStore((s) => s.setPanelWidth)
+  const messages = useChatStore((s) => s.messages)
+  const usage = useChatStore((s) => s.usage)
+  const activeProjectId = useProjectStore((s) => s.activeProjectId)
+  const gitInfo = useProjectStore((s) => s.gitInfo)
+  const getActiveProject = useProjectStore((s) => s.getActiveProject)
+
+  const activeProject = getActiveProject()
+  const currentGitInfo = activeProjectId ? gitInfo[activeProjectId] : null
+  const headerModel = useMemo(
+    () => buildChatPaneHeaderModel({
+      cwd: activeProjectId ? activeProject?.path ?? null : null,
+      branch: currentGitInfo?.branch ?? null,
+      dirty: currentGitInfo?.dirty ?? false,
+      usage,
+      messages,
+    }),
+    [activeProject?.path, activeProjectId, currentGitInfo?.branch, currentGitInfo?.dirty, messages, usage]
+  )
 
   const handleClosePane = (paneId: WorkspacePaneId) => {
     closePane(paneId)
@@ -682,6 +717,7 @@ export default function RightPaneStack(args?: {
       layout={args?.layoutOverride ?? storedLayout}
       panelWidth={panelWidth}
       setPanelWidth={setPanelWidth}
+      headerModel={headerModel}
     />
   )
 }
