@@ -1,5 +1,9 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { useArtifactStore, type Artifact } from '../stores/artifacts'
+import {
+  clampArtifactPanelWidth,
+  useArtifactStore,
+  type Artifact,
+} from '../stores/artifacts'
 import { useSurfaceStore } from '../stores/surfaces'
 import { useChatStore } from '../stores/chat'
 import { invoke } from '@tauri-apps/api/core'
@@ -449,6 +453,8 @@ export default function ArtifactPanel() {
   const artifacts = useArtifactStore((s) => s.artifacts)
   const activeId = useArtifactStore((s) => s.activeId)
   const setActiveId = useArtifactStore((s) => s.setActiveId)
+  const panelWidth = useArtifactStore((s) => s.panelWidth)
+  const setPanelWidth = useArtifactStore((s) => s.setPanelWidth)
   const closePanel = useArtifactStore((s) => s.closePanel)
   const pinnedSurfaceId = useArtifactStore((s) => s.pinnedSurfaceId)
   const unpinSurface = useArtifactStore((s) => s.unpinSurface)
@@ -463,7 +469,6 @@ export default function ArtifactPanel() {
     [artifacts, activeId]
   )
 
-  const [width, setWidth] = useState(420)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -508,7 +513,7 @@ export default function ArtifactPanel() {
     try { handle.setPointerCapture(pointerId) } catch { /* ignore */ }
 
     const startX = e.clientX
-    const startWidth = width
+    const startWidth = panelWidth
 
     const prevCursor = document.body.style.cursor
     const prevSelect = document.body.style.userSelect
@@ -533,9 +538,9 @@ export default function ArtifactPanel() {
     const handleMove = (ev: PointerEvent) => {
       if (typeof ev.buttons === 'number' && ev.buttons === 0) { cleanup(); return }
       const dx = startX - ev.clientX
-      const next = Math.max(280, Math.min(startWidth + dx, window.innerWidth * 0.6))
+      const next = clampArtifactPanelWidth(startWidth + dx, window.innerWidth)
       if (raf) cancelAnimationFrame(raf)
-      raf = requestAnimationFrame(() => { raf = null; setWidth(next) })
+      raf = requestAnimationFrame(() => { raf = null; setPanelWidth(next) })
     }
 
     resizeCleanupRef.current = cleanup
@@ -557,7 +562,7 @@ export default function ArtifactPanel() {
         flexDirection: 'column',
         overflow: 'hidden',
         minWidth: 0,
-        width,
+        width: panelWidth,
       }}
     >
       {/* Resize handle (left edge) */}

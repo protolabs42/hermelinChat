@@ -6,6 +6,7 @@ import { useChatStore } from '../stores/chat'
 import { useArtifactStore, type Artifact } from '../stores/artifacts'
 import { useSurfaceStore, type A2UIEvent } from '../stores/surfaces'
 import { useProjectStore } from '../stores/projects'
+import { useSidebarStore } from '../stores/sidebar'
 import { useWorkspaceStore } from '../stores/workspaces'
 import { buildWorkspaceSnapshot, extractProjectIdFromWorkspace } from '../lane2/persistence'
 
@@ -182,7 +183,16 @@ export function useAcpEvents() {
         const sessionId = useChatStore.getState().sessionId
         const orderedSurfaceIds = useSurfaceStore.getState().orderedIds
         const existing = useWorkspaceStore.getState().activeWorkspace
+        const artifactState = useArtifactStore.getState()
+        const sidebarState = useSidebarStore.getState()
         const snapshot = buildWorkspaceSnapshot({
+          chrome: {
+            sidebarOpen: sidebarState.isOpen,
+            artifactPanelOpen: artifactState.panelOpen,
+            artifactPanelWidth: artifactState.panelWidth,
+            activeArtifactId: artifactState.activeId,
+            pinnedSurfaceId: artifactState.pinnedSurfaceId,
+          },
           existing,
           orderedSurfaceIds,
           projectId,
@@ -209,6 +219,21 @@ export function useAcpEvents() {
         scheduleWorkspacePersist()
       }
     })
+    const unsubSidebarPersist = useSidebarStore.subscribe((state, prev) => {
+      if (state.isOpen !== prev.isOpen) {
+        scheduleWorkspacePersist()
+      }
+    })
+    const unsubArtifactPersist = useArtifactStore.subscribe((state, prev) => {
+      if (
+        state.panelOpen !== prev.panelOpen
+        || state.panelWidth !== prev.panelWidth
+        || state.activeId !== prev.activeId
+        || state.pinnedSurfaceId !== prev.pinnedSurfaceId
+      ) {
+        scheduleWorkspacePersist()
+      }
+    })
 
     return () => {
       unlistenAcp.then((fn) => fn())
@@ -220,6 +245,8 @@ export function useAcpEvents() {
       unsubProject()
       unsubChatPersist()
       unsubSurfacePersist()
+      unsubSidebarPersist()
+      unsubArtifactPersist()
     }
   }, [])
 }

@@ -13,14 +13,29 @@ export interface Artifact {
   session_id: string | null
 }
 
+export const DEFAULT_ARTIFACT_PANEL_WIDTH = 420
+export const MIN_ARTIFACT_PANEL_WIDTH = 280
+
+export function clampArtifactPanelWidth(
+  width: number,
+  viewportWidth: number = Number.POSITIVE_INFINITY
+): number {
+  const maxWidth = Number.isFinite(viewportWidth)
+    ? Math.max(MIN_ARTIFACT_PANEL_WIDTH, viewportWidth * 0.6)
+    : Number.POSITIVE_INFINITY
+  return Math.max(MIN_ARTIFACT_PANEL_WIDTH, Math.min(width, maxWidth))
+}
+
 interface ArtifactStore {
   artifacts: Artifact[]
   activeId: string | null
   panelOpen: boolean
+  panelWidth: number
   /** When set, the side panel shows this A2UI surface instead of an artifact. */
   pinnedSurfaceId: string | null
 
   setActiveId: (id: string) => void
+  setPanelWidth: (width: number) => void
   openPanel: () => void
   closePanel: () => void
   togglePanel: () => void
@@ -80,9 +95,11 @@ export const useArtifactStore = create<ArtifactStore>((set) => ({
   artifacts: [],
   activeId: null,
   panelOpen: false,
+  panelWidth: DEFAULT_ARTIFACT_PANEL_WIDTH,
   pinnedSurfaceId: null,
 
   setActiveId: (id) => set({ activeId: id }),
+  setPanelWidth: (width) => set({ panelWidth: clampArtifactPanelWidth(width) }),
   openPanel: () => set({ panelOpen: true }),
   closePanel: () => set({ panelOpen: false }),
   togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen })),

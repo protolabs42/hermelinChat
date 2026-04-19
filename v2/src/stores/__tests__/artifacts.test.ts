@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import {
+  clampArtifactPanelWidth,
   filterArtifactsForSession,
   shouldAcceptArtifactEvent,
   type Artifact,
@@ -56,4 +57,10 @@ test('shouldAcceptArtifactEvent ignores mismatched session updates but keeps leg
   assert.equal(shouldAcceptArtifactEvent(artifact({ id: 'current', session_id: 'sess-1' }), 'sess-1'), true)
   assert.equal(shouldAcceptArtifactEvent(artifact({ id: 'other', session_id: 'sess-2' }), 'sess-1'), false)
   assert.equal(shouldAcceptArtifactEvent(artifact({ id: 'legacy', session_id: null }), 'sess-1'), true)
+})
+
+test('clampArtifactPanelWidth keeps persisted widths inside workspace bounds', () => {
+  assert.equal(clampArtifactPanelWidth(120), 280)
+  assert.equal(clampArtifactPanelWidth(420), 420)
+  assert.equal(clampArtifactPanelWidth(1200, 1000), 600)
 })

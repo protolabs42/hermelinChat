@@ -8,6 +8,8 @@ import { useSurfaceStore } from '../stores/surfaces'
 import { useWorkspaceStore } from '../stores/workspaces'
 import { useProjectStore } from '../stores/projects'
 import { useChatStore } from '../stores/chat'
+import { useArtifactStore } from '../stores/artifacts'
+import { useSidebarStore } from '../stores/sidebar'
 
 export interface WorkspaceSwitcherProps {
   anchor: DOMRect | 'center'
@@ -99,6 +101,11 @@ export default function WorkspaceSwitcher({ anchor, onClose }: WorkspaceSwitcher
   const activeProjectId = useProjectStore((s) => s.activeProjectId)
   const orderedSurfaceIds = useSurfaceStore((s) => s.orderedIds)
   const sessionId = useChatStore((s) => s.sessionId)
+  const artifactPanelOpen = useArtifactStore((s) => s.panelOpen)
+  const artifactPanelWidth = useArtifactStore((s) => s.panelWidth)
+  const activeArtifactId = useArtifactStore((s) => s.activeId)
+  const pinnedSurfaceId = useArtifactStore((s) => s.pinnedSurfaceId)
+  const sidebarOpen = useSidebarStore((s) => s.isOpen)
   const searchRef = useRef<HTMLInputElement>(null)
   const [query, setQuery] = useState('')
   const [creating, setCreating] = useState(false)
@@ -132,6 +139,13 @@ export default function WorkspaceSwitcher({ anchor, onClose }: WorkspaceSwitcher
       const snapshot = buildWorkspaceSnapshot({
         existing: activeWorkspace,
         workspaceId,
+        chrome: {
+          sidebarOpen,
+          artifactPanelOpen,
+          artifactPanelWidth,
+          activeArtifactId,
+          pinnedSurfaceId,
+        },
         orderedSurfaceIds,
         projectId: activeProjectId,
         sessionId,

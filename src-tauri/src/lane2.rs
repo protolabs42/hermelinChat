@@ -166,6 +166,16 @@ pub struct WorkspaceContinuityState {
     pub local_anchor_ids: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceChromeState {
+    pub sidebar_open: bool,
+    pub artifact_panel_open: bool,
+    pub artifact_panel_width: u64,
+    pub active_artifact_id: Option<String>,
+    pub pinned_surface_id: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceState {
@@ -178,6 +188,8 @@ pub struct WorkspaceState {
     pub runtime: HashMap<String, SurfaceRuntimeState>,
     pub invocations: HashMap<String, InvocationEnvelope>,
     pub continuity: WorkspaceContinuityState,
+    #[serde(default)]
+    pub chrome: WorkspaceChromeState,
     pub updated_at: u64,
 }
 
@@ -213,6 +225,13 @@ pub fn create_empty_workspace_state(
         runtime: HashMap::new(),
         invocations: HashMap::new(),
         continuity: WorkspaceContinuityState::default(),
+        chrome: WorkspaceChromeState {
+            sidebar_open: false,
+            artifact_panel_open: false,
+            artifact_panel_width: 420,
+            active_artifact_id: None,
+            pinned_surface_id: None,
+        },
         updated_at: now,
     }
 }
@@ -308,7 +327,8 @@ pub fn lane2_upsert_workspace(
 ) -> Result<WorkspaceState, String> {
     let mut data = read_workspace_store(&app);
     let workspace_id = workspace.workspace_id.clone();
-    data.workspaces.insert(workspace_id.clone(), workspace.clone());
+    data.workspaces
+        .insert(workspace_id.clone(), workspace.clone());
     if make_active.unwrap_or(false) || data.active_workspace_id.is_none() {
         data.active_workspace_id = Some(workspace_id);
     }
@@ -338,6 +358,11 @@ mod tests {
         assert_eq!(state.resident.resident_id, "aurora");
         assert_eq!(state.resident.session_id.as_deref(), Some("sess-1"));
         assert!(state.attention.primary_focus.is_none());
+        assert!(!state.chrome.sidebar_open);
+        assert!(!state.chrome.artifact_panel_open);
+        assert_eq!(state.chrome.artifact_panel_width, 420);
+        assert!(state.chrome.active_artifact_id.is_none());
+        assert!(state.chrome.pinned_surface_id.is_none());
     }
 
     #[test]

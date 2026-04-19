@@ -2,6 +2,29 @@ import { create } from 'zustand'
 import { invoke } from '@tauri-apps/api/core'
 
 import type { WorkspaceState } from '../lane2/schema'
+import {
+  clampArtifactPanelWidth,
+  DEFAULT_ARTIFACT_PANEL_WIDTH,
+  useArtifactStore,
+} from './artifacts'
+import { useSidebarStore } from './sidebar'
+
+function applyWorkspaceChrome(workspace: WorkspaceState | null) {
+  if (!workspace) return
+  if (workspace.chrome.sidebarOpen) {
+    useSidebarStore.getState().open()
+  } else {
+    useSidebarStore.getState().close()
+  }
+  useArtifactStore.setState({
+    panelOpen: workspace.chrome.artifactPanelOpen,
+    panelWidth: clampArtifactPanelWidth(
+      workspace.chrome.artifactPanelWidth ?? DEFAULT_ARTIFACT_PANEL_WIDTH
+    ),
+    activeId: workspace.chrome.activeArtifactId,
+    pinnedSurfaceId: workspace.chrome.pinnedSurfaceId,
+  })
+}
 
 interface WorkspaceStore {
   activeWorkspace: WorkspaceState | null
@@ -28,6 +51,7 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
           ? [...state.workspaces, workspace]
           : state.workspaces,
       }))
+      applyWorkspaceChrome(workspace)
       return workspace
     } catch (e) {
       console.error('[WorkspaceStore] loadActiveWorkspace failed:', e)
@@ -72,5 +96,6 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
     await invoke('lane2_set_active_workspace', { workspaceId })
     const target = get().workspaces.find((w) => w.workspaceId === workspaceId) ?? null
     set({ activeWorkspace: target, hydrated: true })
+    applyWorkspaceChrome(target)
   },
 }))

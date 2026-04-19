@@ -111,6 +111,14 @@ export interface WorkspaceContinuityState {
   localAnchorIds: string[]
 }
 
+export interface WorkspaceChromeState {
+  sidebarOpen: boolean
+  artifactPanelOpen: boolean
+  artifactPanelWidth: number
+  activeArtifactId: string | null
+  pinnedSurfaceId: string | null
+}
+
 export interface WorkspaceState {
   workspaceId: string
   resident: ResidentState
@@ -121,6 +129,7 @@ export interface WorkspaceState {
   runtime: Record<string, SurfaceRuntimeState>
   invocations: Record<string, InvocationEnvelope>
   continuity: WorkspaceContinuityState
+  chrome: WorkspaceChromeState
   updatedAt: number
 }
 
@@ -160,6 +169,13 @@ export function createEmptyWorkspaceState(
       suspendedSurfaceIds: [],
       activeThreadId: null,
       localAnchorIds: [],
+    },
+    chrome: {
+      sidebarOpen: false,
+      artifactPanelOpen: false,
+      artifactPanelWidth: 420,
+      activeArtifactId: null,
+      pinnedSurfaceId: null,
     },
     updatedAt: now,
   }
