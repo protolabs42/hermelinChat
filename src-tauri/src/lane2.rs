@@ -166,14 +166,28 @@ pub struct WorkspaceContinuityState {
     pub local_anchor_ids: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", default)]
 pub struct WorkspaceChromeState {
     pub sidebar_open: bool,
+    pub sidebar_width: u64,
     pub artifact_panel_open: bool,
     pub artifact_panel_width: u64,
     pub active_artifact_id: Option<String>,
     pub pinned_surface_id: Option<String>,
+}
+
+impl Default for WorkspaceChromeState {
+    fn default() -> Self {
+        Self {
+            sidebar_open: false,
+            sidebar_width: 280,
+            artifact_panel_open: false,
+            artifact_panel_width: 420,
+            active_artifact_id: None,
+            pinned_surface_id: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -227,6 +241,7 @@ pub fn create_empty_workspace_state(
         continuity: WorkspaceContinuityState::default(),
         chrome: WorkspaceChromeState {
             sidebar_open: false,
+            sidebar_width: 280,
             artifact_panel_open: false,
             artifact_panel_width: 420,
             active_artifact_id: None,
@@ -359,6 +374,7 @@ mod tests {
         assert_eq!(state.resident.session_id.as_deref(), Some("sess-1"));
         assert!(state.attention.primary_focus.is_none());
         assert!(!state.chrome.sidebar_open);
+        assert_eq!(state.chrome.sidebar_width, 280);
         assert!(!state.chrome.artifact_panel_open);
         assert_eq!(state.chrome.artifact_panel_width, 420);
         assert!(state.chrome.active_artifact_id.is_none());

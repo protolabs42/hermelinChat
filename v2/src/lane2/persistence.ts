@@ -8,6 +8,10 @@ import {
   clampArtifactPanelWidth,
   DEFAULT_ARTIFACT_PANEL_WIDTH,
 } from '../stores/artifacts'
+import {
+  clampSidebarWidth,
+  DEFAULT_SIDEBAR_WIDTH,
+} from '../stores/sidebar'
 
 export const DEFAULT_WORKSPACE_ID = 'default'
 
@@ -28,6 +32,9 @@ function buildChromeState(
 ): WorkspaceChromeState {
   return {
     sidebarOpen: chrome?.sidebarOpen ?? base.chrome.sidebarOpen,
+    sidebarWidth: clampSidebarWidth(
+      chrome?.sidebarWidth ?? base.chrome.sidebarWidth ?? DEFAULT_SIDEBAR_WIDTH
+    ),
     artifactPanelOpen: chrome?.artifactPanelOpen ?? base.chrome.artifactPanelOpen,
     artifactPanelWidth: clampArtifactPanelWidth(
       chrome?.artifactPanelWidth ?? base.chrome.artifactPanelWidth ?? DEFAULT_ARTIFACT_PANEL_WIDTH

@@ -7,10 +7,19 @@ import {
   DEFAULT_ARTIFACT_PANEL_WIDTH,
   useArtifactStore,
 } from './artifacts'
-import { useSidebarStore } from './sidebar'
+import {
+  clampSidebarWidth,
+  DEFAULT_SIDEBAR_WIDTH,
+  useSidebarStore,
+} from './sidebar'
 
 function applyWorkspaceChrome(workspace: WorkspaceState | null) {
   if (!workspace) return
+  useSidebarStore.setState({
+    width: clampSidebarWidth(
+      workspace.chrome.sidebarWidth ?? DEFAULT_SIDEBAR_WIDTH
+    ),
+  })
   if (workspace.chrome.sidebarOpen) {
     useSidebarStore.getState().open()
   } else {

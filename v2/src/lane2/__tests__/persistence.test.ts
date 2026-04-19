@@ -14,6 +14,7 @@ test('buildWorkspaceSnapshot seeds resident continuity from live state', () => {
     existing,
     chrome: {
       sidebarOpen: true,
+      sidebarWidth: 344,
       artifactPanelOpen: true,
       artifactPanelWidth: 512,
       activeArtifactId: 'artifact-1',
@@ -35,6 +36,7 @@ test('buildWorkspaceSnapshot seeds resident continuity from live state', () => {
   assert.equal(next.surfaces['surface-a']?.workspaceId, DEFAULT_WORKSPACE_ID)
   assert.equal(next.surfaces['surface-a']?.heldBy, 'aurora')
   assert.equal(next.chrome.sidebarOpen, true)
+  assert.equal(next.chrome.sidebarWidth, 344)
   assert.equal(next.chrome.artifactPanelOpen, true)
   assert.equal(next.chrome.artifactPanelWidth, 512)
   assert.equal(next.chrome.activeArtifactId, 'artifact-1')
@@ -48,6 +50,7 @@ test('buildWorkspaceSnapshot clamps artifact panel width into sane workspace bou
     sessionId: 'sess-1',
     chrome: {
       sidebarOpen: false,
+      sidebarWidth: 120,
       artifactPanelOpen: true,
       artifactPanelWidth: 120,
       activeArtifactId: null,
@@ -56,6 +59,7 @@ test('buildWorkspaceSnapshot clamps artifact panel width into sane workspace bou
     now: 456,
   })
 
+  assert.equal(next.chrome.sidebarWidth, 220)
   assert.equal(next.chrome.artifactPanelWidth, 280)
 })
 

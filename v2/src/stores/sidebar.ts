@@ -9,13 +9,28 @@ export interface SessionSummary {
   cwd: string | null
 }
 
+export const DEFAULT_SIDEBAR_WIDTH = 280
+export const MIN_SIDEBAR_WIDTH = 220
+
+export function clampSidebarWidth(
+  width: number,
+  viewportWidth: number = Number.POSITIVE_INFINITY
+): number {
+  const maxWidth = Number.isFinite(viewportWidth)
+    ? Math.max(MIN_SIDEBAR_WIDTH, viewportWidth * 0.45)
+    : Number.POSITIVE_INFINITY
+  return Math.max(MIN_SIDEBAR_WIDTH, Math.min(width, maxWidth))
+}
+
 interface SidebarStore {
   isOpen: boolean
+  width: number
   projectSwitcherOpen: boolean
   sessions: SessionSummary[]
   open: () => void
   close: () => void
   toggle: () => void
+  setWidth: (width: number) => void
   openProjectSwitcher: () => void
   closeProjectSwitcher: () => void
   loadSessions: () => Promise<void>
@@ -24,6 +39,7 @@ interface SidebarStore {
 
 export const useSidebarStore = create<SidebarStore>((set) => ({
   isOpen: false,
+  width: DEFAULT_SIDEBAR_WIDTH,
   projectSwitcherOpen: false,
   sessions: [],
   open: () => {
@@ -41,8 +57,6 @@ export const useSidebarStore = create<SidebarStore>((set) => ({
     })
   },
   close: () => set({ isOpen: false }),
-  openProjectSwitcher: () => set({ projectSwitcherOpen: true }),
-  closeProjectSwitcher: () => set({ projectSwitcherOpen: false }),
   toggle: () => {
     const current = useSidebarStore.getState()
     if (!current.isOpen) {
@@ -51,6 +65,9 @@ export const useSidebarStore = create<SidebarStore>((set) => ({
       current.close()
     }
   },
+  setWidth: (width) => set({ width: clampSidebarWidth(width) }),
+  openProjectSwitcher: () => set({ projectSwitcherOpen: true }),
+  closeProjectSwitcher: () => set({ projectSwitcherOpen: false }),
   loadSessions: async () => {
     try {
       const { invoke } = await import('@tauri-apps/api/core')

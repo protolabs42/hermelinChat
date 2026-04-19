@@ -106,6 +106,7 @@ export default function WorkspaceSwitcher({ anchor, onClose }: WorkspaceSwitcher
   const activeArtifactId = useArtifactStore((s) => s.activeId)
   const pinnedSurfaceId = useArtifactStore((s) => s.pinnedSurfaceId)
   const sidebarOpen = useSidebarStore((s) => s.isOpen)
+  const sidebarWidth = useSidebarStore((s) => s.width)
   const searchRef = useRef<HTMLInputElement>(null)
   const [query, setQuery] = useState('')
   const [creating, setCreating] = useState(false)
@@ -141,6 +142,7 @@ export default function WorkspaceSwitcher({ anchor, onClose }: WorkspaceSwitcher
         workspaceId,
         chrome: {
           sidebarOpen,
+          sidebarWidth,
           artifactPanelOpen,
           artifactPanelWidth,
           activeArtifactId,

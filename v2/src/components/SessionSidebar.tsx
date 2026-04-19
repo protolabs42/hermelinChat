@@ -1,6 +1,10 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { useSidebarStore, type SessionSummary } from '../stores/sidebar'
+import {
+  clampSidebarWidth,
+  useSidebarStore,
+  type SessionSummary,
+} from '../stores/sidebar'
 import { useChatStore } from '../stores/chat'
 import { useProjectStore, SCRATCHPAD_ID } from '../stores/projects'
 import { loadAnchors } from '../a2ui/surface-anchors'
@@ -501,9 +505,61 @@ function NewSessionBar() {
 
 export default function SessionSidebar() {
   const isOpen = useSidebarStore((s) => s.isOpen)
+  const width = useSidebarStore((s) => s.width)
+  const setWidth = useSidebarStore((s) => s.setWidth)
   const sessions = useSidebarStore((s) => s.sessions)
   const close = useSidebarStore((s) => s.close)
   const currentSessionId = useChatStore((s) => s.sessionId)
+  const resizeCleanupRef = useRef<(() => void) | null>(null)
+
+  useEffect(() => {
+    return () => { resizeCleanupRef.current?.() }
+  }, [])
+
+  const handleResizePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+
+    resizeCleanupRef.current?.()
+
+    const handle = e.currentTarget
+    const pointerId = e.pointerId
+    try { handle.setPointerCapture(pointerId) } catch { /* ignore */ }
+
+    const startX = e.clientX
+    const startWidth = width
+    const prevCursor = document.body.style.cursor
+    const prevSelect = document.body.style.userSelect
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+
+    let raf: number | null = null
+
+    const cleanup = () => {
+      window.removeEventListener('pointermove', handleMove)
+      window.removeEventListener('pointerup', cleanup)
+      window.removeEventListener('pointercancel', cleanup)
+      if (raf) cancelAnimationFrame(raf)
+      try { handle.releasePointerCapture(pointerId) } catch { /* ignore */ }
+      document.body.style.cursor = prevCursor
+      document.body.style.userSelect = prevSelect
+      resizeCleanupRef.current = null
+    }
+
+    const handleMove = (ev: PointerEvent) => {
+      if (typeof ev.buttons === 'number' && ev.buttons === 0) { cleanup(); return }
+      const dx = ev.clientX - startX
+      const next = clampSidebarWidth(startWidth + dx, window.innerWidth)
+      if (raf) cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => { raf = null; setWidth(next) })
+    }
+
+    resizeCleanupRef.current = cleanup
+    window.addEventListener('pointermove', handleMove)
+    window.addEventListener('pointerup', cleanup)
+    window.addEventListener('pointercancel', cleanup)
+  }
 
   const groups = groupByTime(sessions, (s) => (s.started_at ?? 0) * 1000)
 
@@ -511,8 +567,8 @@ export default function SessionSidebar() {
     <div
       className={isOpen ? 'animate-slide-left' : ''}
       style={{
-        width: isOpen ? 280 : 0,
-        minWidth: isOpen ? 280 : 0,
+        width: isOpen ? width : 0,
+        minWidth: isOpen ? width : 0,
         height: '100vh',
         background: 'var(--color-surface)',
         display: 'flex',
@@ -521,8 +577,37 @@ export default function SessionSidebar() {
         transition: 'width 200ms ease-out, min-width 200ms ease-out',
         borderRight: isOpen ? '1px solid var(--color-border)' : 'none',
         flexShrink: 0,
+        position: 'relative',
       }}
     >
+      {isOpen && (
+        <div
+          onPointerDown={handleResizePointerDown}
+          title="Drag to resize"
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            bottom: 0,
+            width: 12,
+            cursor: 'col-resize',
+            zIndex: 60,
+            touchAction: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div style={{
+            width: 4,
+            height: 40,
+            borderRadius: 99,
+            background: 'var(--color-border)',
+            opacity: 0.6,
+          }} />
+        </div>
+      )}
+
       {/* Project header */}
       <ProjectHeader onClose={close} />
 

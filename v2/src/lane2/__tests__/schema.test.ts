@@ -24,6 +24,7 @@ test('createEmptyWorkspaceState seeds Aurora as resident', () => {
   assert.equal(state.resident.sessionId, 'sess-1')
   assert.equal(state.attention.primaryFocus, null)
   assert.equal(state.chrome.sidebarOpen, false)
+  assert.equal(state.chrome.sidebarWidth, 280)
   assert.equal(state.chrome.artifactPanelOpen, false)
   assert.equal(state.chrome.artifactPanelWidth, 420)
   assert.equal(state.chrome.activeArtifactId, null)

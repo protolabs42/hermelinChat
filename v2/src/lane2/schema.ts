@@ -113,6 +113,7 @@ export interface WorkspaceContinuityState {
 
 export interface WorkspaceChromeState {
   sidebarOpen: boolean
+  sidebarWidth: number
   artifactPanelOpen: boolean
   artifactPanelWidth: number
   activeArtifactId: string | null
@@ -172,6 +173,7 @@ export function createEmptyWorkspaceState(
     },
     chrome: {
       sidebarOpen: false,
+      sidebarWidth: 280,
       artifactPanelOpen: false,
       artifactPanelWidth: 420,
       activeArtifactId: null,

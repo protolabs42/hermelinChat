@@ -188,6 +188,7 @@ export function useAcpEvents() {
         const snapshot = buildWorkspaceSnapshot({
           chrome: {
             sidebarOpen: sidebarState.isOpen,
+            sidebarWidth: sidebarState.width,
             artifactPanelOpen: artifactState.panelOpen,
             artifactPanelWidth: artifactState.panelWidth,
             activeArtifactId: artifactState.activeId,
@@ -220,7 +221,7 @@ export function useAcpEvents() {
       }
     })
     const unsubSidebarPersist = useSidebarStore.subscribe((state, prev) => {
-      if (state.isOpen !== prev.isOpen) {
+      if (state.isOpen !== prev.isOpen || state.width !== prev.width) {
         scheduleWorkspacePersist()
       }
     })
