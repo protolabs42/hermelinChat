@@ -16,6 +16,13 @@ export type UnresolvedTargetReason =
   | 'coedit-open'
   | 'session-booting'
 
+export type WorkspacePaneId = 'plan' | 'tasks' | 'surfaces' | 'artifacts' | 'context'
+
+export type WorkspacePaneLayout =
+  | { mode: 'hidden' }
+  | { mode: 'single'; primaryPane: WorkspacePaneId }
+  | { mode: 'stacked'; primaryPane: WorkspacePaneId; secondaryPane: WorkspacePaneId }
+
 export interface FocusTarget {
   kind: FocusTargetKind
   id: string
@@ -131,6 +138,7 @@ export interface WorkspaceChromeState {
   artifactPanelWidth: number
   activeArtifactId: string | null
   pinnedSurfaceId: string | null
+  rightRail?: WorkspacePaneLayout
 }
 
 export interface WorkspaceState {
@@ -191,6 +199,7 @@ export function createEmptyWorkspaceState(
       artifactPanelWidth: 420,
       activeArtifactId: null,
       pinnedSurfaceId: null,
+      rightRail: { mode: 'hidden' },
     },
     updatedAt: now,
   }

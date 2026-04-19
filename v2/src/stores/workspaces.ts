@@ -12,6 +12,7 @@ import {
   DEFAULT_SIDEBAR_WIDTH,
   useSidebarStore,
 } from './sidebar'
+import { usePaneStore } from './panes'
 import { useSurfaceStore } from './surfaces'
 
 function applyWorkspaceChrome(workspace: WorkspaceState | null) {
@@ -34,6 +35,7 @@ function applyWorkspaceChrome(workspace: WorkspaceState | null) {
     activeId: workspace.chrome.activeArtifactId,
     pinnedSurfaceId: workspace.chrome.pinnedSurfaceId,
   })
+  usePaneStore.getState().hydrateWorkspacePanes(workspace.workspaceId, workspace.chrome.rightRail)
   useSurfaceStore.getState().hydrateWorkspaceRuntime(workspace)
   import('./chat').then(({ useChatStore }) => {
     useChatStore.getState().restoreSurfaceAnchors(workspace.continuity.localAnchorIds)

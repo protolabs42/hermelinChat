@@ -33,6 +33,11 @@ test('buildWorkspaceSnapshot seeds resident continuity from live state', () => {
       artifactPanelWidth: 512,
       activeArtifactId: 'artifact-1',
       pinnedSurfaceId: 'surface-b',
+      rightRail: {
+        mode: 'stacked',
+        primaryPane: 'tasks',
+        secondaryPane: 'artifacts',
+      },
     },
     orderedSurfaceIds: ['surface-a', 'surface-b'],
     projectId: 'proj-1',
@@ -55,6 +60,11 @@ test('buildWorkspaceSnapshot seeds resident continuity from live state', () => {
   assert.equal(next.chrome.artifactPanelWidth, 512)
   assert.equal(next.chrome.activeArtifactId, 'artifact-1')
   assert.equal(next.chrome.pinnedSurfaceId, 'surface-b')
+  assert.deepEqual(next.chrome.rightRail, {
+    mode: 'stacked',
+    primaryPane: 'tasks',
+    secondaryPane: 'artifacts',
+  })
   assert.deepEqual(next.attention.primaryFocus, { kind: 'surface', id: 'surface-b' })
   assert.deepEqual(next.attention.pinnedTargets, [{ kind: 'surface', id: 'surface-b' }])
   assert.deepEqual(next.continuity.pinnedSurfaceIds, ['surface-b'])

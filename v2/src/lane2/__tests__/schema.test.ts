@@ -29,6 +29,7 @@ test('createEmptyWorkspaceState seeds Aurora as resident', () => {
   assert.equal(state.chrome.artifactPanelWidth, 420)
   assert.equal(state.chrome.activeArtifactId, null)
   assert.equal(state.chrome.pinnedSurfaceId, null)
+  assert.deepEqual(state.chrome.rightRail, { mode: 'hidden' })
 })
 
 test('workspace state can hold typed invocation envelopes', () => {

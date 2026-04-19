@@ -7,6 +7,7 @@ import { useArtifactStore, type Artifact } from '../stores/artifacts'
 import { useSurfaceStore, type A2UIEvent } from '../stores/surfaces'
 import { useProjectStore } from '../stores/projects'
 import { useSidebarStore } from '../stores/sidebar'
+import { usePaneStore } from '../stores/panes'
 import { useWorkspaceStore } from '../stores/workspaces'
 import { buildWorkspaceSnapshot, extractProjectIdFromWorkspace } from '../lane2/persistence'
 
@@ -190,6 +191,7 @@ export function useAcpEvents() {
         const existing = useWorkspaceStore.getState().activeWorkspace
         const artifactState = useArtifactStore.getState()
         const sidebarState = useSidebarStore.getState()
+        const paneState = usePaneStore.getState()
         const snapshot = buildWorkspaceSnapshot({
           chrome: {
             sidebarOpen: sidebarState.isOpen,
@@ -198,6 +200,7 @@ export function useAcpEvents() {
             artifactPanelWidth: artifactState.panelWidth,
             activeArtifactId: artifactState.activeId,
             pinnedSurfaceId: artifactState.pinnedSurfaceId,
+            rightRail: paneState.snapshotWorkspacePanes(),
           },
           existing,
           liveSurfaces,
@@ -243,6 +246,11 @@ export function useAcpEvents() {
         scheduleWorkspacePersist()
       }
     })
+    const unsubPanePersist = usePaneStore.subscribe((state, prev) => {
+      if (state.workspaceId !== prev.workspaceId || state.layout !== prev.layout) {
+        scheduleWorkspacePersist()
+      }
+    })
 
     return () => {
       unlistenAcp.then((fn) => fn())
@@ -256,6 +264,7 @@ export function useAcpEvents() {
       unsubSurfacePersist()
       unsubSidebarPersist()
       unsubArtifactPersist()
+      unsubPanePersist()
     }
   }, [])
 }

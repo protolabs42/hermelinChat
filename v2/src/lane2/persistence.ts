@@ -19,6 +19,7 @@ import {
   clampSidebarWidth,
   DEFAULT_SIDEBAR_WIDTH,
 } from '../stores/sidebar'
+import { normalizePaneLayout } from '../stores/panes'
 
 export const DEFAULT_WORKSPACE_ID = 'default'
 
@@ -50,6 +51,7 @@ function buildChromeState(
     ),
     activeArtifactId: chrome?.activeArtifactId ?? base.chrome.activeArtifactId,
     pinnedSurfaceId: chrome?.pinnedSurfaceId ?? base.chrome.pinnedSurfaceId,
+    rightRail: normalizePaneLayout(chrome?.rightRail ?? base.chrome.rightRail),
   }
 }
 
