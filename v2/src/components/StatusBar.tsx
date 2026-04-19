@@ -4,6 +4,7 @@ import { useChatStore } from '../stores/chat'
 import { useSettingsStore } from '../stores/settings'
 import { useSidebarStore } from '../stores/sidebar'
 import { useArtifactStore } from '../stores/artifacts'
+import { useSurfaceStore } from '../stores/surfaces'
 import { usePaneStore } from '../stores/panes'
 import { useProjectStore, SCRATCHPAD_ID } from '../stores/projects'
 import { useWorkspaceStore } from '../stores/workspaces'
@@ -15,6 +16,7 @@ import WorkspaceTabs from './WorkspaceTabs'
 import HermesUpdateModal from './HermesUpdateModal'
 import { getTopActionIntents } from '../app/top-action-intents'
 import { buildWorkspaceStripModel } from '../app/workspace-strip'
+import { buildWorkspaceRestoreState } from '../app/workspace-restore-state'
 import { activateWorkspaceSnapshot } from '../lane2/workspace-activation'
 import { buildWorkspaceContinuityCard } from '../lane2/workspace-summary'
 import coeditProofRaw from '../a2ui/examples/mcp-app-coedit-proof.json?raw'
@@ -38,8 +40,10 @@ export default function StatusBar() {
   const toggleSettings = useSettingsStore((s) => s.toggle)
   const toggleSidebar = useSidebarStore((s) => s.toggle)
   const artifactCount = useArtifactStore((s) => s.artifacts.length)
+  const pinnedSurfaceId = useArtifactStore((s) => s.pinnedSurfaceId)
   const toggleArtifacts = useArtifactStore((s) => s.togglePanel)
   const togglePane = usePaneStore((s) => s.togglePane)
+  const liveSurfaceIds = useSurfaceStore((s) => s.orderedIds)
   const { theme } = useTheme()
 
   const activeProjectId = useProjectStore((s) => s.activeProjectId)
@@ -53,6 +57,13 @@ export default function StatusBar() {
   const isScratchpad = !activeProjectId || activeProjectId === SCRATCHPAD_ID
   const currentGitInfo = activeProjectId ? gitInfo[activeProjectId] : null
   const continuityCard = activeWorkspace ? buildWorkspaceContinuityCard(activeWorkspace) : null
+  const workspaceRestoreState = buildWorkspaceRestoreState({
+    activeWorkspaceId: activeWorkspace?.workspaceId ?? null,
+    liveSurfaceIds,
+    pinnedSurfaceId,
+    primaryFocus: activeWorkspace?.attention.primaryFocus ?? null,
+    surfaceAnchorIds: activeWorkspace?.continuity.localAnchorIds ?? [],
+  })
   const stripWorkspaces = workspaces.length > 0
     ? workspaces
     : activeWorkspace
@@ -474,6 +485,33 @@ export default function StatusBar() {
                 {continuityCard.actionLabel}
               </span>
             </button>
+          </>
+        )}
+
+        {workspaceRestoreState && (
+          <>
+            <span style={{ color: 'var(--color-muted)', opacity: 0.35 }}>•</span>
+            <span
+              title={workspaceRestoreState.detail}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '5px 10px',
+                borderRadius: 999,
+                border: '1px solid var(--color-border)',
+                background: 'color-mix(in srgb, var(--color-accent) 10%, transparent)',
+                maxWidth: 280,
+              }}
+            >
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-accent)', flexShrink: 0 }} />
+              <span style={{ color: 'var(--color-text-bright)', fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                {workspaceRestoreState.label}
+              </span>
+              <span style={{ color: 'var(--color-muted)', fontSize: 11, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {workspaceRestoreState.title}
+              </span>
+            </span>
           </>
         )}
 

@@ -1,13 +1,20 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useChatStore } from '../stores/chat'
+import { useArtifactStore } from '../stores/artifacts'
+import { useSurfaceStore } from '../stores/surfaces'
+import { useWorkspaceStore } from '../stores/workspaces'
 import MessageBubble from './MessageBubble'
 import UsageBar from './chat/UsageBar'
 import WelcomeCard from './WelcomeCard'
+import { buildWorkspaceRestoreState } from '../app/workspace-restore-state'
 
 const SCROLL_THRESHOLD = 80
 
 export default function ChatView() {
   const messages = useChatStore((s) => s.messages)
+  const pinnedSurfaceId = useArtifactStore((s) => s.pinnedSurfaceId)
+  const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace)
+  const liveSurfaceIds = useSurfaceStore((s) => s.orderedIds)
   const bottomRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [isAtBottom, setIsAtBottom] = useState(true)
@@ -34,6 +41,16 @@ export default function ChatView() {
     setIsAtBottom(true)
   }
 
+  const restoreState = useMemo(() => buildWorkspaceRestoreState({
+    activeWorkspaceId: activeWorkspace?.workspaceId ?? null,
+    liveSurfaceIds,
+    pinnedSurfaceId,
+    primaryFocus: activeWorkspace?.attention.primaryFocus ?? null,
+    surfaceAnchorIds: messages
+      .filter((message) => message.role === 'surface' && typeof message.surfaceId === 'string')
+      .map((message) => message.surfaceId as string),
+  }), [activeWorkspace, liveSurfaceIds, messages, pinnedSurfaceId])
+
   return (
     <>
       <div
@@ -46,6 +63,29 @@ export default function ChatView() {
           position: 'relative',
         }}
       >
+        {restoreState && (
+          <div
+            style={{
+              marginBottom: 16,
+              padding: '12px 16px',
+              borderRadius: 10,
+              border: '1px solid var(--color-border)',
+              background: 'color-mix(in srgb, var(--color-surface) 92%, transparent)',
+              display: 'grid',
+              gap: 4,
+            }}
+          >
+            <div style={{ color: 'var(--color-accent)', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              {restoreState.title}
+            </div>
+            <div style={{ color: 'var(--color-text-bright)', fontSize: 13, fontWeight: 600 }}>
+              {restoreState.label}
+            </div>
+            <div style={{ color: 'var(--color-muted)', fontSize: 12, lineHeight: 1.5 }}>
+              {restoreState.detail}
+            </div>
+          </div>
+        )}
         {messages.length === 0 && (
           <div style={{
             display: 'flex',

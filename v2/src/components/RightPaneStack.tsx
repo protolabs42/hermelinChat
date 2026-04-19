@@ -8,9 +8,11 @@ import { ArtifactBody, EmptyRenderer } from './ArtifactPanel'
 import { clampArtifactPanelWidth, useArtifactStore, type Artifact } from '../stores/artifacts'
 import { usePaneStore } from '../stores/panes'
 import { useSurfaceStore } from '../stores/surfaces'
+import { useWorkspaceStore } from '../stores/workspaces'
 import { useChatStore } from '../stores/chat'
 import type { WorkspacePaneId } from '../lane2/schema'
 import { buildSurfacePaneEmptyState } from '../app/right-pane-state'
+import { buildWorkspaceRestoreState } from '../app/workspace-restore-state'
 
 function paneCopy(paneId: WorkspacePaneId): {
   title: string
@@ -177,17 +179,25 @@ export function SurfacePaneView(args: {
 }
 
 function SurfacePaneContent() {
+  const activeWorkspace = useWorkspaceStore((s) => s.activeWorkspace)
   const pinnedSurfaceId = useArtifactStore((s) => s.pinnedSurfaceId)
   const unpinSurface = useArtifactStore((s) => s.unpinSurface)
   const orderedIds = useSurfaceStore((s) => s.orderedIds)
   const surfaces = useSurfaceStore((s) => s.surfaces)
   const pinnedSurface = pinnedSurfaceId ? surfaces[pinnedSurfaceId] ?? null : null
+  const restoreState = buildWorkspaceRestoreState({
+    activeWorkspaceId: activeWorkspace?.workspaceId ?? null,
+    liveSurfaceIds: orderedIds,
+    pinnedSurfaceId,
+    primaryFocus: activeWorkspace?.attention.primaryFocus ?? null,
+    surfaceAnchorIds: activeWorkspace?.continuity.localAnchorIds ?? [],
+  })
 
   if (!pinnedSurface) {
     return (
       <SurfacePaneView
-        pinnedSurfaceId={pinnedSurfaceId}
-        pinnedSurfaceTitle={null}
+        pinnedSurfaceId={restoreState?.surfaceId ?? pinnedSurfaceId}
+        pinnedSurfaceTitle={restoreState?.label ?? null}
         surfaceIds={orderedIds}
       />
     )
