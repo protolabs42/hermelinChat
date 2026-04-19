@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core'
 
 import { buildWorkspaceSnapshot, DEFAULT_WORKSPACE_ID, extractProjectIdFromWorkspace } from '../lane2/persistence'
 import type { WorkspaceState } from '../lane2/schema'
+import { buildWorkspaceRowSummary } from '../lane2/workspace-summary'
 import { useSurfaceStore } from '../stores/surfaces'
 import { useWorkspaceStore } from '../stores/workspaces'
 import { useProjectStore } from '../stores/projects'
@@ -40,14 +41,21 @@ function getDropdownStyle(anchor: DOMRect | 'center'): React.CSSProperties {
 
 function WorkspaceRow({
   isActive,
-  name,
+  workspace,
   onClick,
 }: {
   isActive: boolean
-  name: string
+  workspace: WorkspaceState
   onClick: () => void
 }) {
   const [hovered, setHovered] = useState(false)
+  const summary = buildWorkspaceRowSummary(workspace)
+  const statusColor = summary.status === 'remembered-active'
+    ? 'var(--color-accent)'
+    : summary.status === 'ready'
+    ? 'var(--color-text-bright)'
+    : 'var(--color-text-muted)'
+
   return (
     <button
       onClick={onClick}
@@ -57,7 +65,7 @@ function WorkspaceRow({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'flex-start',
-        gap: 1,
+        gap: 4,
         width: '100%',
         padding: '8px 12px',
         background: hovered
@@ -86,7 +94,30 @@ function WorkspaceRow({
           maxWidth: '100%',
         }}
       >
-        {name}
+        {workspace.workspaceId}
+      </span>
+      <span
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          color: statusColor,
+          lineHeight: 1.3,
+          maxWidth: '100%',
+        }}
+      >
+        {summary.headline}
+      </span>
+      <span
+        style={{
+          fontSize: 11,
+          color: 'var(--color-text-muted)',
+          lineHeight: 1.35,
+          maxWidth: '100%',
+          whiteSpace: 'normal',
+          overflowWrap: 'anywhere',
+        }}
+      >
+        {summary.detail}
       </span>
     </button>
   )
@@ -237,7 +268,7 @@ export default function WorkspaceSwitcher({ anchor, onClose }: WorkspaceSwitcher
             <WorkspaceRow
               key={workspace.workspaceId}
               isActive={workspace.workspaceId === activeWorkspace?.workspaceId}
-              name={workspace.workspaceId}
+              workspace={workspace}
               onClick={() => void handleSelect(workspace)}
             />
           ))}
