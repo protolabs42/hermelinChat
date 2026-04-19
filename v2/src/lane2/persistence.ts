@@ -21,6 +21,8 @@ import {
 
 export const DEFAULT_WORKSPACE_ID = 'default'
 
+export type WorkspaceCreationMode = 'blank' | 'duplicate'
+
 export function projectContextId(projectId: string | null): string | null {
   if (!projectId) return null
   return `project:${projectId}`
@@ -168,6 +170,51 @@ function buildRuntimeState(
     }
   }
   return nextRuntime
+}
+
+export function buildWorkspaceCreationSnapshot(args: {
+  mode: WorkspaceCreationMode
+  workspaceId: string
+  projectId: string | null
+  existing?: WorkspaceState | null
+  sessionId: string | null
+  orderedSurfaceIds: string[]
+  anchorSurfaceIds?: string[]
+  chrome?: WorkspaceChromeState
+  liveSurfaces?: Record<string, SurfaceState>
+  isStreaming?: boolean
+  now?: number
+}): WorkspaceState {
+  if (args.mode === 'duplicate') {
+    return buildWorkspaceSnapshot({
+      anchorSurfaceIds: args.anchorSurfaceIds,
+      chrome: args.chrome,
+      existing: args.existing,
+      isStreaming: args.isStreaming,
+      liveSurfaces: args.liveSurfaces,
+      now: args.now,
+      orderedSurfaceIds: args.orderedSurfaceIds,
+      projectId: args.projectId,
+      sessionId: args.sessionId,
+      workspaceId: args.workspaceId,
+    })
+  }
+
+  const now = args.now ?? Date.now()
+  const workspace = createEmptyWorkspaceState({ workspaceId: args.workspaceId, now })
+  const heldContextId = projectContextId(args.projectId)
+
+  return {
+    ...workspace,
+    resident: {
+      ...workspace.resident,
+      stance: 'waiting',
+      heldContextIds: heldContextId ? [heldContextId] : [],
+      workspaceId: args.workspaceId,
+      updatedAt: now,
+    },
+    updatedAt: now,
+  }
 }
 
 export function hydrateWorkspaceSurfaceState(workspace: WorkspaceState): {

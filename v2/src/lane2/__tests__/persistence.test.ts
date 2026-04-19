@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+  buildWorkspaceCreationSnapshot,
   buildWorkspaceSnapshot,
   DEFAULT_WORKSPACE_ID,
   extractProjectIdFromWorkspace,
@@ -259,6 +260,81 @@ test('buildWorkspaceSnapshot clears live invocation scaffolding when not streami
   assert.equal(next.resident.activeInvocationId, null)
   assert.deepEqual(next.attention.unresolvedTargets, [])
   assert.equal(next.invocations['live:sess-1'], undefined)
+})
+
+test('buildWorkspaceCreationSnapshot creates a blank workspace without cloning the active desk', () => {
+  const next = buildWorkspaceCreationSnapshot({
+    mode: 'blank',
+    workspaceId: 'blank-lab',
+    projectId: 'proj-blank',
+    sessionId: 'sess-live',
+    orderedSurfaceIds: ['surface-a', 'surface-b'],
+    chrome: {
+      sidebarOpen: true,
+      sidebarWidth: 344,
+      artifactPanelOpen: true,
+      artifactPanelWidth: 512,
+      activeArtifactId: 'artifact-1',
+      pinnedSurfaceId: 'surface-b',
+    },
+    now: 1_500,
+  })
+
+  assert.equal(next.workspaceId, 'blank-lab')
+  assert.equal(next.resident.sessionId, null)
+  assert.equal(next.resident.stance, 'waiting')
+  assert.deepEqual(next.resident.heldContextIds, ['project:proj-blank'])
+  assert.deepEqual(next.resident.activeSurfaceIds, [])
+  assert.deepEqual(next.continuity.localAnchorIds, [])
+  assert.deepEqual(next.surfaces, {})
+  assert.equal(next.chrome.sidebarOpen, false)
+  assert.equal(next.chrome.sidebarWidth, 280)
+  assert.equal(next.chrome.artifactPanelOpen, false)
+  assert.equal(next.chrome.pinnedSurfaceId, null)
+})
+
+test('buildWorkspaceCreationSnapshot duplicates the current workspace into a new id', () => {
+  const existing = createEmptyWorkspaceState({ workspaceId: 'forge', sessionId: 'sess-old', now: 1_600 })
+  existing.surfaces['surface-a'] = {
+    surfaceId: 'surface-a',
+    surfaceKind: 'a2ui',
+    title: 'surface-a',
+    workspaceId: 'forge',
+    sessionId: 'sess-old',
+    createdBy: 'aurora',
+    heldBy: 'aurora',
+    createdAt: 1_590,
+    updatedAt: 1_590,
+    status: 'active',
+  }
+
+  const next = buildWorkspaceCreationSnapshot({
+    mode: 'duplicate',
+    existing,
+    workspaceId: 'forge-copy',
+    projectId: 'proj-1',
+    sessionId: 'sess-1',
+    orderedSurfaceIds: ['surface-a'],
+    chrome: {
+      sidebarOpen: true,
+      sidebarWidth: 344,
+      artifactPanelOpen: true,
+      artifactPanelWidth: 512,
+      activeArtifactId: 'artifact-1',
+      pinnedSurfaceId: 'surface-a',
+    },
+    now: 1_601,
+  })
+
+  assert.equal(next.workspaceId, 'forge-copy')
+  assert.equal(next.resident.sessionId, 'sess-1')
+  assert.deepEqual(next.resident.activeSurfaceIds, ['surface-a'])
+  assert.deepEqual(next.resident.heldContextIds, ['project:proj-1'])
+  assert.equal(next.surfaces['surface-a']?.workspaceId, 'forge-copy')
+  assert.equal(next.chrome.sidebarOpen, true)
+  assert.equal(next.chrome.sidebarWidth, 344)
+  assert.equal(next.chrome.activeArtifactId, 'artifact-1')
+  assert.deepEqual(next.continuity.localAnchorIds, ['surface-a'])
 })
 
 test('extractProjectIdFromWorkspace reads project context ids', () => {

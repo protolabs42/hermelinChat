@@ -2,7 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { invoke } from '@tauri-apps/api/core'
 
-import { buildWorkspaceSnapshot, DEFAULT_WORKSPACE_ID } from '../lane2/persistence'
+import {
+  buildWorkspaceCreationSnapshot,
+  DEFAULT_WORKSPACE_ID,
+} from '../lane2/persistence'
 import type { WorkspaceState } from '../lane2/schema'
 import { activateWorkspaceSnapshot } from '../lane2/workspace-activation'
 import { buildWorkspaceRowSummary } from '../lane2/workspace-summary'
@@ -158,7 +161,7 @@ export default function WorkspaceSwitcher({ anchor, onClose }: WorkspaceSwitcher
   const sidebarWidth = useSidebarStore((s) => s.width)
   const searchRef = useRef<HTMLInputElement>(null)
   const [query, setQuery] = useState('')
-  const [creating, setCreating] = useState(false)
+  const [creatingMode, setCreatingMode] = useState<'blank' | 'duplicate' | null>(null)
 
   useEffect(() => {
     void loadWorkspaces()
@@ -180,13 +183,20 @@ export default function WorkspaceSwitcher({ anchor, onClose }: WorkspaceSwitcher
     [q, workspaces]
   )
 
-  const handleCreate = async () => {
-    if (creating) return
-    const workspaceId = window.prompt('Workspace name / id', activeWorkspace?.workspaceId ?? DEFAULT_WORKSPACE_ID)
+  const handleCreate = async (mode: 'blank' | 'duplicate') => {
+    if (creatingMode) return
+    const suggestedName = mode === 'duplicate'
+      ? `${activeWorkspace?.workspaceId ?? DEFAULT_WORKSPACE_ID}-copy`
+      : DEFAULT_WORKSPACE_ID
+    const workspaceId = window.prompt(
+      mode === 'blank' ? 'New blank workspace name / id' : 'Duplicate workspace name / id',
+      suggestedName
+    )
     if (!workspaceId) return
-    setCreating(true)
+    setCreatingMode(mode)
     try {
-      const snapshot = buildWorkspaceSnapshot({
+      const snapshot = buildWorkspaceCreationSnapshot({
+        mode,
         existing: activeWorkspace,
         workspaceId,
         chrome: {
@@ -208,7 +218,7 @@ export default function WorkspaceSwitcher({ anchor, onClose }: WorkspaceSwitcher
       await loadWorkspaces()
       onClose()
     } finally {
-      setCreating(false)
+      setCreatingMode(null)
     }
   }
 
@@ -301,9 +311,10 @@ export default function WorkspaceSwitcher({ anchor, onClose }: WorkspaceSwitcher
             </div>
           )}
         </div>
-        <div style={{ padding: 8, borderTop: '1px solid var(--color-border)' }}>
+        <div style={{ padding: 8, borderTop: '1px solid var(--color-border)', display: 'grid', gap: 8 }}>
           <button
-            onClick={() => void handleCreate()}
+            onClick={() => void handleCreate('blank')}
+            disabled={creatingMode !== null}
             style={{
               width: '100%',
               background: 'var(--color-elevated)',
@@ -311,11 +322,29 @@ export default function WorkspaceSwitcher({ anchor, onClose }: WorkspaceSwitcher
               border: '1px solid var(--color-border)',
               borderRadius: 6,
               padding: '8px 12px',
-              cursor: 'pointer',
+              cursor: creatingMode ? 'default' : 'pointer',
               fontSize: 12,
+              opacity: creatingMode === 'duplicate' ? 0.65 : 1,
             }}
           >
-            {creating ? 'Creating…' : 'New workspace from current state'}
+            {creatingMode === 'blank' ? 'Creating blank workspace…' : 'New blank workspace'}
+          </button>
+          <button
+            onClick={() => void handleCreate('duplicate')}
+            disabled={creatingMode !== null}
+            style={{
+              width: '100%',
+              background: 'transparent',
+              color: 'var(--color-text-bright)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 6,
+              padding: '8px 12px',
+              cursor: creatingMode ? 'default' : 'pointer',
+              fontSize: 12,
+              opacity: creatingMode === 'blank' ? 0.65 : 1,
+            }}
+          >
+            {creatingMode === 'duplicate' ? 'Duplicating current workspace…' : 'Duplicate current workspace'}
           </button>
         </div>
       </div>
