@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { invoke } from '@tauri-apps/api/core'
 
-import { buildWorkspaceSnapshot, DEFAULT_WORKSPACE_ID, extractProjectIdFromWorkspace } from '../lane2/persistence'
+import { buildWorkspaceSnapshot, DEFAULT_WORKSPACE_ID } from '../lane2/persistence'
 import type { WorkspaceState } from '../lane2/schema'
+import { activateWorkspaceSnapshot } from '../lane2/workspace-activation'
 import { buildWorkspaceRowSummary } from '../lane2/workspace-summary'
 import { useSurfaceStore } from '../stores/surfaces'
 import { useWorkspaceStore } from '../stores/workspaces'
@@ -146,7 +147,6 @@ export default function WorkspaceSwitcher({ anchor, onClose }: WorkspaceSwitcher
   const workspaces = useWorkspaceStore((s) => s.workspaces)
   const loadWorkspaces = useWorkspaceStore((s) => s.loadWorkspaces)
   const upsertWorkspace = useWorkspaceStore((s) => s.upsertWorkspace)
-  const setActiveWorkspace = useWorkspaceStore((s) => s.setActiveWorkspace)
   const activeProjectId = useProjectStore((s) => s.activeProjectId)
   const orderedSurfaceIds = useSurfaceStore((s) => s.orderedIds)
   const sessionId = useChatStore((s) => s.sessionId)
@@ -213,32 +213,25 @@ export default function WorkspaceSwitcher({ anchor, onClose }: WorkspaceSwitcher
   }
 
   const handleSelect = async (workspace: WorkspaceState) => {
-    await setActiveWorkspace(workspace.workspaceId)
-    const { useProjectStore } = await import('../stores/projects')
-    const { useChatStore } = await import('../stores/chat')
-    const restoredProjectId = extractProjectIdFromWorkspace(workspace)
-    const restoredSessionId = workspace.continuity.activeThreadId ?? workspace.resident.sessionId ?? null
-
-    if (restoredProjectId) {
-      await useProjectStore.getState().hydrateActiveProject(restoredProjectId)
-    }
-
-    useChatStore.getState().reset()
-
-    if (restoredSessionId) {
-      const project = restoredProjectId ? useProjectStore.getState().projects[restoredProjectId] : null
-      const cwd = restoredProjectId === 'scratchpad'
-        ? await invoke<string>('get_home_dir').catch(() => null)
-        : project?.path ?? null
-      await invoke('acp_load_session', { sessionId: restoredSessionId, cwd })
-    } else {
-      const activeProject = useProjectStore.getState().getActiveProject()
-      const cwd = restoredProjectId === 'scratchpad'
-        ? await invoke<string>('get_home_dir').catch(() => null)
-        : activeProject?.path || null
-      await invoke('acp_new_session', { cwd })
-    }
-    useChatStore.getState().restoreSurfaceAnchors(workspace.continuity.localAnchorIds)
+    await activateWorkspaceSnapshot(workspace, {
+      setActiveWorkspace: useWorkspaceStore.getState().setActiveWorkspace,
+      hydrateActiveProject: useProjectStore.getState().hydrateActiveProject,
+      resetChat: () => {
+        useChatStore.getState().reset()
+      },
+      restoreSurfaceAnchors: (surfaceIds) => {
+        useChatStore.getState().restoreSurfaceAnchors(surfaceIds)
+      },
+      loadSession: async (sessionId, cwd) => {
+        await invoke('acp_load_session', { sessionId, cwd })
+      },
+      newSession: async (cwd) => {
+        await invoke('acp_new_session', { cwd })
+      },
+      getHomeDir: async () => await invoke<string>('get_home_dir').catch(() => null),
+      getProjectPath: (projectId) => useProjectStore.getState().projects[projectId]?.path ?? null,
+      getCurrentProjectPath: () => useProjectStore.getState().getActiveProject()?.path ?? null,
+    })
     onClose()
   }
 

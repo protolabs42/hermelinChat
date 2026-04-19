@@ -11,6 +11,7 @@ import { useTheme } from '../theme'
 import ProjectSwitcher from './ProjectSwitcher'
 import WorkspaceSwitcher from './WorkspaceSwitcher'
 import HermesUpdateModal from './HermesUpdateModal'
+import { activateWorkspaceSnapshot } from '../lane2/workspace-activation'
 import { buildWorkspaceContinuityCard } from '../lane2/workspace-summary'
 import coeditProofRaw from '../a2ui/examples/mcp-app-coedit-proof.json?raw'
 
@@ -106,6 +107,33 @@ export default function StatusBar() {
       await invoke('acp_reconnect')
     } catch (e) {
       console.error('Reconnect failed:', e)
+    }
+  }
+
+  const handleResumeCurrentWorkspace = async () => {
+    if (!activeWorkspace) return
+    try {
+      await activateWorkspaceSnapshot(activeWorkspace, {
+        setActiveWorkspace: useWorkspaceStore.getState().setActiveWorkspace,
+        hydrateActiveProject: useProjectStore.getState().hydrateActiveProject,
+        resetChat: () => {
+          useChatStore.getState().reset()
+        },
+        restoreSurfaceAnchors: (surfaceIds) => {
+          useChatStore.getState().restoreSurfaceAnchors(surfaceIds)
+        },
+        loadSession: async (sessionId, cwd) => {
+          await invoke('acp_load_session', { sessionId, cwd })
+        },
+        newSession: async (cwd) => {
+          await invoke('acp_new_session', { cwd })
+        },
+        getHomeDir: async () => await invoke<string>('get_home_dir').catch(() => null),
+        getProjectPath: (projectId) => useProjectStore.getState().projects[projectId]?.path ?? null,
+        getCurrentProjectPath: () => useProjectStore.getState().getActiveProject()?.path ?? null,
+      })
+    } catch (e) {
+      console.error('Failed to resume current workspace continuity:', e)
     }
   }
 
@@ -277,7 +305,8 @@ export default function StatusBar() {
         {continuityCard && (
           <>
             <span style={{ color: 'var(--color-muted)', opacity: 0.35 }}>•</span>
-            <div
+            <button
+              onClick={() => void handleResumeCurrentWorkspace()}
               title={continuityCard.actionLabel}
               style={{
                 display: 'inline-flex',
@@ -290,6 +319,8 @@ export default function StatusBar() {
                   ? 'color-mix(in srgb, var(--color-accent) 10%, transparent)'
                   : 'var(--color-elevated)',
                 maxWidth: 360,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
               }}
             >
               <span
@@ -335,7 +366,7 @@ export default function StatusBar() {
               >
                 {continuityCard.actionLabel}
               </span>
-            </div>
+            </button>
           </>
         )}
 
