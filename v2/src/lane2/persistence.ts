@@ -5,6 +5,11 @@ import {
   type WorkspaceSurface,
   type WorkspaceChromeState,
 } from './schema'
+import type { SurfaceState } from '../a2ui/types'
+import {
+  hydrateSurfaceState,
+  snapshotSurfaceRuntime,
+} from '../stores/surfaces'
 import {
   clampArtifactPanelWidth,
   DEFAULT_ARTIFACT_PANEL_WIDTH,
@@ -68,6 +73,38 @@ function buildPrimaryFocus(
   return null
 }
 
+function buildRuntimeState(
+  surfaceIds: string[],
+  liveSurfaces: Record<string, SurfaceState> | undefined,
+  base: WorkspaceState
+): WorkspaceState['runtime'] {
+  const nextRuntime: WorkspaceState['runtime'] = {}
+  for (const surfaceId of surfaceIds) {
+    const live = liveSurfaces?.[surfaceId]
+    if (live) {
+      nextRuntime[surfaceId] = snapshotSurfaceRuntime(live)
+      continue
+    }
+    if (base.runtime[surfaceId]) {
+      nextRuntime[surfaceId] = base.runtime[surfaceId]
+    }
+  }
+  return nextRuntime
+}
+
+export function hydrateWorkspaceSurfaceState(workspace: WorkspaceState): {
+  surfaces: Record<string, SurfaceState>
+  orderedIds: string[]
+} {
+  const surfaces = Object.fromEntries(
+    Object.entries(workspace.runtime)
+      .map(([surfaceId, runtime]) => [surfaceId, hydrateSurfaceState(surfaceId, runtime)])
+      .filter((entry): entry is [string, SurfaceState] => entry[1] !== null)
+  )
+  const orderedIds = workspace.resident.activeSurfaceIds.filter((surfaceId) => Boolean(surfaces[surfaceId]))
+  return { surfaces, orderedIds }
+}
+
 function buildSurface(
   surfaceId: string,
   workspaceId: string,
@@ -92,6 +129,7 @@ function buildSurface(
 export function buildWorkspaceSnapshot(args: {
   chrome?: WorkspaceChromeState
   existing?: WorkspaceState | null
+  liveSurfaces?: Record<string, SurfaceState>
   now?: number
   orderedSurfaceIds: string[]
   projectId: string | null
@@ -106,6 +144,7 @@ export function buildWorkspaceSnapshot(args: {
   const pinnedTargets: FocusTarget[] = chrome.pinnedSurfaceId
     ? [{ kind: 'surface', id: chrome.pinnedSurfaceId }]
     : []
+  const runtime = buildRuntimeState(args.orderedSurfaceIds, args.liveSurfaces, base)
   const heldContextIds = projectContextId(args.projectId) ? [projectContextId(args.projectId)!] : []
   const surfaces = Object.fromEntries(
     args.orderedSurfaceIds.map((surfaceId) => [
@@ -133,6 +172,7 @@ export function buildWorkspaceSnapshot(args: {
       updatedAt: now,
     },
     surfaces,
+    runtime,
     continuity: {
       ...base.continuity,
       activeThreadId: args.sessionId,

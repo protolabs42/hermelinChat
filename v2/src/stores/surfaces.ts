@@ -25,6 +25,7 @@ import type {
   SurfaceState,
   A2UIServerMessage,
 } from '../a2ui/types'
+import type { SurfaceRuntimeState, WorkspaceState } from '../lane2/schema'
 
 /**
  * Envelope for one ordered batch of A2UI messages, as written to disk by
@@ -43,6 +44,50 @@ export type A2UIEvent =
   | { kind: 'List'; batches: A2UIBatch[] }
   | { kind: 'Remove'; surfaceId: string }
 
+export function snapshotSurfaceRuntime(surface: SurfaceState): SurfaceRuntimeState {
+  return {
+    revision: surface.revision ?? 0,
+    currentState: {
+      catalogId: surface.catalogId,
+      theme: surface.theme,
+      sendDataModel: surface.sendDataModel,
+      dataModel: surface.dataModel,
+      components: surface.components,
+    },
+    pendingOutbound: null,
+    pendingInbound: null,
+    localAttention: null,
+  }
+}
+
+export function hydrateSurfaceState(
+  surfaceId: string,
+  runtime: SurfaceRuntimeState
+): SurfaceState | null {
+  const currentState = runtime.currentState ?? {}
+  const catalogId = currentState.catalogId
+  const theme = currentState.theme
+  const components = currentState.components
+  const dataModel = currentState.dataModel
+  const sendDataModel = currentState.sendDataModel
+
+  if (typeof catalogId !== 'string') return null
+  if (!theme || typeof theme !== 'object') return null
+  if (!components || typeof components !== 'object') return null
+  if (!dataModel || typeof dataModel !== 'object') return null
+  if (typeof sendDataModel !== 'boolean') return null
+
+  return {
+    surfaceId,
+    catalogId,
+    theme: theme as Record<string, unknown>,
+    sendDataModel,
+    components: components as Record<string, Component>,
+    dataModel: dataModel as Record<string, unknown>,
+    revision: runtime.revision,
+  }
+}
+
 interface SurfaceStore {
   /** Live surfaces keyed by surfaceId. */
   surfaces: Record<string, SurfaceState>
@@ -51,6 +96,7 @@ interface SurfaceStore {
   /** Chronological list of surface ids — order they first appeared. */
   orderedIds: string[]
   handleEvent: (event: A2UIEvent) => void
+  hydrateWorkspaceRuntime: (workspace: WorkspaceState | null) => void
   reset: () => void
 }
 
@@ -258,6 +304,23 @@ export const useSurfaceStore = create<SurfaceStore>((set, get) => ({
         break
       }
     }
+  },
+
+  hydrateWorkspaceRuntime: (workspace) => {
+    if (!workspace) {
+      set({ surfaces: {}, orderedIds: [], appliedSeq: {} })
+      return
+    }
+    const hydratedEntries = Object.entries(workspace.runtime)
+      .map(([surfaceId, runtime]) => [surfaceId, hydrateSurfaceState(surfaceId, runtime)])
+      .filter((entry): entry is [string, SurfaceState] => entry[1] !== null)
+    set({
+      surfaces: Object.fromEntries(hydratedEntries),
+      orderedIds: workspace.resident.activeSurfaceIds.filter((surfaceId) =>
+        hydratedEntries.some(([id]) => id === surfaceId)
+      ),
+      appliedSeq: {},
+    })
   },
 
   reset: () => set({ surfaces: {}, appliedSeq: {}, orderedIds: [] }),

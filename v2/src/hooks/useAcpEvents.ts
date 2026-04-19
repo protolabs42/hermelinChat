@@ -182,6 +182,7 @@ export function useAcpEvents() {
         if (projectId === null) return
         const sessionId = useChatStore.getState().sessionId
         const orderedSurfaceIds = useSurfaceStore.getState().orderedIds
+        const liveSurfaces = useSurfaceStore.getState().surfaces
         const existing = useWorkspaceStore.getState().activeWorkspace
         const artifactState = useArtifactStore.getState()
         const sidebarState = useSidebarStore.getState()
@@ -195,6 +196,7 @@ export function useAcpEvents() {
             pinnedSurfaceId: artifactState.pinnedSurfaceId,
           },
           existing,
+          liveSurfaces,
           orderedSurfaceIds,
           projectId,
           sessionId,

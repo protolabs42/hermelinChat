@@ -12,6 +12,7 @@ import {
   DEFAULT_SIDEBAR_WIDTH,
   useSidebarStore,
 } from './sidebar'
+import { useSurfaceStore } from './surfaces'
 
 function applyWorkspaceChrome(workspace: WorkspaceState | null) {
   if (!workspace) return
@@ -33,6 +34,7 @@ function applyWorkspaceChrome(workspace: WorkspaceState | null) {
     activeId: workspace.chrome.activeArtifactId,
     pinnedSurfaceId: workspace.chrome.pinnedSurfaceId,
   })
+  useSurfaceStore.getState().hydrateWorkspaceRuntime(workspace)
 }
 
 interface WorkspaceStore {

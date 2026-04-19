@@ -7,6 +7,19 @@ import {
   extractProjectIdFromWorkspace,
 } from '../persistence'
 import { createEmptyWorkspaceState } from '../schema'
+import type { SurfaceState } from '../../a2ui/types'
+
+function surfaceState(overrides: Partial<SurfaceState> & { surfaceId: string }): SurfaceState {
+  return {
+    surfaceId: overrides.surfaceId,
+    catalogId: overrides.catalogId ?? 'catalog-1',
+    theme: overrides.theme ?? {},
+    sendDataModel: overrides.sendDataModel ?? true,
+    components: overrides.components ?? {},
+    dataModel: overrides.dataModel ?? {},
+    revision: overrides.revision ?? 1,
+  }
+}
 
 test('buildWorkspaceSnapshot seeds resident continuity from live state', () => {
   const existing = createEmptyWorkspaceState({ workspaceId: DEFAULT_WORKSPACE_ID, sessionId: 'sess-old' })
@@ -87,6 +100,49 @@ test('buildWorkspaceSnapshot falls back to active artifact focus when no surface
   assert.deepEqual(next.attention.pinnedTargets, [])
   assert.deepEqual(next.continuity.pinnedSurfaceIds, [])
   assert.deepEqual(next.resident.focusTarget, { kind: 'artifact', id: 'artifact-9' })
+})
+
+test('buildWorkspaceSnapshot persists live runtime for active surfaces', () => {
+  const next = buildWorkspaceSnapshot({
+    orderedSurfaceIds: ['surface-a'],
+    projectId: 'proj-1',
+    sessionId: 'sess-1',
+    liveSurfaces: {
+      'surface-a': surfaceState({
+        surfaceId: 'surface-a',
+        revision: 7,
+        dataModel: { value: 42 },
+        components: {
+          root: {
+            id: 'root',
+            component: 'Text',
+            text: 'hi',
+          },
+        },
+      }),
+    },
+    now: 999,
+  })
+
+  assert.deepEqual(next.runtime['surface-a'], {
+    revision: 7,
+    currentState: {
+      catalogId: 'catalog-1',
+      theme: {},
+      sendDataModel: true,
+      dataModel: { value: 42 },
+      components: {
+        root: {
+          id: 'root',
+          component: 'Text',
+          text: 'hi',
+        },
+      },
+    },
+    pendingOutbound: null,
+    pendingInbound: null,
+    localAttention: null,
+  })
 })
 
 test('extractProjectIdFromWorkspace reads project context ids', () => {
