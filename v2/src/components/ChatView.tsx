@@ -4,6 +4,7 @@ import { useArtifactStore } from '../stores/artifacts'
 import { useSurfaceStore } from '../stores/surfaces'
 import { useWorkspaceStore } from '../stores/workspaces'
 import MessageBubble from './MessageBubble'
+import ChatPaneHeader from './chat/ChatPaneHeader'
 import UsageBar from './chat/UsageBar'
 import WelcomeCard from './WelcomeCard'
 import { buildWorkspaceRestoreState } from '../app/workspace-restore-state'
@@ -53,13 +54,14 @@ export default function ChatView() {
 
   return (
     <>
+      <ChatPaneHeader />
       <div
         ref={scrollContainerRef}
         onScroll={checkScroll}
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: '32px 40px',
+          padding: '24px 40px 32px',
           position: 'relative',
         }}
       >
