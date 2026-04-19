@@ -1,5 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::io::Write as _;
+use std::path::{Path, PathBuf};
+use tauri::AppHandle;
+use tauri::Manager as _;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -177,7 +181,10 @@ pub struct WorkspaceState {
     pub updated_at: u64,
 }
 
-pub fn create_empty_workspace_state(workspace_id: &str, session_id: Option<&str>) -> WorkspaceState {
+pub fn create_empty_workspace_state(
+    workspace_id: &str,
+    session_id: Option<&str>,
+) -> WorkspaceState {
     let now = 0;
     WorkspaceState {
         workspace_id: workspace_id.to_string(),
@@ -210,9 +217,119 @@ pub fn create_empty_workspace_state(workspace_id: &str, session_id: Option<&str>
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceStoreData {
+    pub active_workspace_id: Option<String>,
+    pub workspaces: HashMap<String, WorkspaceState>,
+}
+
+fn lane2_store_dir(app: &AppHandle) -> PathBuf {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .unwrap_or_else(|_| PathBuf::from("."));
+    let lane2_dir = dir.join("lane2");
+    let _ = std::fs::create_dir_all(&lane2_dir);
+    lane2_dir
+}
+
+fn lane2_store_path(app: &AppHandle) -> PathBuf {
+    lane2_store_dir(app).join("workspaces.json")
+}
+
+fn atomic_write(path: &Path, data: &[u8]) -> Result<(), String> {
+    let dir = path.parent().ok_or("No parent directory")?;
+    std::fs::create_dir_all(dir)
+        .map_err(|e| format!("Failed to create directory {}: {e}", dir.display()))?;
+    let mut tmp = tempfile::NamedTempFile::new_in(dir)
+        .map_err(|e| format!("Failed to create temp file: {e}"))?;
+    tmp.write_all(data)
+        .map_err(|e| format!("Failed to write temp file: {e}"))?;
+    tmp.flush()
+        .map_err(|e| format!("Failed to flush temp file: {e}"))?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(tmp.path(), std::fs::Permissions::from_mode(0o600))
+            .map_err(|e| format!("Failed to set permissions: {e}"))?;
+    }
+
+    tmp.persist(path)
+        .map_err(|e| format!("Failed to rename temp file: {e}"))?;
+    Ok(())
+}
+
+pub fn read_workspace_store_from_path(path: &Path) -> WorkspaceStoreData {
+    if !path.exists() {
+        return WorkspaceStoreData::default();
+    }
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+pub fn write_workspace_store_to_path(path: &Path, data: &WorkspaceStoreData) -> Result<(), String> {
+    let json = serde_json::to_string_pretty(data)
+        .map_err(|e| format!("Failed to serialize lane2 workspace data: {e}"))?;
+    atomic_write(path, json.as_bytes())
+}
+
+pub fn read_workspace_store(app: &AppHandle) -> WorkspaceStoreData {
+    read_workspace_store_from_path(&lane2_store_path(app))
+}
+
+pub fn write_workspace_store(app: &AppHandle, data: &WorkspaceStoreData) -> Result<(), String> {
+    write_workspace_store_to_path(&lane2_store_path(app), data)
+}
+
+#[tauri::command]
+pub fn lane2_get_active_workspace(app: AppHandle) -> Result<Option<WorkspaceState>, String> {
+    let data = read_workspace_store(&app);
+    Ok(data
+        .active_workspace_id
+        .as_ref()
+        .and_then(|id| data.workspaces.get(id).cloned()))
+}
+
+#[tauri::command]
+pub fn lane2_list_workspaces(app: AppHandle) -> Result<Vec<WorkspaceState>, String> {
+    let data = read_workspace_store(&app);
+    Ok(data.workspaces.into_values().collect())
+}
+
+#[tauri::command]
+pub fn lane2_upsert_workspace(
+    app: AppHandle,
+    workspace: WorkspaceState,
+    make_active: Option<bool>,
+) -> Result<WorkspaceState, String> {
+    let mut data = read_workspace_store(&app);
+    let workspace_id = workspace.workspace_id.clone();
+    data.workspaces.insert(workspace_id.clone(), workspace.clone());
+    if make_active.unwrap_or(false) || data.active_workspace_id.is_none() {
+        data.active_workspace_id = Some(workspace_id);
+    }
+    write_workspace_store(&app, &data)?;
+    Ok(workspace)
+}
+
+#[tauri::command]
+pub fn lane2_set_active_workspace(app: AppHandle, workspace_id: String) -> Result<(), String> {
+    let mut data = read_workspace_store(&app);
+    if !data.workspaces.contains_key(&workspace_id) {
+        return Err(format!("Workspace '{workspace_id}' not found"));
+    }
+    data.active_workspace_id = Some(workspace_id);
+    write_workspace_store(&app, &data)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::tempdir;
 
     #[test]
     fn create_empty_workspace_state_seeds_aurora_resident() {
@@ -244,5 +361,22 @@ mod tests {
         assert_eq!(value["invocationId"], "inv-1");
         assert_eq!(value["workspaceId"], "ws-1");
         assert_eq!(value["initiatedBy"], "aurora");
+    }
+
+    #[test]
+    fn workspace_store_round_trip_persists_active_workspace() {
+        let dir = tempdir().expect("tempdir");
+        let path = dir.path().join("workspaces.json");
+        let workspace = create_empty_workspace_state("ws-1", Some("sess-1"));
+        let data = WorkspaceStoreData {
+            active_workspace_id: Some("ws-1".to_string()),
+            workspaces: HashMap::from([("ws-1".to_string(), workspace.clone())]),
+        };
+
+        write_workspace_store_to_path(&path, &data).expect("write workspace store");
+        let restored = read_workspace_store_from_path(&path);
+
+        assert_eq!(restored.active_workspace_id.as_deref(), Some("ws-1"));
+        assert_eq!(restored.workspaces.get("ws-1"), Some(&workspace));
     }
 }

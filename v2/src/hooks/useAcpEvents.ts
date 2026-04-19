@@ -5,6 +5,9 @@ import type { AcpEvent } from '../types/acp'
 import { useChatStore } from '../stores/chat'
 import { useArtifactStore, type Artifact } from '../stores/artifacts'
 import { useSurfaceStore, type A2UIEvent } from '../stores/surfaces'
+import { useProjectStore } from '../stores/projects'
+import { useWorkspaceStore } from '../stores/workspaces'
+import { buildWorkspaceSnapshot, extractProjectIdFromWorkspace } from '../lane2/persistence'
 
 export function useAcpEvents() {
   useEffect(() => {
@@ -20,6 +23,25 @@ export function useAcpEvents() {
         const homeDir = await invoke<string>('get_home_dir').catch(() => '')
         const { useProjectStore } = await import('../stores/projects')
         await useProjectStore.getState().refresh()
+
+        const restoredWorkspace = await useWorkspaceStore.getState().loadActiveWorkspace()
+        const restoredProjectId = extractProjectIdFromWorkspace(restoredWorkspace)
+        const restoredSessionId = restoredWorkspace?.continuity.activeThreadId ?? restoredWorkspace?.resident.sessionId ?? null
+
+        if (restoredProjectId === 'scratchpad') {
+          await useProjectStore.getState().hydrateActiveProject('scratchpad')
+          if (restoredSessionId) {
+            await invoke('acp_load_session', { sessionId: restoredSessionId, cwd: homeDir || null })
+            return
+          }
+        } else if (restoredProjectId && useProjectStore.getState().projects[restoredProjectId]) {
+          await useProjectStore.getState().hydrateActiveProject(restoredProjectId)
+          if (restoredSessionId) {
+            const project = useProjectStore.getState().projects[restoredProjectId]
+            await invoke('acp_load_session', { sessionId: restoredSessionId, cwd: project?.path ?? null })
+            return
+          }
+        }
 
         if (launchCwd === homeDir) {
           const active = useProjectStore.getState().activeProjectId
@@ -53,7 +75,6 @@ export function useAcpEvents() {
           const newProject = await useProjectStore.getState().addProject(projectPath, projectName)
           await useProjectStore.getState().setActiveProject(newProject.id)
         } catch (addErr) {
-          // Likely "already exists" due to canonicalization mismatch — refresh + retry lookup
           console.warn('addProject failed, retrying after refresh:', addErr)
           await useProjectStore.getState().refresh()
           const retry = findByPath()
@@ -152,12 +173,53 @@ export function useAcpEvents() {
         .catch((e: unknown) => console.error('Failed to load session artifacts:', e))
     })
 
+    let persistTimer: ReturnType<typeof setTimeout> | null = null
+    const scheduleWorkspacePersist = () => {
+      if (persistTimer) clearTimeout(persistTimer)
+      persistTimer = setTimeout(() => {
+        const projectId = useProjectStore.getState().activeProjectId
+        if (projectId === null) return
+        const sessionId = useChatStore.getState().sessionId
+        const orderedSurfaceIds = useSurfaceStore.getState().orderedIds
+        const existing = useWorkspaceStore.getState().activeWorkspace
+        const snapshot = buildWorkspaceSnapshot({
+          existing,
+          orderedSurfaceIds,
+          projectId,
+          sessionId,
+        })
+        useWorkspaceStore.getState().upsertWorkspace(snapshot, true).catch((e) => {
+          console.error('Failed to persist workspace snapshot:', e)
+        })
+      }, 100)
+    }
+
+    const unsubProject = useProjectStore.subscribe((state, prev) => {
+      if (state.activeProjectId !== prev.activeProjectId) {
+        scheduleWorkspacePersist()
+      }
+    })
+    const unsubChatPersist = useChatStore.subscribe((state, prev) => {
+      if (state.sessionId !== prev.sessionId) {
+        scheduleWorkspacePersist()
+      }
+    })
+    const unsubSurfacePersist = useSurfaceStore.subscribe((state, prev) => {
+      if (state.orderedIds !== prev.orderedIds) {
+        scheduleWorkspacePersist()
+      }
+    })
+
     return () => {
       unlistenAcp.then((fn) => fn())
       unlistenArtifact.then((fn) => fn())
       unlistenA2ui.then((fn) => fn())
       document.removeEventListener('visibilitychange', onVisibility)
+      if (persistTimer) clearTimeout(persistTimer)
       unsubSession()
+      unsubProject()
+      unsubChatPersist()
+      unsubSurfacePersist()
     }
   }, [])
 }

@@ -53,6 +53,7 @@ interface ProjectStore {
 
   refresh(): Promise<void>
   setActiveProject(id: string): Promise<void>
+  hydrateActiveProject(id: string): Promise<void>
   addProject(path: string, name?: string): Promise<Project>
   removeProject(id: string): Promise<void>
   updateProject(id: string, updates: { name?: string; pinned?: boolean }): Promise<void>
@@ -131,6 +132,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       cwd = project.path
     }
     await invoke('acp_new_session', { cwd })
+  },
+
+  hydrateActiveProject: async (id: string) => {
+    await invoke('set_active_project', { id })
+    set({ activeProjectId: id })
+    await get().refreshGitInfo(id)
   },
 
   addProject: async (path: string, name?: string) => {
