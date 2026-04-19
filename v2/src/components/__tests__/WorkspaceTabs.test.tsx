@@ -37,6 +37,8 @@ test('renders visible tabs, + workspace, and overflow affordance', () => {
   assert.match(html, /Working in surface-a/)
   assert.match(html, /2 unresolved remembered/)
   assert.match(html, /aria-label="Switch to workspace forge"/)
+  assert.match(html, /title="Create or switch workspaces"/)
+  assert.match(html, /title="Show more workspaces"/)
 })
 
 console.log('✓ all WorkspaceTabs tests passed')

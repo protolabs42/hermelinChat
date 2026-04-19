@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 
+import { getTopActionIntents } from '../app/top-action-intents'
 import type { WorkspaceStripTab, WorkspaceStripTone } from '../app/workspace-strip'
 
 export interface WorkspaceTabsProps {
@@ -42,6 +43,8 @@ export default function WorkspaceTabs({
   onOpenOverflow,
   onSelectWorkspace,
 }: WorkspaceTabsProps) {
+  const intents = getTopActionIntents()
+
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, maxWidth: '100%' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, overflow: 'hidden' }}>
@@ -117,7 +120,7 @@ export default function WorkspaceTabs({
             fontFamily: 'inherit',
             flexShrink: 0,
           }}
-          title="Open all workspaces"
+          title={intents.workspace.overflowTitle}
         >
           +{overflowCount} more
         </button>
@@ -139,9 +142,9 @@ export default function WorkspaceTabs({
           fontFamily: 'inherit',
           flexShrink: 0,
         }}
-        title="Open workspace switcher"
+        title={intents.workspace.title}
       >
-        + workspace
+        {intents.workspace.label}
       </button>
     </div>
   )

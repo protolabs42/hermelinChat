@@ -12,6 +12,7 @@ import ProjectSwitcher from './ProjectSwitcher'
 import WorkspaceSwitcher from './WorkspaceSwitcher'
 import WorkspaceTabs from './WorkspaceTabs'
 import HermesUpdateModal from './HermesUpdateModal'
+import { getTopActionIntents } from '../app/top-action-intents'
 import { buildWorkspaceStripModel } from '../app/workspace-strip'
 import { activateWorkspaceSnapshot } from '../lane2/workspace-activation'
 import { buildWorkspaceContinuityCard } from '../lane2/workspace-summary'
@@ -60,6 +61,7 @@ export default function StatusBar() {
     maxVisibleCount: 4,
     workspaces: stripWorkspaces,
   }), [activeWorkspace?.workspaceId, stripWorkspaces])
+  const topActionIntents = getTopActionIntents()
 
   const [switcherOpen, setSwitcherOpen] = useState(false)
   const [workspaceSwitcherOpen, setWorkspaceSwitcherOpen] = useState(false)
@@ -221,6 +223,19 @@ export default function StatusBar() {
     fontSize: 16,
   }
 
+  const pillButtonStyle: React.CSSProperties = {
+    ...btnStyle,
+    width: 'auto',
+    padding: '0 12px',
+    gap: 8,
+    border: '1px solid var(--color-border)',
+    background: 'var(--color-elevated)',
+    color: 'var(--color-text-bright)',
+    fontSize: 12,
+    fontWeight: 600,
+    fontFamily: 'inherit',
+  }
+
   return (
     <div style={{
       padding: '0 24px',
@@ -247,17 +262,20 @@ export default function StatusBar() {
           onClick={() => {
             useChatStore.getState().reset()
             invoke('set_window_title', { title: 'Aurora Chat' }).catch(() => {})
-            // Start a fresh hermes session in the active project's CWD
             const activeProject = useProjectStore.getState().getActiveProject()
             const cwd = activeProject?.path || null
             invoke('acp_new_session', { cwd }).catch((e: unknown) =>
               console.error('Failed to start new session:', e)
             )
           }}
-          title="New chat (Ctrl+N)"
-          style={{ ...btnStyle, fontSize: 20, lineHeight: 1 }}
+          title={topActionIntents.newChat.title}
+          style={pillButtonStyle}
         >
-          +
+          <span aria-hidden="true" style={{ fontSize: 16, lineHeight: 1, color: 'var(--color-accent)' }}>+</span>
+          <span>{topActionIntents.newChat.label.slice(2)}</span>
+          <span style={{ color: 'var(--color-muted)', fontSize: 10, fontFamily: 'var(--font-mono, monospace)' }}>
+            {topActionIntents.newChat.shortcutLabel}
+          </span>
         </button>
 
         <div
