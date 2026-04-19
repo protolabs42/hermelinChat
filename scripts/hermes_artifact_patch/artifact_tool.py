@@ -14,6 +14,11 @@ artifacts toolset
 - start_runner
 - stop_runner
 - tail_runner_log
+- open_workspace
+- split_pane
+- focus_panel
+- arrange_layout
+- close_panel
 - artifact_bridge_command
 - artifact_bridge_read_state
 
@@ -53,6 +58,8 @@ import subprocess
 import sys
 import tempfile
 import time
+import uuid
+import math
 from pathlib import Path
 from typing import Any
 
@@ -425,6 +432,124 @@ def artifact_bridge_read_state(tab_id: str, channel: str = "strudel") -> str:
     if not isinstance(payload, dict):
         return json.dumps({"status": "not_found", "artifact_id": artifact_id, "channel": bridge_channel}, ensure_ascii=False)
     return json.dumps(payload, ensure_ascii=False)
+
+
+WORKSPACE_BRIDGE_CHANNEL = "workspace"
+WORKSPACE_SPLIT_DIRECTIONS = {"left", "right", "up", "down", "horizontal", "vertical"}
+
+
+def _coerce_optional_bool(value: Any, default: bool = True) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "1", "yes", "on"}:
+            return True
+        if lowered in {"false", "0", "no", "off"}:
+            return False
+    return bool(value)
+
+
+def _queue_workspace_bridge_action(command: str, payload: dict[str, Any]) -> str:
+    action = str(command or "").strip()
+    if not action:
+        return json.dumps({"error": "command is required"}, ensure_ascii=False)
+    if not isinstance(payload, dict):
+        return json.dumps({"error": "payload must be a JSON object"}, ensure_ascii=False)
+
+    request_id = _sanitize_bridge_name(f"workspace_{uuid.uuid4().hex}")
+    command_payload = {
+        "command_id": request_id,
+        "channel": WORKSPACE_BRIDGE_CHANNEL,
+        "command": action,
+        "payload": payload,
+        "timestamp": time.time(),
+    }
+
+    try:
+        command_path = _queue_bridge_command(command_payload)
+    except Exception as exc:
+        return json.dumps({"error": f"failed to queue workspace bridge command: {exc}"}, ensure_ascii=False)
+
+    return json.dumps(
+        {
+            "status": "queued",
+            "channel": WORKSPACE_BRIDGE_CHANNEL,
+            "command": action,
+            "command_id": request_id,
+            "path": str(command_path),
+        },
+        ensure_ascii=False,
+    )
+
+
+def open_workspace(name: str, create_if_missing: bool = True) -> str:
+    workspace_name = str(name or "").strip()
+    if not workspace_name:
+        return json.dumps({"error": "name is required"}, ensure_ascii=False)
+    return _queue_workspace_bridge_action(
+        "open-workspace",
+        {
+            "name": workspace_name,
+            "create_if_missing": _coerce_optional_bool(create_if_missing, default=True),
+        },
+    )
+
+
+def split_pane(direction: str, workspace_id: str = "", target: str = "", ratio: float | None = None) -> str:
+    split_direction = str(direction or "").strip().lower()
+    if split_direction not in WORKSPACE_SPLIT_DIRECTIONS:
+        allowed = ", ".join(sorted(WORKSPACE_SPLIT_DIRECTIONS))
+        return json.dumps({"error": f"direction must be one of: {allowed}"}, ensure_ascii=False)
+
+    payload: dict[str, Any] = {"direction": split_direction}
+    if str(workspace_id or "").strip():
+        payload["workspace_id"] = str(workspace_id).strip()
+    if str(target or "").strip():
+        payload["target"] = str(target).strip()
+    if ratio is not None:
+        try:
+            parsed_ratio = float(ratio)
+        except (TypeError, ValueError):
+            return json.dumps({"error": "ratio must be a number"}, ensure_ascii=False)
+        if not math.isfinite(parsed_ratio) or parsed_ratio <= 0.0 or parsed_ratio >= 1.0:
+            return json.dumps({"error": "ratio must be between 0 and 1"}, ensure_ascii=False)
+        payload["ratio"] = parsed_ratio
+    return _queue_workspace_bridge_action("split-pane", payload)
+
+
+def focus_panel(target: str, workspace_id: str = "") -> str:
+    panel_target = str(target or "").strip()
+    if not panel_target:
+        return json.dumps({"error": "target is required"}, ensure_ascii=False)
+
+    payload: dict[str, Any] = {"target": panel_target}
+    if str(workspace_id or "").strip():
+        payload["workspace_id"] = str(workspace_id).strip()
+    return _queue_workspace_bridge_action("focus-panel", payload)
+
+
+def arrange_layout(spec_json: str) -> str:
+    try:
+        spec = json.loads(spec_json or "{}")
+    except json.JSONDecodeError as exc:
+        return json.dumps({"error": f"Invalid JSON in spec_json: {exc}"}, ensure_ascii=False)
+    if not isinstance(spec, dict):
+        return json.dumps({"error": "spec_json must decode to a JSON object"}, ensure_ascii=False)
+    return _queue_workspace_bridge_action("arrange-layout", {"spec": spec})
+
+
+def close_panel(target: str, workspace_id: str = "") -> str:
+    panel_target = str(target or "").strip()
+    if not panel_target:
+        return json.dumps({"error": "target is required"}, ensure_ascii=False)
+
+    payload: dict[str, Any] = {"target": panel_target}
+    if str(workspace_id or "").strip():
+        payload["workspace_id"] = str(workspace_id).strip()
+    return _queue_workspace_bridge_action("close-panel", payload)
 
 
 def _coerce_timeout_seconds(value: Any, default: float = 20.0) -> float:
@@ -1625,6 +1750,85 @@ ARTIFACT_BRIDGE_COMMAND_SCHEMA = {
 }
 
 
+OPEN_WORKSPACE_SCHEMA = {
+    "name": "open_workspace",
+    "description": "Queue a workspace bridge command so hermelinChat can switch to or create a named workspace without treating it like an artifact tab.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Workspace name to open."},
+            "create_if_missing": {
+                "type": "boolean",
+                "description": "Whether hermelinChat should create the workspace if it does not already exist.",
+                "default": True,
+            },
+        },
+        "required": ["name"],
+    },
+}
+
+
+SPLIT_PANE_SCHEMA = {
+    "name": "split_pane",
+    "description": "Queue a workspace bridge command asking hermelinChat to split the current workspace layout around a target pane.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "direction": {
+                "type": "string",
+                "enum": sorted(WORKSPACE_SPLIT_DIRECTIONS),
+                "description": "Which side or direction the new pane should occupy.",
+            },
+            "workspace_id": {"type": "string", "description": "Optional explicit workspace id."},
+            "target": {"type": "string", "description": "Optional pane or panel target to split around."},
+            "ratio": {"type": "number", "description": "Optional desired split ratio.", "minimum": 0.0, "maximum": 1.0},
+        },
+        "required": ["direction"],
+    },
+}
+
+
+FOCUS_PANEL_SCHEMA = {
+    "name": "focus_panel",
+    "description": "Queue a workspace bridge command asking hermelinChat to focus a named panel or pane target.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "target": {"type": "string", "description": "Pane or panel target to focus."},
+            "workspace_id": {"type": "string", "description": "Optional explicit workspace id."},
+        },
+        "required": ["target"],
+    },
+}
+
+
+ARRANGE_LAYOUT_SCHEMA = {
+    "name": "arrange_layout",
+    "description": "Queue a workspace bridge command with a JSON layout spec for hermelinChat to interpret.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "spec_json": {"type": "string", "description": "JSON object describing the desired layout arrangement."},
+        },
+        "required": ["spec_json"],
+    },
+}
+
+
+CLOSE_PANEL_SCHEMA = {
+    "name": "close_panel",
+    "description": "Queue a workspace bridge command asking hermelinChat to close a named pane or panel target.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "target": {"type": "string", "description": "Pane or panel target to close."},
+            "workspace_id": {"type": "string", "description": "Optional explicit workspace id."},
+        },
+        "required": ["target"],
+    },
+}
+
+
 ARTIFACT_BRIDGE_READ_STATE_SCHEMA = {
     "name": "artifact_bridge_read_state",
     "description": "Read the latest bridge state snapshot for an artifact iframe channel.",
@@ -1831,6 +2035,31 @@ def _handle_artifact_bridge_read_state(args, **kw):
     return artifact_bridge_read_state(tab_id=args.get("tab_id", ""), channel=args.get("channel", "strudel"))
 
 
+def _handle_open_workspace(args, **kw):
+    return open_workspace(name=args.get("name", ""), create_if_missing=args.get("create_if_missing", True))
+
+
+def _handle_split_pane(args, **kw):
+    return split_pane(
+        direction=args.get("direction", ""),
+        workspace_id=args.get("workspace_id", ""),
+        target=args.get("target", ""),
+        ratio=args.get("ratio"),
+    )
+
+
+def _handle_focus_panel(args, **kw):
+    return focus_panel(target=args.get("target", ""), workspace_id=args.get("workspace_id", ""))
+
+
+def _handle_arrange_layout(args, **kw):
+    return arrange_layout(spec_json=args.get("spec_json", "{}"))
+
+
+def _handle_close_panel(args, **kw):
+    return close_panel(target=args.get("target", ""), workspace_id=args.get("workspace_id", ""))
+
+
 def _handle_strudel_get_code(args, **kw):
     return strudel_get_code(tab_id=args.get("tab_id", ""), timeout_seconds=args.get("timeout_seconds", 10.0))
 
@@ -1937,6 +2166,46 @@ registry.register(
     toolset="artifacts",
     schema=STOP_RUNNER_SCHEMA,
     handler=_handle_stop_runner,
+    check_fn=_check_requirements,
+)
+
+registry.register(
+    name="open_workspace",
+    toolset="artifacts",
+    schema=OPEN_WORKSPACE_SCHEMA,
+    handler=_handle_open_workspace,
+    check_fn=_check_requirements,
+)
+
+registry.register(
+    name="split_pane",
+    toolset="artifacts",
+    schema=SPLIT_PANE_SCHEMA,
+    handler=_handle_split_pane,
+    check_fn=_check_requirements,
+)
+
+registry.register(
+    name="focus_panel",
+    toolset="artifacts",
+    schema=FOCUS_PANEL_SCHEMA,
+    handler=_handle_focus_panel,
+    check_fn=_check_requirements,
+)
+
+registry.register(
+    name="arrange_layout",
+    toolset="artifacts",
+    schema=ARRANGE_LAYOUT_SCHEMA,
+    handler=_handle_arrange_layout,
+    check_fn=_check_requirements,
+)
+
+registry.register(
+    name="close_panel",
+    toolset="artifacts",
+    schema=CLOSE_PANEL_SCHEMA,
+    handler=_handle_close_panel,
     check_fn=_check_requirements,
 )
 

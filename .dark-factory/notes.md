@@ -101,3 +101,47 @@ log_file: /home/inu/hermelinChat-dark-factory/20260419-154626-advance-hermelin-o
 exit_code: 0
 commits_ahead_of_source: 3
 log_file: /home/inu/hermelinChat-dark-factory/20260419-154626-advance-hermelin-one-honest-slice-at-a-time-whil/.dark-factory/cycle-02.log
+
+dirty_status:
+```
+(clean)
+```
+
+### Cycle 3 choice
+- Picked `hermelinChat-678` for one narrow bridge-affordance slice instead of a bigger `hermelinChat-5mz` substrate jump.
+- Why this over `hermelinChat-5mz`: the existing artifact bridge already had queueing and tool-registration machinery, so typed workspace control tools were the smallest honest way to make CLI-native workspace control more real tonight.
+- Slice target: add typed Hermes-side workspace bridge tools (`open_workspace`, `split_pane`, `focus_panel`, `arrange_layout`, `close_panel`) that queue global workspace-channel commands without pretending an artifact tab exists, and lock their payload shapes with focused tests.
+
+## What shipped
+- Extended `scripts/hermes_artifact_patch/artifact_tool.py` with typed workspace bridge helpers for opening workspaces, splitting panes, focusing panels, arranging layouts, and closing panels.
+- Kept those commands on a dedicated global `workspace` bridge channel with UUID-backed command ids instead of routing them through fake artifact tabs.
+- Added schema, handler, and registry wiring so the new tools are exposed through the existing `artifacts` toolset patch.
+- Updated `scripts/install_hermes_artifact_patch.py` so patch installs include the new typed workspace tools.
+- Added `tests/test_workspace_bridge_tools.py` to lock the install block, payload shapes, invalid ratio rejection, and `create_if_missing="false"` coercion.
+- Created follow-through task `hermelinChat-hlm` for the hermelin/v2-side consumer that still needs to interpret workspace-channel bridge commands.
+
+## What passed
+- `python -m py_compile scripts/install_hermes_artifact_patch.py scripts/hermes_artifact_patch/artifact_tool.py tests/test_workspace_bridge_tools.py`
+- `python -m unittest discover -s tests -p 'test_workspace_bridge_tools.py' -v`
+- `python -m unittest discover -s tests -p 'test_strudel_toolset_split.py' -v`
+
+## What failed
+- `python -m unittest discover -s tests -p 'test_*.py'` is still red on unrelated pre-existing failures:
+  - `tests/test_default_artifacts.py`: looks for `frontend/src/components/artifacts/ArtifactRenderer.jsx`, but that file does not exist in this tree.
+  - `tests/test_security.py`: still expects a `/{path:path}` route that is not present in the current FastAPI app.
+- The broader unittest sweep also emits existing `ResourceWarning` noise for unclosed sqlite connections. This slice did not touch those server/test paths.
+- `bd dolt pull` / `bd dolt push` still fail with `Error: no store available`; git-backed bead status still works, but the dolt store remains unhealthy in this environment.
+
+## What was learned
+- The artifact bridge already had enough queueing substrate that the honest next step was typed command wrappers, not another raw `payload_json` escape hatch.
+- Global workspace-channel commands avoid the bad semantics of inventing a fake artifact id just to move workspace chrome.
+- The repo’s broader Python test suite is not currently green even before touching workspace bridge logic, so overnight slices here need focused verification plus explicit notes about unrelated red tests.
+
+## Exact next move
+- Implement `hermelinChat-hlm`: consume `workspace` bridge commands on the hermelin/v2 side and map the smallest subset (`open_workspace`, `focus_panel`, `close_panel`) to real shell actions.
+- After the consumer exists, come back for the next honest slice on `split_pane` / `arrange_layout` so the bridge can actually rearrange workspace chrome rather than only queue intent.
+
+### Cycle 3
+
+exit_code: 0
+log_file: /home/inu/hermelinChat-dark-factory/20260419-154626-advance-hermelin-one-honest-slice-at-a-time-whil/.dark-factory/cycle-03.log
