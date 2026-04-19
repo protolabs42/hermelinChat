@@ -193,6 +193,70 @@ test('buildWorkspaceSnapshot falls back to waiting stance with no session', () =
   assert.deepEqual(next.attention.backgroundHoldings, [])
 })
 
+test('buildWorkspaceSnapshot scaffolds a live invocation while streaming', () => {
+  const next = buildWorkspaceSnapshot({
+    orderedSurfaceIds: ['surface-a'],
+    projectId: 'proj-1',
+    sessionId: 'sess-1',
+    isStreaming: true,
+    now: 1300,
+  })
+
+  assert.equal(next.resident.activeInvocationId, 'live:sess-1')
+  assert.deepEqual(next.attention.unresolvedTargets, [{ kind: 'surface', id: 'surface-a' }])
+  assert.deepEqual(next.invocations['live:sess-1'], {
+    invocationId: 'live:sess-1',
+    kind: 'background',
+    target: 'live-session',
+    initiatedBy: 'aurora',
+    workspaceId: DEFAULT_WORKSPACE_ID,
+    sessionId: 'sess-1',
+    surfaceId: 'surface-a',
+    threadId: 'sess-1',
+    contextRefs: [
+      { kind: 'workspace', id: DEFAULT_WORKSPACE_ID },
+      { kind: 'thread', id: 'sess-1' },
+      { kind: 'surface', id: 'surface-a' },
+    ],
+    status: 'active',
+    createdAt: 1300,
+    updatedAt: 1300,
+  })
+})
+
+test('buildWorkspaceSnapshot clears live invocation scaffolding when not streaming', () => {
+  const existing = createEmptyWorkspaceState({ workspaceId: DEFAULT_WORKSPACE_ID, sessionId: 'sess-1' })
+  existing.resident.activeInvocationId = 'live:sess-1'
+  existing.attention.unresolvedTargets = [{ kind: 'surface', id: 'surface-a' }]
+  existing.invocations['live:sess-1'] = {
+    invocationId: 'live:sess-1',
+    kind: 'background',
+    target: 'live-session',
+    initiatedBy: 'aurora',
+    workspaceId: DEFAULT_WORKSPACE_ID,
+    sessionId: 'sess-1',
+    surfaceId: 'surface-a',
+    threadId: 'sess-1',
+    contextRefs: [],
+    status: 'active',
+    createdAt: 1,
+    updatedAt: 1,
+  }
+
+  const next = buildWorkspaceSnapshot({
+    existing,
+    orderedSurfaceIds: ['surface-a'],
+    projectId: 'proj-1',
+    sessionId: 'sess-1',
+    isStreaming: false,
+    now: 1400,
+  })
+
+  assert.equal(next.resident.activeInvocationId, null)
+  assert.deepEqual(next.attention.unresolvedTargets, [])
+  assert.equal(next.invocations['live:sess-1'], undefined)
+})
+
 test('extractProjectIdFromWorkspace reads project context ids', () => {
   const workspace = createEmptyWorkspaceState({ workspaceId: 'ws-1' })
   workspace.resident.heldContextIds = ['memory:abc', 'project:scratchpad']

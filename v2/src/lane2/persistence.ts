@@ -102,6 +102,48 @@ function buildBackgroundHoldings(
   return holdings
 }
 
+function buildLiveInvocation(
+  isStreaming: boolean | undefined,
+  workspaceId: string,
+  sessionId: string | null,
+  primaryFocus: FocusTarget | null,
+  now: number
+): WorkspaceState['invocations'] {
+  if (!isStreaming || !sessionId) return {}
+  const invocationId = `live:${sessionId}`
+  const surfaceId = primaryFocus?.kind === 'surface' ? primaryFocus.id : null
+  const contextRefs: WorkspaceState['invocations'][string]['contextRefs'] = [
+    { kind: 'workspace', id: workspaceId },
+    { kind: 'thread', id: sessionId },
+  ]
+  if (surfaceId) {
+    contextRefs.push({ kind: 'surface', id: surfaceId })
+  }
+  return {
+    [invocationId]: {
+      invocationId,
+      kind: 'background',
+      target: 'live-session',
+      initiatedBy: 'aurora',
+      workspaceId,
+      sessionId,
+      surfaceId,
+      threadId: sessionId,
+      contextRefs,
+      status: 'active',
+      createdAt: now,
+      updatedAt: now,
+    },
+  }
+}
+
+function buildUnresolvedTargets(
+  isStreaming: boolean | undefined,
+  primaryFocus: FocusTarget | null
+): FocusTarget[] {
+  return isStreaming && primaryFocus ? [primaryFocus] : []
+}
+
 function buildRuntimeState(
   surfaceIds: string[],
   liveSurfaces: Record<string, SurfaceState> | undefined,
@@ -174,9 +216,11 @@ export function buildWorkspaceSnapshot(args: {
   const primaryFocus = buildPrimaryFocus(chrome, args.orderedSurfaceIds, args.sessionId)
   const stance = buildResidentStance(args.isStreaming, args.sessionId)
   const backgroundHoldings = buildBackgroundHoldings(primaryFocus, chrome, args.orderedSurfaceIds)
+  const unresolvedTargets = buildUnresolvedTargets(args.isStreaming, primaryFocus)
   const pinnedTargets: FocusTarget[] = chrome.pinnedSurfaceId
     ? [{ kind: 'surface', id: chrome.pinnedSurfaceId }]
     : []
+  const invocations = buildLiveInvocation(args.isStreaming, workspaceId, args.sessionId, primaryFocus, now)
   const runtime = buildRuntimeState(args.orderedSurfaceIds, args.liveSurfaces, base)
   const heldContextIds = projectContextId(args.projectId) ? [projectContextId(args.projectId)!] : []
   const localAnchorIds = args.anchorSurfaceIds && args.anchorSurfaceIds.length > 0
@@ -199,6 +243,7 @@ export function buildWorkspaceSnapshot(args: {
       heldContextIds,
       sessionId: args.sessionId,
       stance,
+      activeInvocationId: args.isStreaming && args.sessionId ? `live:${args.sessionId}` : null,
       workspaceId,
       updatedAt: now,
     },
@@ -207,10 +252,12 @@ export function buildWorkspaceSnapshot(args: {
       primaryFocus,
       backgroundHoldings,
       pinnedTargets,
+      unresolvedTargets,
       updatedAt: now,
     },
     surfaces,
     runtime,
+    invocations,
     continuity: {
       ...base.continuity,
       activeThreadId: args.sessionId,
