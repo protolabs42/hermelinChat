@@ -5,6 +5,17 @@ export interface TopActionIntent {
   overflowTitle?: string
 }
 
+export interface ShortcutLike {
+  ctrlKey: boolean
+  metaKey: boolean
+  shiftKey: boolean
+  key: string
+}
+
+export function isWorkspaceSwitcherShortcut(event: ShortcutLike): boolean {
+  return (event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'o'
+}
+
 export function getTopActionIntents(): {
   newChat: TopActionIntent
   workspace: TopActionIntent
@@ -17,7 +28,8 @@ export function getTopActionIntents(): {
     },
     workspace: {
       label: '+ workspace',
-      title: 'Create or switch workspaces',
+      shortcutLabel: 'Ctrl+Shift+O',
+      title: 'Create or switch workspaces (Ctrl+Shift+O)',
       overflowTitle: 'Show more workspaces',
     },
   }

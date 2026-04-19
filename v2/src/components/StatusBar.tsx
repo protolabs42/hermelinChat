@@ -108,6 +108,12 @@ export default function StatusBar() {
   }
 
   useEffect(() => {
+    const handleOpenWorkspaceSwitcher = () => setWorkspaceSwitcherOpen(true)
+    window.addEventListener('aurora:open-workspace-switcher', handleOpenWorkspaceSwitcher)
+    return () => window.removeEventListener('aurora:open-workspace-switcher', handleOpenWorkspaceSwitcher)
+  }, [])
+
+  useEffect(() => {
     refreshUpdateInfo()
     void loadWorkspaces()
   }, [loadWorkspaces])
@@ -238,18 +244,18 @@ export default function StatusBar() {
 
   return (
     <div style={{
-      padding: '0 24px',
-      height: 48,
+      padding: '0 18px',
+      height: 54,
       borderBottom: '1px solid var(--color-border)',
-      background: 'var(--color-surface)',
+      background: 'color-mix(in srgb, var(--color-surface) 92%, transparent)',
       display: 'flex',
       alignItems: 'center',
-      gap: 12,
+      gap: 10,
       fontSize: 13,
       color: 'var(--color-muted)',
     }}>
       {/* Left */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         <button onClick={toggleSidebar} title="Sessions (Ctrl+B)" style={btnStyle}>
           <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
             <rect x="1" y="3" width="14" height="1.5" rx="0.75" fill="currentColor" />
@@ -295,14 +301,22 @@ export default function StatusBar() {
       </div>
 
       {/* Center */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+      <div style={{
+        flex: 1,
+        minWidth: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        gap: 10,
+        overflow: 'hidden',
+      }}>
         {/* Connection status dot */}
         <span
           style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor, flexShrink: 0 }}
           title={status}
         />
 
-        <div ref={workspaceStripRef} style={{ display: 'flex', alignItems: 'center', minWidth: 0, maxWidth: '100%' }}>
+        <div ref={workspaceStripRef} style={{ display: 'flex', alignItems: 'center', minWidth: 0, maxWidth: '100%', flex: 1 }}>
           <WorkspaceTabs
             tabs={workspaceStrip.visibleTabs}
             overflowCount={workspaceStrip.overflowCount}
@@ -471,7 +485,7 @@ export default function StatusBar() {
       </div>
 
       {/* Right */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
         {artifactCount > 0 && (
           <button
             onClick={toggleArtifacts}

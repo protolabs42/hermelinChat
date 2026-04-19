@@ -24,7 +24,8 @@ test('new chat and workspace actions stay visibly distinct', () => {
   })
   assert.deepEqual(intents.workspace, {
     label: '+ workspace',
-    title: 'Create or switch workspaces',
+    shortcutLabel: 'Ctrl+Shift+O',
+    title: 'Create or switch workspaces (Ctrl+Shift+O)',
     overflowTitle: 'Show more workspaces',
   })
 })

@@ -5,6 +5,7 @@ import { useSidebarStore } from '../stores/sidebar'
 import { useArtifactStore } from '../stores/artifacts'
 import { useChatStore } from '../stores/chat'
 import { useFontSizeStore } from '../stores/font-size'
+import { isWorkspaceSwitcherShortcut } from '../app/keyboard-shortcuts'
 
 export function useKeyboardShortcuts() {
   useEffect(() => {
@@ -24,6 +25,11 @@ export function useKeyboardShortcuts() {
       if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
         e.preventDefault()
         useSidebarStore.getState().toggle()
+      }
+      // Ctrl+Shift+O or Cmd+Shift+O -- open workspace switcher
+      if (isWorkspaceSwitcherShortcut(e)) {
+        e.preventDefault()
+        window.dispatchEvent(new CustomEvent('aurora:open-workspace-switcher'))
       }
       // Ctrl+Shift+P or Cmd+Shift+P -- open project switcher
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'P') {

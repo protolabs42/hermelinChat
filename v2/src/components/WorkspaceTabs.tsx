@@ -141,10 +141,18 @@ export default function WorkspaceTabs({
           whiteSpace: 'nowrap',
           fontFamily: 'inherit',
           flexShrink: 0,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
         }}
         title={intents.workspace.title}
       >
-        {intents.workspace.label}
+        <span>{intents.workspace.label}</span>
+        {intents.workspace.shortcutLabel && (
+          <span style={{ color: 'var(--color-muted)', fontSize: 10, fontFamily: 'var(--font-mono, monospace)' }}>
+            {intents.workspace.shortcutLabel}
+          </span>
+        )}
       </button>
     </div>
   )
