@@ -16,6 +16,20 @@ test('buildWorkspaceRowSummary marks remembered active work without pretending r
     status: 'remembered-active',
     headline: 'Remembered active work',
     detail: 'surface surface-a • 1 unresolved • 2 surfaces',
+    actionLabel: 'Resume thread sess-1',
+  })
+})
+
+test('buildWorkspaceRowSummary falls back to a generic resume label when remembered work has no thread id', () => {
+  const workspace = createEmptyWorkspaceState({ workspaceId: 'forge', now: 1750 })
+  workspace.resident.stance = 'building'
+  workspace.resident.activeInvocationId = 'live:unknown'
+
+  assert.deepEqual(buildWorkspaceRowSummary(workspace), {
+    status: 'remembered-active',
+    headline: 'Remembered active work',
+    detail: 'Workspace remembers in-progress work',
+    actionLabel: 'Resume remembered work',
   })
 })
 
@@ -28,6 +42,7 @@ test('buildWorkspaceRowSummary falls back to focus-driven summary for idle works
     status: 'ready',
     headline: 'Ready in thread sess-9',
     detail: 'No unresolved work remembered',
+    actionLabel: 'Open thread sess-9',
   })
 })
 
@@ -39,5 +54,6 @@ test('buildWorkspaceRowSummary shows a quiet waiting workspace honestly', () => 
     status: 'idle',
     headline: 'Waiting',
     detail: 'No active thread or surface remembered',
+    actionLabel: 'Open workspace',
   })
 })

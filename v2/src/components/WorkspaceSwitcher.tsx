@@ -119,6 +119,24 @@ function WorkspaceRow({
       >
         {summary.detail}
       </span>
+      <span
+        style={{
+          marginTop: 2,
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '3px 8px',
+          borderRadius: 999,
+          border: '1px solid var(--color-border)',
+          background: isActive ? 'rgba(255,255,255,0.06)' : 'var(--color-elevated)',
+          color: statusColor,
+          fontSize: 10,
+          fontWeight: 600,
+          letterSpacing: '0.01em',
+        }}
+      >
+        {summary.actionLabel}
+      </span>
     </button>
   )
 }

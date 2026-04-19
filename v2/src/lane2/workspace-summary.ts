@@ -4,6 +4,7 @@ export interface WorkspaceRowSummary {
   status: 'remembered-active' | 'ready' | 'idle'
   headline: string
   detail: string
+  actionLabel: string
 }
 
 function formatFocusTarget(target: FocusTarget | null): string | null {
@@ -11,10 +12,25 @@ function formatFocusTarget(target: FocusTarget | null): string | null {
   return `${target.kind} ${target.id}`
 }
 
+function buildActionLabel(workspace: WorkspaceState, focusLabel: string | null): string {
+  const threadId = workspace.continuity.activeThreadId ?? workspace.resident.sessionId
+
+  if (workspace.resident.activeInvocationId) {
+    return threadId ? `Resume thread ${threadId}` : 'Resume remembered work'
+  }
+
+  if (focusLabel) {
+    return `Open ${focusLabel}`
+  }
+
+  return 'Open workspace'
+}
+
 export function buildWorkspaceRowSummary(workspace: WorkspaceState): WorkspaceRowSummary {
   const focusLabel = formatFocusTarget(workspace.attention.primaryFocus)
   const unresolvedCount = workspace.attention.unresolvedTargets.length
   const surfaceCount = workspace.resident.activeSurfaceIds.length
+  const actionLabel = buildActionLabel(workspace, focusLabel)
 
   if (workspace.resident.activeInvocationId) {
     const details = [focusLabel, unresolvedCount > 0 ? `${unresolvedCount} unresolved` : null, surfaceCount > 0 ? `${surfaceCount} surface${surfaceCount === 1 ? '' : 's'}` : null]
@@ -24,6 +40,7 @@ export function buildWorkspaceRowSummary(workspace: WorkspaceState): WorkspaceRo
       status: 'remembered-active',
       headline: 'Remembered active work',
       detail: details.join(' • ') || 'Workspace remembers in-progress work',
+      actionLabel,
     }
   }
 
@@ -32,6 +49,7 @@ export function buildWorkspaceRowSummary(workspace: WorkspaceState): WorkspaceRo
       status: 'ready',
       headline: `Ready in ${focusLabel}`,
       detail: unresolvedCount > 0 ? `${unresolvedCount} unresolved target${unresolvedCount === 1 ? '' : 's'} remembered` : 'No unresolved work remembered',
+      actionLabel,
     }
   }
 
@@ -39,5 +57,6 @@ export function buildWorkspaceRowSummary(workspace: WorkspaceState): WorkspaceRo
     status: 'idle',
     headline: workspace.resident.stance === 'waiting' ? 'Waiting' : 'Idle',
     detail: 'No active thread or surface remembered',
+    actionLabel,
   }
 }
