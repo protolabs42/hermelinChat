@@ -1,4 +1,4 @@
-import type { WorkspaceState } from './schema'
+import type { FocusTarget, WorkspaceState } from './schema'
 import { extractProjectIdFromWorkspace } from './persistence'
 
 export interface WorkspaceActivationPlan {
@@ -13,6 +13,7 @@ export interface WorkspaceActivationDeps {
   hydrateActiveProject: (projectId: string) => Promise<void>
   resetChat: () => void
   restoreSurfaceAnchors: (surfaceIds: string[]) => void
+  foregroundFocusTarget: (target: FocusTarget | null) => void
   loadSession: (sessionId: string, cwd: string | null) => Promise<void>
   newSession: (cwd: string | null) => Promise<void>
   getHomeDir: () => Promise<string | null>
@@ -58,4 +59,5 @@ export async function activateWorkspaceSnapshot(
   }
 
   deps.restoreSurfaceAnchors(plan.anchorSurfaceIds)
+  deps.foregroundFocusTarget(workspace.attention.primaryFocus)
 }

@@ -122,6 +122,18 @@ export default function StatusBar() {
         restoreSurfaceAnchors: (surfaceIds) => {
           useChatStore.getState().restoreSurfaceAnchors(surfaceIds)
         },
+        foregroundFocusTarget: (target) => {
+          if (!target) return
+          const artifactStore = useArtifactStore.getState()
+          if (target.kind === 'surface') {
+            artifactStore.pinSurface(target.id)
+            return
+          }
+          if (target.kind === 'artifact') {
+            artifactStore.openPanel()
+            artifactStore.setActiveId(target.id)
+          }
+        },
         loadSession: async (sessionId, cwd) => {
           await invoke('acp_load_session', { sessionId, cwd })
         },
