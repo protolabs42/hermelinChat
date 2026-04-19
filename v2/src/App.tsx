@@ -10,6 +10,7 @@ import MessageInput from './components/MessageInput'
 import SettingsPanel from './components/SettingsPanel'
 import SessionSidebar from './components/SessionSidebar'
 import ArtifactPanel from './components/ArtifactPanel'
+import RightPaneStack from './components/RightPaneStack'
 import { AlignmentMascot } from './components/AlignmentMascot'
 import ErrorBoundary from './components/ErrorBoundary'
 import { useArtifactStore } from './stores/artifacts'
@@ -18,6 +19,7 @@ import { useSidebarStore } from './stores/sidebar'
 import ProjectSwitcher from './components/ProjectSwitcher'
 import ConnectionInterstitial from './components/ConnectionInterstitial'
 import { useWorkspaceStore } from './stores/workspaces'
+import { usePaneStore } from './stores/panes'
 import { buildConnectionInterstitialModel } from './app/connection-interstitial'
 
 export default function App() {
@@ -27,6 +29,7 @@ export default function App() {
   const connectionStatus = useChatStore((s) => s.connectionStatus)
   const sessionId = useChatStore((s) => s.sessionId)
   const panelOpen = useArtifactStore((s) => s.panelOpen)
+  const rightPaneLayout = usePaneStore((s) => s.layout)
   const projectSwitcherOpen = useSidebarStore((s) => s.projectSwitcherOpen)
   const closeProjectSwitcher = useSidebarStore((s) => s.closeProjectSwitcher)
   const workspaceHydrated = useWorkspaceStore((s) => s.hydrated)
@@ -98,12 +101,15 @@ export default function App() {
             </ErrorBoundary>
           </div>
 
-          {/* Artifact panel (right, conditional) */}
-          {panelOpen && (
+          {rightPaneLayout.mode !== 'hidden' ? (
+            <ErrorBoundary label="RightPaneStack">
+              <RightPaneStack />
+            </ErrorBoundary>
+          ) : panelOpen ? (
             <ErrorBoundary label="ArtifactPanel">
               <ArtifactPanel />
             </ErrorBoundary>
-          )}
+          ) : null}
         </div>
 
         {/* Settings panel (right overlay) */}

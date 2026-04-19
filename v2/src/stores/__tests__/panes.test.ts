@@ -66,6 +66,35 @@ test('closing one pane in a stacked pair collapses back to the survivor', () => 
   })
 })
 
+test('togglePane hides the rail when the active single pane is toggled again', () => {
+  resetPaneStore({
+    mode: 'single',
+    primaryPane: 'plan',
+  })
+
+  usePaneStore.getState().togglePane('plan')
+
+  assert.deepEqual(usePaneStore.getState().layout, {
+    mode: 'hidden',
+  })
+})
+
+test('togglePane promotes a secondary pane to the front when it is toggled from a stacked pair', () => {
+  resetPaneStore({
+    mode: 'stacked',
+    primaryPane: 'tasks',
+    secondaryPane: 'plan',
+  })
+
+  usePaneStore.getState().togglePane('plan')
+
+  assert.deepEqual(usePaneStore.getState().layout, {
+    mode: 'stacked',
+    primaryPane: 'plan',
+    secondaryPane: 'tasks',
+  })
+})
+
 test('hydrating a workspace pane layout keeps the layout scoped to that workspace', () => {
   resetPaneStore()
 

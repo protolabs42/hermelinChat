@@ -3,6 +3,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { useSettingsStore } from '../stores/settings'
 import { useSidebarStore } from '../stores/sidebar'
 import { useArtifactStore } from '../stores/artifacts'
+import { usePaneStore } from '../stores/panes'
 import { useChatStore } from '../stores/chat'
 import { useFontSizeStore } from '../stores/font-size'
 import { isWorkspaceSwitcherShortcut } from '../app/keyboard-shortcuts'
@@ -39,6 +40,7 @@ export function useKeyboardShortcuts() {
       // Ctrl+Shift+A or Cmd+Shift+A -- toggle artifact panel
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'A') {
         e.preventDefault()
+        usePaneStore.getState().setLayout({ mode: 'hidden' })
         useArtifactStore.getState().togglePanel()
       }
       // Ctrl+= or Ctrl++ -- increase font size
@@ -61,6 +63,7 @@ export function useKeyboardShortcuts() {
         useSettingsStore.getState().close()
         useSidebarStore.getState().close()
         useArtifactStore.getState().closePanel()
+        usePaneStore.getState().setLayout({ mode: 'hidden' })
       }
     }
     window.addEventListener('keydown', handler)

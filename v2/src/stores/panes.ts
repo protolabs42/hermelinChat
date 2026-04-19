@@ -77,6 +77,7 @@ interface PaneStore {
   layout: WorkspacePaneLayout
   setLayout: (layout: WorkspacePaneLayout) => void
   openPane: (paneId: WorkspacePaneId) => void
+  togglePane: (paneId: WorkspacePaneId) => void
   closePane: (paneId: WorkspacePaneId) => void
   hydrateWorkspacePanes: (workspaceId: string, layout: WorkspacePaneLayout | null | undefined) => void
   snapshotWorkspacePanes: () => WorkspacePaneLayout
@@ -87,6 +88,19 @@ export const usePaneStore = create<PaneStore>((set, get) => ({
   layout: createHiddenPaneLayout(),
   setLayout: (layout) => set({ layout: normalizePaneLayout(layout) }),
   openPane: (paneId) => set((state) => ({ layout: openPaneInLayout(state.layout, paneId) })),
+  togglePane: (paneId) => set((state) => {
+    const current = normalizePaneLayout(state.layout)
+    if (current.mode === 'hidden') {
+      return { layout: openPaneInLayout(current, paneId) }
+    }
+    if (current.mode === 'single' && current.primaryPane === paneId) {
+      return { layout: createHiddenPaneLayout() }
+    }
+    if (current.mode === 'stacked' && current.primaryPane === paneId) {
+      return { layout: closePaneInLayout(current, paneId) }
+    }
+    return { layout: openPaneInLayout(current, paneId) }
+  }),
   closePane: (paneId) => set((state) => ({ layout: closePaneInLayout(state.layout, paneId) })),
   hydrateWorkspacePanes: (workspaceId, layout) => set({
     workspaceId,

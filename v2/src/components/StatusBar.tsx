@@ -4,6 +4,7 @@ import { useChatStore } from '../stores/chat'
 import { useSettingsStore } from '../stores/settings'
 import { useSidebarStore } from '../stores/sidebar'
 import { useArtifactStore } from '../stores/artifacts'
+import { usePaneStore } from '../stores/panes'
 import { useProjectStore, SCRATCHPAD_ID } from '../stores/projects'
 import { useWorkspaceStore } from '../stores/workspaces'
 import { buildManualA2UIEmitRequest } from '../a2ui/manual-launch'
@@ -38,6 +39,7 @@ export default function StatusBar() {
   const toggleSidebar = useSidebarStore((s) => s.toggle)
   const artifactCount = useArtifactStore((s) => s.artifacts.length)
   const toggleArtifacts = useArtifactStore((s) => s.togglePanel)
+  const togglePane = usePaneStore((s) => s.togglePane)
   const { theme } = useTheme()
 
   const activeProjectId = useProjectStore((s) => s.activeProjectId)
@@ -169,6 +171,16 @@ export default function StatusBar() {
     } catch (e) {
       console.error('Failed to resume current workspace continuity:', e)
     }
+  }
+
+  const handleTogglePane = (paneId: 'plan' | 'tasks') => {
+    useArtifactStore.getState().closePanel()
+    togglePane(paneId)
+  }
+
+  const handleToggleArtifacts = () => {
+    usePaneStore.getState().setLayout({ mode: 'hidden' })
+    toggleArtifacts()
   }
 
   const handleSelectWorkspace = async (workspaceId: string) => {
@@ -486,9 +498,25 @@ export default function StatusBar() {
 
       {/* Right */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        <button
+          onClick={() => handleTogglePane('plan')}
+          title="Plan pane"
+          style={{ ...btnStyle, width: 'auto', padding: '0 12px', gap: 8, fontSize: 11, fontFamily: 'var(--font-mono, monospace)' }}
+        >
+          plan
+        </button>
+
+        <button
+          onClick={() => handleTogglePane('tasks')}
+          title="Tasks pane"
+          style={{ ...btnStyle, width: 'auto', padding: '0 12px', gap: 8, fontSize: 11, fontFamily: 'var(--font-mono, monospace)' }}
+        >
+          tasks
+        </button>
+
         {artifactCount > 0 && (
           <button
-            onClick={toggleArtifacts}
+            onClick={handleToggleArtifacts}
             title={`Artifacts (${artifactCount})`}
             style={{ ...btnStyle, width: 'auto', padding: '0 12px', gap: 8 }}
           >
