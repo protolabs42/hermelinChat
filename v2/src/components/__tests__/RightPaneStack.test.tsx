@@ -2,7 +2,11 @@ import assert from 'node:assert/strict'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-import { RightPaneStackView } from '../RightPaneStack'
+import {
+  ArtifactPaneView,
+  RightPaneStackView,
+  SurfacePaneView,
+} from '../RightPaneStack'
 import { usePaneStore } from '../../stores/panes'
 
 function test(name: string, fn: () => void) {
@@ -45,4 +49,26 @@ test('renders stacked Plan and Tasks panes with both headers visible', () => {
   assert.match(html, />Tasks</)
   assert.match(html, />Plan</)
   assert.match(html, /Track the current slice instead of juggling it in your head/)
+})
+
+test('ArtifactPaneView shows an honest empty state when no artifact is selected', () => {
+  const html = renderToStaticMarkup(createElement(ArtifactPaneView, {
+    activeArtifact: null,
+    artifactCount: 0,
+  }))
+
+  assert.match(html, /No artifacts/)
+  assert.match(html, /Ask the agent to create one/)
+})
+
+test('SurfacePaneView surfaces the pinned surface before the list', () => {
+  const html = renderToStaticMarkup(createElement(SurfacePaneView, {
+    pinnedSurfaceId: 'surface-2',
+    pinnedSurfaceTitle: 'coedit-proof',
+    surfaceIds: ['surface-1', 'surface-2'],
+  }))
+
+  assert.match(html, /Pinned Surface/)
+  assert.match(html, /coedit-proof/)
+  assert.match(html, /surface-1/)
 })

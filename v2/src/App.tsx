@@ -29,6 +29,7 @@ export default function App() {
   const connectionStatus = useChatStore((s) => s.connectionStatus)
   const sessionId = useChatStore((s) => s.sessionId)
   const panelOpen = useArtifactStore((s) => s.panelOpen)
+  const pinnedSurfaceId = useArtifactStore((s) => s.pinnedSurfaceId)
   const rightPaneLayout = usePaneStore((s) => s.layout)
   const projectSwitcherOpen = useSidebarStore((s) => s.projectSwitcherOpen)
   const closeProjectSwitcher = useSidebarStore((s) => s.closeProjectSwitcher)
@@ -64,6 +65,15 @@ export default function App() {
     })
     return unsub
   }, [])
+
+  useEffect(() => {
+    if (!panelOpen || rightPaneLayout.mode !== 'hidden') return
+    if (pinnedSurfaceId) {
+      usePaneStore.getState().setLayout({ mode: 'single', primaryPane: 'surfaces' })
+      return
+    }
+    usePaneStore.getState().setLayout({ mode: 'single', primaryPane: 'artifacts' })
+  }, [panelOpen, pinnedSurfaceId, rightPaneLayout.mode])
 
   if (interstitialModel) {
     return (

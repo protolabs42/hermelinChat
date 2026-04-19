@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useRef } from 'react'
 import type { CSSProperties } from 'react'
+import { invoke } from '@tauri-apps/api/core'
 
-import { clampArtifactPanelWidth, useArtifactStore } from '../stores/artifacts'
+import A2UISurface from '../a2ui/renderer/A2UISurface'
+import type { ActionMessage, ErrorMessage } from '../a2ui/types'
+import { ArtifactBody, EmptyRenderer } from './ArtifactPanel'
+import { clampArtifactPanelWidth, useArtifactStore, type Artifact } from '../stores/artifacts'
 import { usePaneStore } from '../stores/panes'
+import { useSurfaceStore } from '../stores/surfaces'
+import { useChatStore } from '../stores/chat'
 import type { WorkspacePaneId } from '../lane2/schema'
 
 function paneCopy(paneId: WorkspacePaneId): {
@@ -26,14 +32,14 @@ function paneCopy(paneId: WorkspacePaneId): {
     case 'surfaces':
       return {
         title: 'Surfaces',
-        eyebrow: 'Soon',
-        description: 'Surface control is next once the right rail shell settles.',
+        eyebrow: 'Live surfaces',
+        description: 'Interactive surfaces stay reachable here once they leave the chat stream.',
       }
     case 'artifacts':
       return {
         title: 'Artifacts',
-        eyebrow: 'Soon',
-        description: 'Artifact detail will move into the formal pane stack in a follow-up slice.',
+        eyebrow: 'Artifact detail',
+        description: 'Legacy artifact detail now lives inside the formal pane stack.',
       }
     case 'context':
       return {
@@ -42,6 +48,186 @@ function paneCopy(paneId: WorkspacePaneId): {
         description: 'Shared context and memory views will land here after the shell is stable.',
       }
   }
+}
+
+const ACTION_MARKER = '[[A2UI_ACTION]] '
+let rightPaneActionSeq = 0
+
+function sendRightPaneActionEnvelope(
+  kind: 'action' | 'error',
+  payload: ActionMessage | ErrorMessage
+) {
+  const sessionId = useChatStore.getState().sessionId
+  if (!sessionId) return
+  rightPaneActionSeq += 1
+  const envelope = {
+    kind: `a2ui_${kind}`,
+    version: 'v0.9',
+    seq: rightPaneActionSeq,
+    ...(kind === 'action' ? payload : payload),
+  }
+  invoke('acp_send_prompt', {
+    sessionId,
+    text: ACTION_MARKER + JSON.stringify(envelope),
+  }).catch(() => {})
+}
+
+export function ArtifactPaneView(args: {
+  activeArtifact: Artifact | null
+  artifactCount: number
+}) {
+  if (!args.activeArtifact) {
+    return <EmptyRenderer title="No artifacts" detail="Ask the agent to create one" />
+  }
+
+  return (
+    <div style={{ minHeight: 0, flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div
+        style={{
+          padding: '10px 14px',
+          borderBottom: '1px solid var(--color-border)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 10,
+          fontSize: 12,
+        }}
+      >
+        <span style={{ color: 'var(--color-text-bright)', fontWeight: 700, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {args.activeArtifact.title || args.activeArtifact.id}
+        </span>
+        <span style={{ color: 'var(--color-muted)', fontFamily: 'var(--font-mono, monospace)', fontSize: 10 }}>
+          {args.artifactCount} item{args.artifactCount === 1 ? '' : 's'}
+        </span>
+      </div>
+      <div style={{ minHeight: 0, flex: 1, overflow: 'auto' }}>
+        <ArtifactBody artifact={args.activeArtifact} />
+      </div>
+    </div>
+  )
+}
+
+function ArtifactPaneContent() {
+  const artifacts = useArtifactStore((s) => s.artifacts)
+  const activeId = useArtifactStore((s) => s.activeId)
+  const activeArtifact = useMemo(
+    () => artifacts.find((artifact) => artifact.id === activeId) ?? artifacts[0] ?? null,
+    [artifacts, activeId]
+  )
+
+  return <ArtifactPaneView activeArtifact={activeArtifact} artifactCount={artifacts.length} />
+}
+
+export function SurfacePaneView(args: {
+  pinnedSurfaceId: string | null
+  pinnedSurfaceTitle: string | null
+  surfaceIds: string[]
+}) {
+  return (
+    <div style={{ minHeight: 0, flex: 1, display: 'flex', flexDirection: 'column', gap: 12, padding: 14 }}>
+      {args.pinnedSurfaceId ? (
+        <div style={{ display: 'grid', gap: 6 }}>
+          <div style={{ color: 'var(--color-accent)', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+            Pinned Surface
+          </div>
+          <div style={{ color: 'var(--color-text-bright)', fontSize: 13, fontWeight: 700 }}>
+            {args.pinnedSurfaceTitle || args.pinnedSurfaceId}
+          </div>
+        </div>
+      ) : (
+        <div style={{ color: 'var(--color-muted)', fontSize: 12 }}>
+          No surface is pinned yet.
+        </div>
+      )}
+
+      {args.surfaceIds.length > 0 ? (
+        <div style={{ display: 'grid', gap: 8 }}>
+          <div style={{ color: 'var(--color-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            Available surfaces
+          </div>
+          {args.surfaceIds.map((surfaceId) => (
+            <div
+              key={surfaceId}
+              style={{
+                border: '1px solid var(--color-border)',
+                borderRadius: 10,
+                padding: '10px 12px',
+                color: 'var(--color-text)',
+                fontFamily: 'var(--font-mono, monospace)',
+                fontSize: 12,
+                background: 'color-mix(in srgb, var(--color-elevated) 80%, transparent)',
+              }}
+            >
+              {surfaceId}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <EmptyRenderer title="No live surfaces" detail="Launch or restore a surface to keep it docked here" />
+      )}
+    </div>
+  )
+}
+
+function SurfacePaneContent() {
+  const pinnedSurfaceId = useArtifactStore((s) => s.pinnedSurfaceId)
+  const unpinSurface = useArtifactStore((s) => s.unpinSurface)
+  const orderedIds = useSurfaceStore((s) => s.orderedIds)
+  const surfaces = useSurfaceStore((s) => s.surfaces)
+  const pinnedSurface = pinnedSurfaceId ? surfaces[pinnedSurfaceId] ?? null : null
+
+  if (!pinnedSurface) {
+    return (
+      <SurfacePaneView
+        pinnedSurfaceId={pinnedSurfaceId}
+        pinnedSurfaceTitle={null}
+        surfaceIds={orderedIds}
+      />
+    )
+  }
+
+  return (
+    <div style={{ minHeight: 0, flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <div>
+          <div style={{ color: 'var(--color-accent)', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 4 }}>
+            Pinned Surface
+          </div>
+          <div style={{ color: 'var(--color-text-bright)', fontSize: 13, fontWeight: 700 }}>
+            {pinnedSurface.surfaceId}
+          </div>
+        </div>
+        <button
+          onClick={unpinSurface}
+          style={{
+            background: 'transparent',
+            border: '1px solid var(--color-border)',
+            borderRadius: 8,
+            padding: '4px 8px',
+            fontSize: 11,
+            fontFamily: 'var(--font-mono, monospace)',
+            color: 'var(--color-muted)',
+            cursor: 'pointer',
+          }}
+        >
+          unpin
+        </button>
+      </div>
+      <div style={{ minHeight: 0, flex: 1, overflow: 'auto', padding: 12 }}>
+        <A2UISurface
+          surface={pinnedSurface}
+          onAction={(msg) => sendRightPaneActionEnvelope('action', msg)}
+          onError={(msg) => sendRightPaneActionEnvelope('error', msg)}
+        />
+      </div>
+    </div>
+  )
+}
+
+function PaneContent({ paneId }: { paneId: WorkspacePaneId }) {
+  if (paneId === 'artifacts') return <ArtifactPaneContent />
+  if (paneId === 'surfaces') return <SurfacePaneContent />
+  return null
 }
 
 function PaneCard({ paneId, closePane }: {
@@ -119,22 +305,28 @@ function PaneCard({ paneId, closePane }: {
           flex: 1,
         }}
       >
-        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
-          {copy.description}
-        </p>
-        <div
-          style={{
-            border: '1px dashed var(--color-border)',
-            borderRadius: 12,
-            padding: 12,
-            background: 'color-mix(in srgb, var(--color-elevated) 80%, transparent)',
-            color: 'var(--color-muted)',
-            fontSize: 12,
-            lineHeight: 1.5,
-          }}
-        >
-          This pane shell is workspace-scoped now. Real {copy.title.toLowerCase()} content plugs into the same slot next.
-        </div>
+        {paneId === 'artifacts' || paneId === 'surfaces' ? (
+          <PaneContent paneId={paneId} />
+        ) : (
+          <>
+            <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>
+              {copy.description}
+            </p>
+            <div
+              style={{
+                border: '1px dashed var(--color-border)',
+                borderRadius: 12,
+                padding: 12,
+                background: 'color-mix(in srgb, var(--color-elevated) 80%, transparent)',
+                color: 'var(--color-muted)',
+                fontSize: 12,
+                lineHeight: 1.5,
+              }}
+            >
+              This pane shell is workspace-scoped now. Real {copy.title.toLowerCase()} content plugs into the same slot next.
+            </div>
+          </>
+        )}
       </div>
     </section>
   )

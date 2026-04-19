@@ -317,7 +317,7 @@ function IframeRenderer({ data, id }: { data: unknown; id: string }) {
   )
 }
 
-function EmptyRenderer({ title, detail }: { title: string; detail: string }) {
+export function EmptyRenderer({ title, detail }: { title: string; detail: string }) {
   return (
     <div style={{
       height: '100%',
@@ -397,7 +397,7 @@ function pickRenderer(artifact: Artifact) {
   }
 }
 
-function ArtifactBody({ artifact }: { artifact: Artifact }) {
+export function ArtifactBody({ artifact }: { artifact: Artifact }) {
   const label = `${artifact.artifact_type || 'artifact'}: ${artifact.title || artifact.id}`
   // Keying the boundary by artifact id auto-resets state when the user picks
   // a different artifact, so a previously crashed renderer doesn't poison the
