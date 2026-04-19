@@ -148,6 +148,9 @@ export default function WorkspaceSwitcher({ anchor, onClose }: WorkspaceSwitcher
           activeArtifactId,
           pinnedSurfaceId,
         },
+        anchorSurfaceIds: useChatStore.getState().messages
+          .filter((message) => message.role === 'surface' && typeof message.surfaceId === 'string')
+          .map((message) => message.surfaceId as string),
         orderedSurfaceIds,
         projectId: activeProjectId,
         sessionId,
@@ -186,6 +189,7 @@ export default function WorkspaceSwitcher({ anchor, onClose }: WorkspaceSwitcher
         : activeProject?.path || null
       await invoke('acp_new_session', { cwd })
     }
+    useChatStore.getState().restoreSurfaceAnchors(workspace.continuity.localAnchorIds)
     onClose()
   }
 

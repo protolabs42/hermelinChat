@@ -36,3 +36,21 @@ test('ConnectionStatus connected keeps the current session id', () => {
   assert.equal(useChatStore.getState().sessionId, 'sess-keep')
   assert.equal(useChatStore.getState().connectionStatus, 'connected')
 })
+
+test('restoreSurfaceAnchors appends missing workspace anchors in order', () => {
+  useChatStore.setState({
+    messages: [
+      {
+        id: 'msg-1',
+        role: 'assistant',
+        content: 'hello',
+        timestamp: 100,
+      },
+    ],
+  })
+
+  useChatStore.getState().restoreSurfaceAnchors(['surface-b', 'surface-a'])
+
+  const surfaceMessages = useChatStore.getState().messages.filter((m) => m.role === 'surface')
+  assert.deepEqual(surfaceMessages.map((m) => m.surfaceId), ['surface-b', 'surface-a'])
+})

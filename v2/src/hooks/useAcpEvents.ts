@@ -183,6 +183,9 @@ export function useAcpEvents() {
         const sessionId = useChatStore.getState().sessionId
         const orderedSurfaceIds = useSurfaceStore.getState().orderedIds
         const liveSurfaces = useSurfaceStore.getState().surfaces
+        const anchorSurfaceIds = useChatStore.getState().messages
+          .filter((message) => message.role === 'surface' && typeof message.surfaceId === 'string')
+          .map((message) => message.surfaceId as string)
         const existing = useWorkspaceStore.getState().activeWorkspace
         const artifactState = useArtifactStore.getState()
         const sidebarState = useSidebarStore.getState()
@@ -197,6 +200,7 @@ export function useAcpEvents() {
           },
           existing,
           liveSurfaces,
+          anchorSurfaceIds,
           orderedSurfaceIds,
           projectId,
           sessionId,

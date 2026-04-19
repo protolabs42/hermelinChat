@@ -145,6 +145,18 @@ test('buildWorkspaceSnapshot persists live runtime for active surfaces', () => {
   })
 })
 
+test('buildWorkspaceSnapshot preserves explicit inline anchor ordering when provided', () => {
+  const next = buildWorkspaceSnapshot({
+    orderedSurfaceIds: ['surface-a', 'surface-b'],
+    anchorSurfaceIds: ['surface-b', 'surface-a'],
+    projectId: 'proj-1',
+    sessionId: 'sess-1',
+    now: 1000,
+  })
+
+  assert.deepEqual(next.continuity.localAnchorIds, ['surface-b', 'surface-a'])
+})
+
 test('extractProjectIdFromWorkspace reads project context ids', () => {
   const workspace = createEmptyWorkspaceState({ workspaceId: 'ws-1' })
   workspace.resident.heldContextIds = ['memory:abc', 'project:scratchpad']

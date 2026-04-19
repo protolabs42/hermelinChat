@@ -103,6 +103,7 @@ export interface ChatStore {
   addUserMessage: (text: string) => void
   /** Inject a surface anchor into the chat stream. Phase 4. */
   addSurfaceAnchor: (surfaceId: string) => void
+  restoreSurfaceAnchors: (surfaceIds: string[]) => void
   handleAcpEvent: (event: AcpEvent) => void
   setSessionId: (id: string) => void
   setPendingPrompt: (text: string | null) => void
@@ -162,6 +163,29 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           surfaceId,
         }],
       }
+    })
+  },
+
+  restoreSurfaceAnchors: (surfaceIds: string[]) => {
+    set((s) => {
+      const existingIds = new Set(
+        s.messages
+          .filter((m) => m.role === 'surface' && typeof m.surfaceId === 'string')
+          .map((m) => m.surfaceId as string)
+      )
+      const missing = surfaceIds.filter((surfaceId) => !existingIds.has(surfaceId))
+      if (missing.length === 0) return {}
+      const baseTimestamp = s.messages.length > 0
+        ? Math.max(...s.messages.map((m) => m.timestamp))
+        : Date.now()
+      const anchors = missing.map((surfaceId, idx) => ({
+        id: genId(),
+        role: 'surface' as const,
+        content: '',
+        timestamp: baseTimestamp + idx + 1,
+        surfaceId,
+      }))
+      return { messages: [...s.messages, ...anchors] }
     })
   },
 

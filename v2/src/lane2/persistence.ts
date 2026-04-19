@@ -127,6 +127,7 @@ function buildSurface(
 }
 
 export function buildWorkspaceSnapshot(args: {
+  anchorSurfaceIds?: string[]
   chrome?: WorkspaceChromeState
   existing?: WorkspaceState | null
   liveSurfaces?: Record<string, SurfaceState>
@@ -146,6 +147,9 @@ export function buildWorkspaceSnapshot(args: {
     : []
   const runtime = buildRuntimeState(args.orderedSurfaceIds, args.liveSurfaces, base)
   const heldContextIds = projectContextId(args.projectId) ? [projectContextId(args.projectId)!] : []
+  const localAnchorIds = args.anchorSurfaceIds && args.anchorSurfaceIds.length > 0
+    ? [...args.anchorSurfaceIds]
+    : [...args.orderedSurfaceIds]
   const surfaces = Object.fromEntries(
     args.orderedSurfaceIds.map((surfaceId) => [
       surfaceId,
@@ -178,7 +182,7 @@ export function buildWorkspaceSnapshot(args: {
       activeThreadId: args.sessionId,
       lastActiveSurfaceId: args.orderedSurfaceIds.length > 0 ? args.orderedSurfaceIds[args.orderedSurfaceIds.length - 1] : null,
       pinnedSurfaceIds: chrome.pinnedSurfaceId ? [chrome.pinnedSurfaceId] : [],
-      localAnchorIds: [...args.orderedSurfaceIds],
+      localAnchorIds,
     },
     chrome,
     updatedAt: now,

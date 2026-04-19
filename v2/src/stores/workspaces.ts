@@ -35,6 +35,9 @@ function applyWorkspaceChrome(workspace: WorkspaceState | null) {
     pinnedSurfaceId: workspace.chrome.pinnedSurfaceId,
   })
   useSurfaceStore.getState().hydrateWorkspaceRuntime(workspace)
+  import('./chat').then(({ useChatStore }) => {
+    useChatStore.getState().restoreSurfaceAnchors(workspace.continuity.localAnchorIds)
+  }).catch(() => {})
 }
 
 interface WorkspaceStore {
