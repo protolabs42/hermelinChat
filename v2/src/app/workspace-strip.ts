@@ -18,30 +18,53 @@ export interface WorkspaceStripModel {
 }
 
 const DEFAULT_MAX_VISIBLE_COUNT = 4
-const MAX_HINT_LENGTH = 32
 
-function truncateHint(value: string): string {
-  const compact = value.trim().replace(/\s+/g, ' ')
-  if (compact.length <= MAX_HINT_LENGTH) return compact
-  return `${compact.slice(0, MAX_HINT_LENGTH - 1)}…`
+function compactIdleHint(workspace: WorkspaceState): string {
+  return workspace.resident.stance === 'waiting' ? 'waiting' : 'idle'
+}
+
+function compactReadyHint(workspace: WorkspaceState): string {
+  const unresolvedCount = workspace.attention.unresolvedTargets.length
+  if (unresolvedCount > 0) {
+    return `${unresolvedCount} unresolved`
+  }
+
+  const activeSurface = workspace.resident.activeSurfaceIds
+    .map((surfaceId) => workspace.surfaces[surfaceId])
+    .find((surface): surface is NonNullable<typeof surface> => Boolean(surface))
+
+  if (activeSurface?.title.toLowerCase().includes('coedit')) {
+    return 'coedit open'
+  }
+
+  return compactIdleHint(workspace)
 }
 
 function mapTone(workspace: WorkspaceState): WorkspaceStripTone {
   const summary = buildWorkspaceRowSummary(workspace)
   if (summary.status === 'remembered-active') return 'active'
   if (summary.status === 'ready') return 'ready'
+
+  const activeSurface = workspace.resident.activeSurfaceIds
+    .map((surfaceId) => workspace.surfaces[surfaceId])
+    .find((surface): surface is NonNullable<typeof surface> => Boolean(surface))
+
+  if (activeSurface?.title.toLowerCase().includes('coedit')) return 'ready'
   return 'idle'
 }
 
 function buildHint(workspace: WorkspaceState): string {
   const continuityCard = buildWorkspaceContinuityCard(workspace)
   if (continuityCard?.tone === 'active') {
-    return truncateHint(continuityCard.detail)
+    return 'active'
   }
-  if (continuityCard?.tone === 'ready') {
-    return truncateHint(continuityCard.label)
+
+  const tone = mapTone(workspace)
+  if (tone === 'ready') {
+    return compactReadyHint(workspace)
   }
-  return truncateHint(buildWorkspaceRowSummary(workspace).headline)
+
+  return compactIdleHint(workspace)
 }
 
 function toTab(workspace: WorkspaceState, activeWorkspaceId: string | null): WorkspaceStripTab {

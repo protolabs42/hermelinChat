@@ -15,7 +15,7 @@ function test(name: string, fn: () => void) {
 
 console.log('workspace strip')
 
-test('active workspace gets active styling without overflow when count fits', () => {
+test('active workspace uses a compact active hint instead of spilling the full continuity sentence', () => {
   const forge = createEmptyWorkspaceState({ workspaceId: 'forge', sessionId: 'sess-1', now: 1_700 })
   forge.resident.activeInvocationId = 'live:sess-1'
   forge.attention.primaryFocus = { kind: 'surface', id: 'surface-a' }
@@ -57,18 +57,18 @@ test('active workspace gets active styling without overflow when count fits', ()
     label: 'forge',
     isActive: true,
     tone: 'active',
-    hint: 'Working in surface surface-a wi…',
+    hint: 'active',
   })
   assert.deepEqual(model.visibleTabs[1], {
     workspaceId: 'archive',
     label: 'archive',
     isActive: false,
     tone: 'idle',
-    hint: 'Waiting',
+    hint: 'waiting',
   })
 })
 
-test('ready workspaces prefer unresolved continuity labels over generic idle copy', () => {
+test('ready workspaces prefer compact unresolved counts over long continuity labels', () => {
   const research = createEmptyWorkspaceState({ workspaceId: 'research', sessionId: 'sess-9', now: 1_800 })
   research.attention.primaryFocus = { kind: 'thread', id: 'sess-9' }
   research.attention.unresolvedTargets = [
@@ -83,7 +83,33 @@ test('ready workspaces prefer unresolved continuity labels over generic idle cop
   })
 
   assert.equal(model.visibleTabs[0]?.tone, 'ready')
-  assert.equal(model.visibleTabs[0]?.hint, '2 unresolved remembered')
+  assert.equal(model.visibleTabs[0]?.hint, '2 unresolved')
+})
+
+test('ready workspaces can surface coedit posture compactly when a coedit surface is open', () => {
+  const coedit = createEmptyWorkspaceState({ workspaceId: 'proof', sessionId: 'sess-3', now: 1_850 })
+  coedit.resident.activeSurfaceIds = ['surface-coedit']
+  coedit.surfaces['surface-coedit'] = {
+    surfaceId: 'surface-coedit',
+    surfaceKind: 'a2ui',
+    title: 'coedit proof',
+    workspaceId: 'proof',
+    sessionId: 'sess-3',
+    createdBy: 'aurora',
+    heldBy: 'aurora',
+    createdAt: 1_840,
+    updatedAt: 1_850,
+    status: 'active',
+  }
+
+  const model = buildWorkspaceStripModel({
+    activeWorkspaceId: 'proof',
+    maxVisibleCount: 4,
+    workspaces: [coedit],
+  })
+
+  assert.equal(model.visibleTabs[0]?.tone, 'ready')
+  assert.equal(model.visibleTabs[0]?.hint, 'coedit open')
 })
 
 test('overflow keeps the active workspace visible and exposes the rest through the switcher', () => {
