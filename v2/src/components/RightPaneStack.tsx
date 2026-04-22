@@ -417,6 +417,7 @@ function PaneCard({ paneId, closePane }: {
   return (
     <section
       aria-label={`${copy.title} pane`}
+      data-testid={`pane-${paneId}`}
       style={{
         minHeight: 0,
         display: 'flex',

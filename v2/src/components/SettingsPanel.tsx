@@ -40,6 +40,7 @@ export default function SettingsPanel() {
       {/* Panel */}
       <div
         className="animate-settings-slide"
+        data-testid="settings-panel"
         style={{
           position: 'fixed',
           top: 0,
@@ -72,6 +73,7 @@ export default function SettingsPanel() {
           </span>
           <button
             onClick={close}
+            data-testid="settings-close"
             style={{
               width: 32,
               height: 32,

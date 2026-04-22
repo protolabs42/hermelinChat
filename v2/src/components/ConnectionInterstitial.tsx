@@ -254,6 +254,7 @@ export default function ConnectionInterstitial({ model, startupStartedAt }: Prop
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button
                 onClick={handleRetry}
+                data-testid="retry-connection"
                 disabled={busyAction !== null}
                 style={buttonStyle('secondary')}
               >
@@ -262,6 +263,7 @@ export default function ConnectionInterstitial({ model, startupStartedAt }: Prop
               {connectionStatus === 'connected' && (
                 <button
                   onClick={handleFreshSession}
+                  data-testid="start-fresh"
                   disabled={busyAction !== null}
                   style={buttonStyle('primary')}
                 >
@@ -271,6 +273,7 @@ export default function ConnectionInterstitial({ model, startupStartedAt }: Prop
               {connectionStatus === 'connected' && (
                 <button
                   onClick={handleScratchpad}
+                  data-testid="open-scratchpad"
                   disabled={busyAction !== null}
                   style={buttonStyle('ghost')}
                 >

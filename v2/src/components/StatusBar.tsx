@@ -538,6 +538,7 @@ export default function StatusBar() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
         <button
           onClick={() => handleTogglePane('plan')}
+          data-testid="plan-toggle"
           title="Plan pane"
           style={{ ...btnStyle, width: 'auto', padding: '0 12px', gap: 8, fontSize: 11, fontFamily: 'var(--font-mono, monospace)' }}
         >
@@ -546,6 +547,7 @@ export default function StatusBar() {
 
         <button
           onClick={() => handleTogglePane('tasks')}
+          data-testid="tasks-toggle"
           title="Tasks pane"
           style={{ ...btnStyle, width: 'auto', padding: '0 12px', gap: 8, fontSize: 11, fontFamily: 'var(--font-mono, monospace)' }}
         >
@@ -623,7 +625,7 @@ export default function StatusBar() {
           </button>
         )}
 
-        <button onClick={toggleSettings} title="Settings (Ctrl+,)" style={{ ...btnStyle, fontSize: 20 }}>
+        <button onClick={toggleSettings} data-testid="settings-toggle" title="Settings (Ctrl+,)" style={{ ...btnStyle, fontSize: 20 }}>
           &#9881;
         </button>
       </div>
