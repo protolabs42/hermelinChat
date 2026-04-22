@@ -10,6 +10,7 @@ import { useSidebarStore } from '../stores/sidebar'
 import { usePaneStore } from '../stores/panes'
 import { useWorkspaceStore } from '../stores/workspaces'
 import { buildWorkspaceSnapshot, extractProjectIdFromWorkspace } from '../lane2/persistence'
+import { activateWorkspace } from '../app/workspace-lifecycle'
 
 export function useAcpEvents() {
   useEffect(() => {
@@ -28,21 +29,10 @@ export function useAcpEvents() {
 
         const restoredWorkspace = await useWorkspaceStore.getState().loadActiveWorkspace()
         const restoredProjectId = extractProjectIdFromWorkspace(restoredWorkspace)
-        const restoredSessionId = restoredWorkspace?.continuity.activeThreadId ?? restoredWorkspace?.resident.sessionId ?? null
 
-        if (restoredProjectId === 'scratchpad') {
-          await useProjectStore.getState().hydrateActiveProject('scratchpad')
-          if (restoredSessionId) {
-            await invoke('acp_load_session', { sessionId: restoredSessionId, cwd: homeDir || null })
-            return
-          }
-        } else if (restoredProjectId && useProjectStore.getState().projects[restoredProjectId]) {
-          await useProjectStore.getState().hydrateActiveProject(restoredProjectId)
-          if (restoredSessionId) {
-            const project = useProjectStore.getState().projects[restoredProjectId]
-            await invoke('acp_load_session', { sessionId: restoredSessionId, cwd: project?.path ?? null })
-            return
-          }
+        if (restoredWorkspace && restoredProjectId) {
+          await activateWorkspace(restoredWorkspace)
+          return
         }
 
         if (launchCwd === homeDir) {

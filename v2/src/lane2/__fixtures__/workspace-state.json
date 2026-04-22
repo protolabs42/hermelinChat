@@ -1,0 +1,51 @@
+{
+  "workspaceId": "fixture-ws",
+  "resident": {
+    "residentId": "aurora",
+    "stance": "attending",
+    "activeThreadId": "sess-fixture",
+    "focusTarget": { "kind": "thread", "id": "sess-fixture" },
+    "activeSurfaceIds": ["surface-fixture"],
+    "heldContextIds": ["project:fixture-project"],
+    "activeInvocationId": null,
+    "sessionId": "sess-fixture",
+    "workspaceId": "fixture-ws",
+    "updatedAt": 1
+  },
+  "attention": {
+    "primaryFocus": { "kind": "surface", "id": "surface-fixture" },
+    "backgroundHoldings": [{ "kind": "thread", "id": "sess-fixture" }],
+    "pinnedTargets": [{ "kind": "surface", "id": "surface-fixture" }],
+    "unresolvedTargets": [
+      {
+        "kind": "surface",
+        "id": "surface-fixture",
+        "reason": "draft-in-progress",
+        "label": "Draft in progress"
+      }
+    ],
+    "updatedAt": 1
+  },
+  "surfaces": {},
+  "bindings": {},
+  "lineage": {},
+  "runtime": {},
+  "invocations": {},
+  "continuity": {
+    "lastActiveSurfaceId": "surface-fixture",
+    "pinnedSurfaceIds": ["surface-fixture"],
+    "suspendedSurfaceIds": [],
+    "activeThreadId": "sess-fixture",
+    "localAnchorIds": ["surface-fixture"]
+  },
+  "chrome": {
+    "sidebarOpen": true,
+    "sidebarWidth": 320,
+    "artifactPanelOpen": true,
+    "artifactPanelWidth": 420,
+    "activeArtifactId": "artifact-fixture",
+    "pinnedSurfaceId": "surface-fixture",
+    "rightRail": { "mode": "single", "primaryPane": "surfaces" }
+  },
+  "updatedAt": 1
+}

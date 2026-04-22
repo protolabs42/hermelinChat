@@ -293,16 +293,16 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         set({ sessionId: event.session_id, model: event.model ?? null, pendingPrompt: null })
         // Update window title with session ID
         import('@tauri-apps/api/core').then(({ invoke: inv }) => {
-          inv('set_window_title', { title: `Aurora Chat \u2014 ${event.session_id.slice(0, 12)}` })
+          inv('set_window_title', { title: `Aurora Chat — ${event.session_id.slice(0, 12)}` })
             .catch(() => {})
         })
-        if (pending) {
+        if (pending && (event.source_op == null || event.source_op === 'session/new')) {
           import('@tauri-apps/api/core').then(({ invoke }) => {
             invoke('acp_send_prompt', { sessionId: event.session_id, text: pending })
               .catch((e: unknown) => console.error('Failed to send queued prompt:', e))
           })
         }
-        // Assign new session to active project
+
         import('../stores/projects').then(({ useProjectStore }) => {
           const ps = useProjectStore.getState()
           if (ps.activeProjectId) {

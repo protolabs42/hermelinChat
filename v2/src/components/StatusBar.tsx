@@ -5,7 +5,6 @@ import { useSettingsStore } from '../stores/settings'
 import { useSidebarStore } from '../stores/sidebar'
 import { useArtifactStore } from '../stores/artifacts'
 import { useSurfaceStore } from '../stores/surfaces'
-import { usePaneStore } from '../stores/panes'
 import { useProjectStore, SCRATCHPAD_ID } from '../stores/projects'
 import { useWorkspaceStore } from '../stores/workspaces'
 import { buildManualA2UIEmitRequest } from '../a2ui/manual-launch'
@@ -18,7 +17,8 @@ import { getTopActionIntents } from '../app/top-action-intents'
 import { buildWorkspaceStripModel } from '../app/workspace-strip'
 import { buildWorkspaceRestoreState } from '../app/workspace-restore-state'
 import { startFreshSession } from '../app/session-start'
-import { activateWorkspaceSnapshot } from '../lane2/workspace-activation'
+import { activateWorkspace } from '../app/workspace-lifecycle'
+import { toggleRightRailPane } from '../app/right-rail'
 import { buildWorkspaceContinuityCard } from '../lane2/workspace-summary'
 import coeditProofRaw from '../a2ui/examples/mcp-app-coedit-proof.json?raw'
 
@@ -42,8 +42,6 @@ export default function StatusBar() {
   const toggleSidebar = useSidebarStore((s) => s.toggle)
   const artifactCount = useArtifactStore((s) => s.artifacts.length)
   const pinnedSurfaceId = useArtifactStore((s) => s.pinnedSurfaceId)
-  const toggleArtifacts = useArtifactStore((s) => s.togglePanel)
-  const togglePane = usePaneStore((s) => s.togglePane)
   const liveSurfaceIds = useSurfaceStore((s) => s.orderedIds)
   const { theme } = useTheme()
 
@@ -149,69 +147,18 @@ export default function StatusBar() {
   const handleResumeCurrentWorkspace = async () => {
     if (!activeWorkspace) return
     try {
-      await activateWorkspaceSnapshot(activeWorkspace, {
-        setActiveWorkspace: useWorkspaceStore.getState().setActiveWorkspace,
-        hydrateActiveProject: useProjectStore.getState().hydrateActiveProject,
-        resetChat: () => {
-          useChatStore.getState().reset()
-        },
-        restoreSurfaceAnchors: (surfaceIds) => {
-          useChatStore.getState().restoreSurfaceAnchors(surfaceIds)
-        },
-        foregroundFocusTarget: (target) => {
-          if (!target) return
-          const artifactStore = useArtifactStore.getState()
-          if (target.kind === 'surface') {
-            artifactStore.pinSurface(target.id)
-            return
-          }
-          if (target.kind === 'artifact') {
-            artifactStore.openPanel()
-            artifactStore.setActiveId(target.id)
-          }
-        },
-        loadSession: async (sessionId, cwd) => {
-          await invoke('acp_load_session', { sessionId, cwd })
-        },
-        newSession: async (cwd) => {
-          await startFreshSession({ projectPath: cwd, resetChat: false, markConnecting: false })
-        },
-        getHomeDir: async () => await invoke<string>('get_home_dir').catch(() => null),
-        getProjectPath: (projectId) => useProjectStore.getState().projects[projectId]?.path ?? null,
-        getCurrentProjectPath: () => useProjectStore.getState().getActiveProject()?.path ?? null,
-        getCurrentWorkspaceId: () => useWorkspaceStore.getState().activeWorkspace?.workspaceId ?? null,
-        getCurrentProjectId: () => useProjectStore.getState().activeProjectId,
-        restoreActiveWorkspace: async (workspaceId) => {
-          await useWorkspaceStore.getState().setActiveWorkspace(workspaceId)
-        },
-        restoreActiveProject: async (projectId) => {
-          await useProjectStore.getState().hydrateActiveProject(projectId)
-        },
-        reportFailure: (message) => {
-          useChatStore.setState((state) => ({
-            connectionStatus: 'disconnected',
-            messages: [...state.messages, {
-              id: `system-${Date.now()}`,
-              role: 'system',
-              content: message,
-              timestamp: Date.now(),
-            }],
-          }))
-        },
-      })
+      await activateWorkspace(activeWorkspace)
     } catch (e) {
       console.error('Failed to resume current workspace continuity:', e)
     }
   }
 
   const handleTogglePane = (paneId: 'plan' | 'tasks') => {
-    useArtifactStore.getState().closePanel()
-    togglePane(paneId)
+    toggleRightRailPane(paneId)
   }
 
   const handleToggleArtifacts = () => {
-    usePaneStore.getState().setLayout({ mode: 'hidden' })
-    toggleArtifacts()
+    toggleRightRailPane('artifacts')
   }
 
   const handleSelectWorkspace = async (workspaceId: string) => {
@@ -222,56 +169,7 @@ export default function StatusBar() {
     }
 
     try {
-      await activateWorkspaceSnapshot(targetWorkspace, {
-        setActiveWorkspace: useWorkspaceStore.getState().setActiveWorkspace,
-        hydrateActiveProject: useProjectStore.getState().hydrateActiveProject,
-        resetChat: () => {
-          useChatStore.getState().reset()
-        },
-        restoreSurfaceAnchors: (surfaceIds) => {
-          useChatStore.getState().restoreSurfaceAnchors(surfaceIds)
-        },
-        foregroundFocusTarget: (target) => {
-          if (!target) return
-          const artifactStore = useArtifactStore.getState()
-          if (target.kind === 'surface') {
-            artifactStore.pinSurface(target.id)
-            return
-          }
-          if (target.kind === 'artifact') {
-            artifactStore.openPanel()
-            artifactStore.setActiveId(target.id)
-          }
-        },
-        loadSession: async (sessionId, cwd) => {
-          await invoke('acp_load_session', { sessionId, cwd })
-        },
-        newSession: async (cwd) => {
-          await startFreshSession({ projectPath: cwd, resetChat: false, markConnecting: false })
-        },
-        getHomeDir: async () => await invoke<string>('get_home_dir').catch(() => null),
-        getProjectPath: (projectId) => useProjectStore.getState().projects[projectId]?.path ?? null,
-        getCurrentProjectPath: () => useProjectStore.getState().getActiveProject()?.path ?? null,
-        getCurrentWorkspaceId: () => useWorkspaceStore.getState().activeWorkspace?.workspaceId ?? null,
-        getCurrentProjectId: () => useProjectStore.getState().activeProjectId,
-        restoreActiveWorkspace: async (workspaceId) => {
-          await useWorkspaceStore.getState().setActiveWorkspace(workspaceId)
-        },
-        restoreActiveProject: async (projectId) => {
-          await useProjectStore.getState().hydrateActiveProject(projectId)
-        },
-        reportFailure: (message) => {
-          useChatStore.setState((state) => ({
-            connectionStatus: 'disconnected',
-            messages: [...state.messages, {
-              id: `system-${Date.now()}`,
-              role: 'system',
-              content: message,
-              timestamp: Date.now(),
-            }],
-          }))
-        },
-      })
+      await activateWorkspace(targetWorkspace)
     } catch (e) {
       console.error(`Failed to activate workspace ${workspaceId}:`, e)
     }

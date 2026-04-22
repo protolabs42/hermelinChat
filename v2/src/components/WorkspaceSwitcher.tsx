@@ -1,14 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { invoke } from '@tauri-apps/api/core'
 
 import {
   buildWorkspaceCreationSnapshot,
   DEFAULT_WORKSPACE_ID,
 } from '../lane2/persistence'
 import type { WorkspaceState } from '../lane2/schema'
-import { startFreshSession } from '../app/session-start'
-import { activateWorkspaceSnapshot } from '../lane2/workspace-activation'
+import { activateWorkspace } from '../app/workspace-lifecycle'
 import { buildWorkspaceRowSummary } from '../lane2/workspace-summary'
 import { useSurfaceStore } from '../stores/surfaces'
 import { useWorkspaceStore } from '../stores/workspaces'
@@ -63,6 +61,7 @@ function WorkspaceRow({
 
   return (
     <button
+      data-testid={`workspace-row-${workspace.workspaceId}`}
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -215,8 +214,9 @@ export default function WorkspaceSwitcher({ anchor, onClose }: WorkspaceSwitcher
         projectId: activeProjectId,
         sessionId,
       })
-      await upsertWorkspace(snapshot, true)
+      const saved = await upsertWorkspace(snapshot, false)
       await loadWorkspaces()
+      await activateWorkspace(saved)
       onClose()
     } finally {
       setCreatingMode(null)
@@ -225,56 +225,7 @@ export default function WorkspaceSwitcher({ anchor, onClose }: WorkspaceSwitcher
 
   const handleSelect = async (workspace: WorkspaceState) => {
     try {
-      await activateWorkspaceSnapshot(workspace, {
-        setActiveWorkspace: useWorkspaceStore.getState().setActiveWorkspace,
-        hydrateActiveProject: useProjectStore.getState().hydrateActiveProject,
-        resetChat: () => {
-          useChatStore.getState().reset()
-        },
-        restoreSurfaceAnchors: (surfaceIds) => {
-          useChatStore.getState().restoreSurfaceAnchors(surfaceIds)
-        },
-        foregroundFocusTarget: (target) => {
-          if (!target) return
-          const artifactStore = useArtifactStore.getState()
-          if (target.kind === 'surface') {
-            artifactStore.pinSurface(target.id)
-            return
-          }
-          if (target.kind === 'artifact') {
-            artifactStore.openPanel()
-            artifactStore.setActiveId(target.id)
-          }
-        },
-        loadSession: async (sessionId, cwd) => {
-          await invoke('acp_load_session', { sessionId, cwd })
-        },
-        newSession: async (cwd) => {
-          await startFreshSession({ projectPath: cwd, resetChat: false, markConnecting: false })
-        },
-        getHomeDir: async () => await invoke<string>('get_home_dir').catch(() => null),
-        getProjectPath: (projectId) => useProjectStore.getState().projects[projectId]?.path ?? null,
-        getCurrentProjectPath: () => useProjectStore.getState().getActiveProject()?.path ?? null,
-        getCurrentWorkspaceId: () => useWorkspaceStore.getState().activeWorkspace?.workspaceId ?? null,
-        getCurrentProjectId: () => useProjectStore.getState().activeProjectId,
-        restoreActiveWorkspace: async (workspaceId) => {
-          await useWorkspaceStore.getState().setActiveWorkspace(workspaceId)
-        },
-        restoreActiveProject: async (projectId) => {
-          await useProjectStore.getState().hydrateActiveProject(projectId)
-        },
-        reportFailure: (message) => {
-          useChatStore.setState((state) => ({
-            connectionStatus: 'disconnected',
-            messages: [...state.messages, {
-              id: `system-${Date.now()}`,
-              role: 'system',
-              content: message,
-              timestamp: Date.now(),
-            }],
-          }))
-        },
-      })
+      await activateWorkspace(workspace)
       onClose()
     } catch (error) {
       console.error(`Failed to activate workspace ${workspace.workspaceId}:`, error)
@@ -287,6 +238,7 @@ export default function WorkspaceSwitcher({ anchor, onClose }: WorkspaceSwitcher
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 1000 }} />
       <div
+        data-testid="workspace-switcher"
         onClick={(e) => e.stopPropagation()}
         style={{
           ...dropdownStyle,
@@ -303,6 +255,7 @@ export default function WorkspaceSwitcher({ anchor, onClose }: WorkspaceSwitcher
       >
         <div style={{ padding: '12px 12px 8px', borderBottom: '1px solid var(--color-border)' }}>
           <input
+            data-testid="workspace-search"
             ref={searchRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -337,6 +290,7 @@ export default function WorkspaceSwitcher({ anchor, onClose }: WorkspaceSwitcher
         </div>
         <div style={{ padding: 8, borderTop: '1px solid var(--color-border)', display: 'grid', gap: 8 }}>
           <button
+            data-testid="workspace-create-blank"
             onClick={() => void handleCreate('blank')}
             disabled={creatingMode !== null}
             style={{
@@ -354,6 +308,7 @@ export default function WorkspaceSwitcher({ anchor, onClose }: WorkspaceSwitcher
             {creatingMode === 'blank' ? 'Creating blank workspace…' : 'New blank workspace'}
           </button>
           <button
+            data-testid="workspace-create-duplicate"
             onClick={() => void handleCreate('duplicate')}
             disabled={creatingMode !== null}
             style={{

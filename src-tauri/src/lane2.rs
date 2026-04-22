@@ -1,8 +1,11 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fs::OpenOptions;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use std::thread;
+use std::time::{Duration, Instant};
 use tauri::AppHandle;
 use tauri::Manager as _;
 use tauri::State;
@@ -84,9 +87,14 @@ pub enum WorkspacePaneId {
 #[serde(tag = "mode", rename_all = "camelCase")]
 pub enum WorkspacePaneLayout {
     Hidden,
-    Single { primary_pane: WorkspacePaneId },
-    Stacked {
+    Single {
+        #[serde(alias = "primaryPane")]
         primary_pane: WorkspacePaneId,
+    },
+    Stacked {
+        #[serde(alias = "primaryPane")]
+        primary_pane: WorkspacePaneId,
+        #[serde(alias = "secondaryPane")]
         secondary_pane: WorkspacePaneId,
     },
 }
@@ -172,12 +180,30 @@ pub struct SurfaceRuntimeState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum UnresolvedTargetReason {
+    WaitingForTool,
+    DraftInProgress,
+    CoeditOpen,
+    SessionBooting,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct UnresolvedTarget {
+    pub kind: FocusTargetKind,
+    pub id: String,
+    pub reason: Option<UnresolvedTargetReason>,
+    pub label: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceAttention {
     pub primary_focus: Option<FocusTarget>,
     pub background_holdings: Vec<FocusTarget>,
     pub pinned_targets: Vec<FocusTarget>,
-    pub unresolved_targets: Vec<FocusTarget>,
+    pub unresolved_targets: Vec<UnresolvedTarget>,
     pub updated_at: u64,
 }
 
@@ -302,6 +328,44 @@ fn lane2_store_path(app: &AppHandle) -> PathBuf {
     lane2_store_dir(app).join("workspaces.json")
 }
 
+fn lane2_lock_path(path: &Path) -> PathBuf {
+    path.with_extension("json.lock")
+}
+
+struct Lane2FileGuard {
+    path: PathBuf,
+}
+
+impl Drop for Lane2FileGuard {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.path);
+    }
+}
+
+fn acquire_lane2_file_guard(path: &Path) -> Result<Lane2FileGuard, String> {
+    let lock_path = lane2_lock_path(path);
+    let deadline = Instant::now() + Duration::from_secs(5);
+
+    loop {
+        match OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&lock_path)
+        {
+            Ok(_) => return Ok(Lane2FileGuard { path: lock_path }),
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {
+                if Instant::now() >= deadline {
+                    return Err(format!("Timed out waiting for lane2 file lock {}", lock_path.display()));
+                }
+                thread::sleep(Duration::from_millis(50));
+            }
+            Err(err) => {
+                return Err(format!("Failed to acquire lane2 file lock {}: {err}", lock_path.display()));
+            }
+        }
+    }
+}
+
 fn atomic_write(path: &Path, data: &[u8]) -> Result<(), String> {
     let dir = path.parent().ok_or("No parent directory")?;
     std::fs::create_dir_all(dir)
@@ -355,7 +419,9 @@ pub fn lane2_get_active_workspace(
     lock: State<'_, Lane2StoreLock>,
 ) -> Result<Option<WorkspaceState>, String> {
     let _guard = lock.0.lock().map_err(|e| e.to_string())?;
-    let data = read_workspace_store(&app);
+    let path = lane2_store_path(&app);
+    let _file_guard = acquire_lane2_file_guard(&path)?;
+    let data = read_workspace_store_from_path(&path);
     Ok(data
         .active_workspace_id
         .as_ref()
@@ -368,7 +434,9 @@ pub fn lane2_list_workspaces(
     lock: State<'_, Lane2StoreLock>,
 ) -> Result<Vec<WorkspaceState>, String> {
     let _guard = lock.0.lock().map_err(|e| e.to_string())?;
-    let data = read_workspace_store(&app);
+    let path = lane2_store_path(&app);
+    let _file_guard = acquire_lane2_file_guard(&path)?;
+    let data = read_workspace_store_from_path(&path);
     Ok(data.workspaces.into_values().collect())
 }
 
@@ -380,14 +448,16 @@ pub fn lane2_upsert_workspace(
     make_active: Option<bool>,
 ) -> Result<WorkspaceState, String> {
     let _guard = lock.0.lock().map_err(|e| e.to_string())?;
-    let mut data = read_workspace_store(&app);
+    let path = lane2_store_path(&app);
+    let _file_guard = acquire_lane2_file_guard(&path)?;
+    let mut data = read_workspace_store_from_path(&path);
     let workspace_id = workspace.workspace_id.clone();
     data.workspaces
         .insert(workspace_id.clone(), workspace.clone());
     if make_active.unwrap_or(false) || data.active_workspace_id.is_none() {
         data.active_workspace_id = Some(workspace_id);
     }
-    write_workspace_store(&app, &data)?;
+    write_workspace_store_to_path(&path, &data)?;
     Ok(workspace)
 }
 
@@ -398,12 +468,14 @@ pub fn lane2_set_active_workspace(
     workspace_id: String,
 ) -> Result<(), String> {
     let _guard = lock.0.lock().map_err(|e| e.to_string())?;
-    let mut data = read_workspace_store(&app);
+    let path = lane2_store_path(&app);
+    let _file_guard = acquire_lane2_file_guard(&path)?;
+    let mut data = read_workspace_store_from_path(&path);
     if !data.workspaces.contains_key(&workspace_id) {
         return Err(format!("Workspace '{workspace_id}' not found"));
     }
     data.active_workspace_id = Some(workspace_id);
-    write_workspace_store(&app, &data)
+    write_workspace_store_to_path(&path, &data)
 }
 
 #[cfg(test)]
@@ -466,5 +538,18 @@ mod tests {
 
         assert_eq!(restored.active_workspace_id.as_deref(), Some("ws-1"));
         assert_eq!(restored.workspaces.get("ws-1"), Some(&workspace));
+    }
+
+    #[test]
+    fn lane2_fixture_parses_contract_shape() {
+        let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../v2/src/lane2/__fixtures__/workspace-state.json");
+        let fixture = std::fs::read_to_string(&fixture_path).expect("read lane2 fixture");
+        let workspace: WorkspaceState = serde_json::from_str(&fixture).expect("deserialize lane2 fixture");
+
+        let unresolved = workspace.attention.unresolved_targets.first().expect("unresolved target");
+        assert_eq!(unresolved.reason, Some(UnresolvedTargetReason::DraftInProgress));
+        assert_eq!(unresolved.label.as_deref(), Some("Draft in progress"));
+        assert_eq!(workspace.chrome.right_rail, Some(WorkspacePaneLayout::Single { primary_pane: WorkspacePaneId::Surfaces }));
     }
 }

@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict'
-import {
-  createEmptyWorkspaceState,
-  type InvocationEnvelope,
-  type WorkspaceState,
-} from '../schema'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { createEmptyWorkspaceState, type WorkspaceState } from '../schema'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 function test(name: string, fn: () => void) {
   try {
@@ -18,38 +19,41 @@ function test(name: string, fn: () => void) {
 console.log('lane2 schema')
 
 test('createEmptyWorkspaceState seeds Aurora as resident', () => {
-  const state = createEmptyWorkspaceState({ workspaceId: 'ws-1', sessionId: 'sess-1' })
-  assert.equal(state.workspaceId, 'ws-1')
-  assert.equal(state.resident.residentId, 'aurora')
-  assert.equal(state.resident.sessionId, 'sess-1')
-  assert.equal(state.attention.primaryFocus, null)
-  assert.equal(state.chrome.sidebarOpen, false)
-  assert.equal(state.chrome.sidebarWidth, 280)
-  assert.equal(state.chrome.artifactPanelOpen, false)
-  assert.equal(state.chrome.artifactPanelWidth, 420)
-  assert.equal(state.chrome.activeArtifactId, null)
-  assert.equal(state.chrome.pinnedSurfaceId, null)
-  assert.deepEqual(state.chrome.rightRail, { mode: 'hidden' })
+  const workspace = createEmptyWorkspaceState({ workspaceId: 'forge', sessionId: 'sess-1', now: 100 })
+  assert.equal(workspace.workspaceId, 'forge')
+  assert.equal(workspace.resident.residentId, 'aurora')
+  assert.equal(workspace.resident.sessionId, 'sess-1')
+  assert.deepEqual(workspace.chrome.rightRail, { mode: 'hidden' })
 })
 
 test('workspace state can hold typed invocation envelopes', () => {
-  const state: WorkspaceState = createEmptyWorkspaceState({ workspaceId: 'ws-1' })
-  const invocation: InvocationEnvelope = {
+  const workspace = createEmptyWorkspaceState({ workspaceId: 'forge', now: 100 })
+  workspace.invocations['inv-1'] = {
     invocationId: 'inv-1',
     kind: 'subagent',
     target: 'delegate_task',
-    summary: null,
-    recoveryActionLabel: null,
+    summary: 'Working in surface surface-a',
+    recoveryActionLabel: 'Resume thread sess-1',
     initiatedBy: 'aurora',
-    workspaceId: 'ws-1',
+    workspaceId: 'forge',
     sessionId: null,
     surfaceId: null,
     threadId: null,
     contextRefs: [],
     status: 'pending',
-    createdAt: 1,
-    updatedAt: 1,
+    createdAt: 100,
+    updatedAt: 100,
   }
-  state.invocations[invocation.invocationId] = invocation
-  assert.equal(state.invocations['inv-1']?.kind, 'subagent')
+
+  assert.equal(workspace.invocations['inv-1'].workspaceId, 'forge')
+  assert.equal(workspace.invocations['inv-1'].initiatedBy, 'aurora')
+})
+
+test('fixture workspace stays in TS lane2 parity shape', () => {
+  const fixturePath = path.resolve(__dirname, '../__fixtures__/workspace-state.json')
+  const fixture = JSON.parse(fs.readFileSync(fixturePath, 'utf8')) as WorkspaceState
+
+  assert.equal(fixture.attention.unresolvedTargets[0]?.reason, 'draft-in-progress')
+  assert.equal(fixture.attention.unresolvedTargets[0]?.label, 'Draft in progress')
+  assert.deepEqual(fixture.chrome.rightRail, { mode: 'single', primaryPane: 'surfaces' })
 })

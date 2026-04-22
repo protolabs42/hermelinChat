@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { startFreshSession } from '../app/session-start'
+import { restoreSessionIntoActiveWorkspace } from '../app/workspace-lifecycle'
 import {
   clampSidebarWidth,
   useSidebarStore,
@@ -8,9 +9,7 @@ import {
 } from '../stores/sidebar'
 import { useChatStore } from '../stores/chat'
 import { useProjectStore, SCRATCHPAD_ID } from '../stores/projects'
-import { loadAnchors } from '../a2ui/surface-anchors'
 import { groupByTime } from '../utils/time-groups'
-import { sessionRowsToMessages, type SessionRow } from '../utils/session-restore'
 import ProjectSwitcher from './ProjectSwitcher'
 
 // ── Project header ──────────────────────────────────────────────────────────────
@@ -209,25 +208,7 @@ function SessionRow({ session, isActive }: { session: SessionSummary; isActive: 
 
   const loadSession = async () => {
     try {
-      const rows = await invoke<SessionRow[]>('get_session_messages', { sessionId: session.id })
-      const anchors = loadAnchors(session.id)
-      const chatMessages = sessionRowsToMessages(rows, anchors)
-
-      useChatStore.setState({
-        messages: chatMessages,
-        sessionId: session.id,
-        isStreaming: false,
-        pendingPrompt: null,
-      })
-
-      const sessionCwd = session.cwd || null
-      await invoke('acp_load_session', { sessionId: session.id, cwd: sessionCwd })
-
-      invoke('set_window_title', {
-        title: `Aurora Chat \u2014 ${session.title}`,
-      }).catch(() => {})
-
-      useSidebarStore.getState().close()
+      await restoreSessionIntoActiveWorkspace(session)
     } catch (e) {
       console.error('Failed to load session:', e)
     }

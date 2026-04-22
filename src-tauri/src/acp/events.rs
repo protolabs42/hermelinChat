@@ -65,10 +65,16 @@ pub enum AcpEvent {
     SessionInfo {
         session_id: String,
         model: Option<String>,
+        request_id: Option<u64>,
+        source_op: Option<String>,
     },
 
     /// Stream completed
-    StreamEnd { session_id: Option<String> },
+    StreamEnd {
+        session_id: Option<String>,
+        request_id: Option<u64>,
+        source_op: Option<String>,
+    },
 
     /// Connection status change
     ConnectionStatus { status: String, message: Option<String> },

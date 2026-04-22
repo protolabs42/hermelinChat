@@ -1,6 +1,12 @@
 use serde_json::Value;
 use crate::acp::events::{AcpEvent, ApprovalOption, ToolContent};
 
+fn parse_request_id(json: &Value) -> Option<u64> {
+    json.get("id").and_then(|id| {
+        id.as_u64().or_else(|| id.as_str().and_then(|raw| raw.parse::<u64>().ok()))
+    })
+}
+
 /// Parse a single NDJSON line from hermes acp stdout into an AcpEvent.
 ///
 /// Returns None for messages we don't handle (notifications, errors, etc.)
@@ -14,10 +20,13 @@ pub fn parse_acp_line(line: &str) -> Option<AcpEvent> {
 
     // JSON-RPC responses have "result" or "error" but no "method".
     if let Some(result) = json.get("result") {
+        let request_id = parse_request_id(&json);
         if let Some(sid) = result.get("sessionId").and_then(|s| s.as_str()) {
             return Some(AcpEvent::SessionInfo {
                 session_id: sid.to_string(),
                 model: None,
+                request_id,
+                source_op: None,
             });
         }
         let session_id = json
@@ -25,7 +34,11 @@ pub fn parse_acp_line(line: &str) -> Option<AcpEvent> {
             .and_then(|params| params.get("sessionId"))
             .and_then(|s| s.as_str())
             .map(|s| s.to_string());
-        return Some(AcpEvent::StreamEnd { session_id });
+        return Some(AcpEvent::StreamEnd {
+            session_id,
+            request_id,
+            source_op: None,
+        });
     }
     if let Some(err) = json.get("error") {
         let message = err.get("message").and_then(|m| m.as_str()).unwrap_or("Unknown error").to_string();
@@ -169,7 +182,12 @@ fn parse_session_update(params: &Value) -> Option<AcpEvent> {
         "session_info_update" => {
             let session_id = params.get("sessionId")?.as_str()?.to_string();
             let model = params.get("model").and_then(|m| m.as_str()).map(|s| s.to_string());
-            Some(AcpEvent::SessionInfo { session_id, model })
+            Some(AcpEvent::SessionInfo {
+                session_id,
+                model,
+                request_id: None,
+                source_op: None,
+            })
         }
 
         _ => None,
@@ -369,8 +387,10 @@ mod tests {
         let line = r#"{"jsonrpc":"2.0","id":2,"result":{"stopReason":"end_turn"}}"#;
         let event = parse_acp_line(line).unwrap();
         match event {
-            AcpEvent::StreamEnd { session_id } => {
+            AcpEvent::StreamEnd { session_id, request_id, source_op } => {
                 assert_eq!(session_id, None);
+                assert_eq!(request_id, Some(2));
+                assert_eq!(source_op, None);
             }
             other => panic!("expected StreamEnd, got {:?}", other),
         }

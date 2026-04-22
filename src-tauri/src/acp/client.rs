@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io::BufRead;
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -14,6 +15,54 @@ pub struct AcpClient {
     child: Arc<Mutex<Option<Child>>>,
     stdin_tx: Arc<Mutex<Option<std::process::ChildStdin>>>,
     next_id: AtomicU64,
+    pending_requests: Arc<Mutex<HashMap<u64, PendingRequest>>>,
+}
+
+#[derive(Debug, Clone)]
+struct PendingRequest {
+    source_op: &'static str,
+    session_id: Option<String>,
+}
+
+fn enrich_response_event(event: &mut AcpEvent, pending_requests: &Arc<Mutex<HashMap<u64, PendingRequest>>>) {
+    let request_id = match event {
+        AcpEvent::SessionInfo { request_id, .. } => *request_id,
+        AcpEvent::StreamEnd { request_id, .. } => *request_id,
+        _ => None,
+    };
+
+    let Some(request_id) = request_id else {
+        return;
+    };
+
+    let pending = pending_requests
+        .lock()
+        .ok()
+        .and_then(|mut guard| guard.remove(&request_id));
+
+    let Some(pending) = pending else {
+        return;
+    };
+
+    match event {
+        AcpEvent::SessionInfo {
+            source_op,
+            ..
+        } => {
+            *source_op = Some(pending.source_op.to_string());
+        }
+        AcpEvent::StreamEnd {
+            session_id,
+            source_op,
+            ..
+        } => {
+            if session_id.is_none() {
+                *session_id = pending.session_id;
+            }
+            *source_op = Some(pending.source_op.to_string());
+        }
+        _ => {}
+    }
 }
 
 impl AcpClient {
@@ -43,6 +92,8 @@ impl AcpClient {
         let stdin_arc = Arc::new(Mutex::new(stdin));
         let stdin_arc_thread = stdin_arc.clone();
         let health_thread = health.clone();
+        let pending_requests = Arc::new(Mutex::new(HashMap::<u64, PendingRequest>::new()));
+        let pending_requests_thread = pending_requests.clone();
 
         // Background thread: read NDJSON lines from stdout, parse, emit
         thread::spawn(move || {
@@ -63,7 +114,8 @@ impl AcpClient {
             for line in reader.lines() {
                 match line {
                     Ok(line) => {
-                        if let Some(event) = parse_acp_line(&line) {
+                        if let Some(mut event) = parse_acp_line(&line) {
+                            enrich_response_event(&mut event, &pending_requests_thread);
                             let _ = app_handle.emit("acp:event", &event);
                         }
                     }
@@ -101,6 +153,7 @@ impl AcpClient {
             child: child_arc,
             stdin_tx: stdin_arc,
             next_id: AtomicU64::new(1),
+            pending_requests,
         })
     }
 
@@ -143,6 +196,13 @@ impl AcpClient {
             }
         });
         self.send(&msg.to_string())?;
+        self.pending_requests
+            .lock()
+            .map_err(|e| e.to_string())?
+            .insert(id, PendingRequest {
+                source_op: "session/new",
+                session_id: None,
+            });
         Ok(id)
     }
 
@@ -161,6 +221,13 @@ impl AcpClient {
             }
         });
         self.send(&msg.to_string())?;
+        self.pending_requests
+            .lock()
+            .map_err(|e| e.to_string())?
+            .insert(id, PendingRequest {
+                source_op: "session/prompt",
+                session_id: Some(session_id.to_string()),
+            });
         Ok(id)
     }
 
@@ -183,6 +250,13 @@ impl AcpClient {
             }
         });
         self.send(&msg.to_string())?;
+        self.pending_requests
+            .lock()
+            .map_err(|e| e.to_string())?
+            .insert(id, PendingRequest {
+                source_op: "session/load",
+                session_id: Some(session_id.to_string()),
+            });
         Ok(id)
     }
 

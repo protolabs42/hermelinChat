@@ -7,8 +7,8 @@ export type AcpEvent =
   | { kind: 'TerminalOutput'; session_id?: string | null; tool_call_id: string; command: string; output: string }
   | { kind: 'ApprovalRequested'; session_id?: string | null; id: string; description: string; command: string; options: ApprovalOption[] }
   | { kind: 'UsageUpdate'; session_id?: string | null; used: number; size: number; cost_usd: number | null }
-  | { kind: 'SessionInfo'; session_id: string; model: string | null }
-  | { kind: 'StreamEnd'; session_id?: string | null }
+  | { kind: 'SessionInfo'; session_id: string; model: string | null; request_id?: number | null; source_op?: string | null }
+  | { kind: 'StreamEnd'; session_id?: string | null; request_id?: number | null; source_op?: string | null }
   | { kind: 'ConnectionStatus'; status: string; message: string | null }
 
 export interface ToolContent {

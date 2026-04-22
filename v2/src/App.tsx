@@ -12,7 +12,6 @@ import SessionSidebar from './components/SessionSidebar'
 import RightPaneStack from './components/RightPaneStack'
 import { AlignmentMascot } from './components/AlignmentMascot'
 import ErrorBoundary from './components/ErrorBoundary'
-import { useArtifactStore } from './stores/artifacts'
 import { useChatStore } from './stores/chat'
 import { useSidebarStore } from './stores/sidebar'
 import ProjectSwitcher from './components/ProjectSwitcher'
@@ -20,7 +19,7 @@ import ConnectionInterstitial from './components/ConnectionInterstitial'
 import { useWorkspaceStore } from './stores/workspaces'
 import { usePaneStore } from './stores/panes'
 import { buildConnectionInterstitialModel } from './app/connection-interstitial'
-import { resolveRightPaneLayout } from './app/right-pane-state'
+import { syncArtifactRailState } from './app/right-rail'
 
 export default function App() {
   useAcpEvents()
@@ -28,8 +27,6 @@ export default function App() {
 
   const connectionStatus = useChatStore((s) => s.connectionStatus)
   const sessionId = useChatStore((s) => s.sessionId)
-  const panelOpen = useArtifactStore((s) => s.panelOpen)
-  const pinnedSurfaceId = useArtifactStore((s) => s.pinnedSurfaceId)
   const rightPaneLayout = usePaneStore((s) => s.layout)
   const projectSwitcherOpen = useSidebarStore((s) => s.projectSwitcherOpen)
   const closeProjectSwitcher = useSidebarStore((s) => s.closeProjectSwitcher)
@@ -51,16 +48,14 @@ export default function App() {
     })
   }, [activeWorkspace, connectionStatus, sessionId, startupStartedAt, workspaceHydrated])
 
-  const effectiveRightPaneLayout = useMemo(() => resolveRightPaneLayout({
-    panelOpen,
-    pinnedSurfaceId,
-    storedLayout: rightPaneLayout,
-  }), [panelOpen, pinnedSurfaceId, rightPaneLayout])
-
   // Set initial window title
   useEffect(() => {
     invoke('set_window_title', { title: 'Aurora Chat' }).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    syncArtifactRailState(rightPaneLayout)
+  }, [rightPaneLayout])
 
   // Reset window title when session is cleared
   useEffect(() => {
@@ -71,11 +66,6 @@ export default function App() {
     })
     return unsub
   }, [])
-
-  useEffect(() => {
-    if (effectiveRightPaneLayout === rightPaneLayout) return
-    usePaneStore.getState().setLayout(effectiveRightPaneLayout)
-  }, [effectiveRightPaneLayout, rightPaneLayout])
 
   if (interstitialModel) {
     return (
@@ -115,9 +105,9 @@ export default function App() {
             </ErrorBoundary>
           </div>
 
-          {effectiveRightPaneLayout.mode !== 'hidden' && (
+          {rightPaneLayout.mode !== 'hidden' && (
             <ErrorBoundary label="RightPaneStack">
-              <RightPaneStack layoutOverride={effectiveRightPaneLayout} />
+              <RightPaneStack layoutOverride={rightPaneLayout} />
             </ErrorBoundary>
           )}
         </div>

@@ -12,8 +12,8 @@ import {
   DEFAULT_SIDEBAR_WIDTH,
   useSidebarStore,
 } from './sidebar'
-import { usePaneStore } from './panes'
 import { useSurfaceStore } from './surfaces'
+import { hydrateRightRail } from '../app/right-rail'
 
 function applyWorkspaceChrome(workspace: WorkspaceState | null) {
   if (!workspace) return
@@ -28,14 +28,13 @@ function applyWorkspaceChrome(workspace: WorkspaceState | null) {
     useSidebarStore.getState().close()
   }
   useArtifactStore.setState({
-    panelOpen: workspace.chrome.artifactPanelOpen,
     panelWidth: clampArtifactPanelWidth(
       workspace.chrome.artifactPanelWidth ?? DEFAULT_ARTIFACT_PANEL_WIDTH
     ),
     activeId: workspace.chrome.activeArtifactId,
     pinnedSurfaceId: workspace.chrome.pinnedSurfaceId,
   })
-  usePaneStore.getState().hydrateWorkspacePanes(workspace.workspaceId, workspace.chrome.rightRail)
+  hydrateRightRail(workspace.workspaceId, workspace.chrome.rightRail)
   useSurfaceStore.getState().hydrateWorkspaceRuntime(workspace)
   import('./chat').then(({ useChatStore }) => {
     useChatStore.getState().restoreSurfaceAnchors(workspace.continuity.localAnchorIds)
@@ -110,8 +109,17 @@ export const useWorkspaceStore = create<WorkspaceStore>((set, get) => ({
 
   setActiveWorkspace: async (workspaceId: string) => {
     await invoke('lane2_set_active_workspace', { workspaceId })
-    const target = get().workspaces.find((w) => w.workspaceId === workspaceId) ?? null
-    set({ activeWorkspace: target, hydrated: true })
+    let target = get().workspaces.find((w) => w.workspaceId === workspaceId) ?? null
+    if (!target) {
+      target = await invoke<WorkspaceState | null>('lane2_get_active_workspace')
+    }
+    set((state) => ({
+      activeWorkspace: target,
+      hydrated: true,
+      workspaces: target && !state.workspaces.some((w) => w.workspaceId === target?.workspaceId)
+        ? [...state.workspaces, target]
+        : state.workspaces,
+    }))
     applyWorkspaceChrome(target)
   },
 }))

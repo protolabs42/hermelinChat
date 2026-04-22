@@ -20,6 +20,7 @@ import {
   DEFAULT_SIDEBAR_WIDTH,
 } from '../stores/sidebar'
 import { normalizePaneLayout } from '../stores/panes'
+import { layoutUsesArtifactRail } from '../app/right-rail'
 
 export const DEFAULT_WORKSPACE_ID = 'default'
 
@@ -40,18 +41,19 @@ function buildChromeState(
   chrome: WorkspaceChromeState | undefined,
   base: WorkspaceState
 ): WorkspaceChromeState {
+  const rightRail = normalizePaneLayout(chrome?.rightRail ?? base.chrome.rightRail)
   return {
     sidebarOpen: chrome?.sidebarOpen ?? base.chrome.sidebarOpen,
     sidebarWidth: clampSidebarWidth(
       chrome?.sidebarWidth ?? base.chrome.sidebarWidth ?? DEFAULT_SIDEBAR_WIDTH
     ),
-    artifactPanelOpen: chrome?.artifactPanelOpen ?? base.chrome.artifactPanelOpen,
+    artifactPanelOpen: layoutUsesArtifactRail(rightRail),
     artifactPanelWidth: clampArtifactPanelWidth(
       chrome?.artifactPanelWidth ?? base.chrome.artifactPanelWidth ?? DEFAULT_ARTIFACT_PANEL_WIDTH
     ),
     activeArtifactId: chrome?.activeArtifactId ?? base.chrome.activeArtifactId,
     pinnedSurfaceId: chrome?.pinnedSurfaceId ?? base.chrome.pinnedSurfaceId,
-    rightRail: normalizePaneLayout(chrome?.rightRail ?? base.chrome.rightRail),
+    rightRail,
   }
 }
 

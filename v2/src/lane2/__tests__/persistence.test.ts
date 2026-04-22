@@ -103,6 +103,7 @@ test('buildWorkspaceSnapshot falls back to active artifact focus when no surface
       artifactPanelWidth: 420,
       activeArtifactId: 'artifact-9',
       pinnedSurfaceId: null,
+      rightRail: { mode: 'single', primaryPane: 'artifacts' },
     },
     now: 789,
   })
@@ -181,6 +182,11 @@ test('buildWorkspaceSnapshot derives resident stance and background holdings fro
       artifactPanelWidth: 420,
       activeArtifactId: 'artifact-2',
       pinnedSurfaceId: 'surface-b',
+      rightRail: {
+        mode: 'stacked',
+        primaryPane: 'surfaces',
+        secondaryPane: 'artifacts',
+      },
     },
     now: 1100,
   })
