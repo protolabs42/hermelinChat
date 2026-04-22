@@ -80,10 +80,12 @@ export default function App() {
   if (interstitialModel) {
     return (
       <ThemeProvider>
-        <ConnectionInterstitial
-          model={interstitialModel}
-          startupStartedAt={startupStartedAt}
-        />
+        <div data-testid="connection-interstitial">
+          <ConnectionInterstitial
+            model={interstitialModel}
+            startupStartedAt={startupStartedAt}
+          />
+        </div>
       </ThemeProvider>
     )
   }
@@ -91,7 +93,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <ErrorBoundary label="App root">
-        <div className="flex h-screen">
+        <div className="flex h-screen" data-testid="app-shell">
           {/* Session sidebar (left, collapsible) */}
           <ErrorBoundary label="Sidebar">
             <SessionSidebar />
