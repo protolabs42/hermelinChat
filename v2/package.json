@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "a2ui:validate": "tsx src/a2ui/validate-examples.ts",
-    "a2ui:test": "tsx src/a2ui/mcp-app/__tests__/csp.test.ts && tsx src/a2ui/mcp-app/__tests__/resolver.test.ts && tsx src/a2ui/__tests__/verdict-card.test.ts && tsx src/a2ui/__tests__/manual-launch.test.ts && tsx src/a2ui/__tests__/dev-mode.test.ts",
+    "a2ui:test": "tsx src/a2ui/mcp-app/__tests__/csp.test.ts && tsx src/a2ui/mcp-app/__tests__/resolver.test.ts && tsx src/a2ui/mcp-app/__tests__/server-theme-prefs.test.ts && tsx src/a2ui/__tests__/verdict-card.test.ts && tsx src/a2ui/__tests__/manual-launch.test.ts && tsx src/a2ui/__tests__/dev-mode.test.ts",
     "app:test": "tsx src/app/__tests__/connection-interstitial.test.ts && tsx src/app/__tests__/workspace-strip.test.ts && tsx src/app/__tests__/top-action-intents.test.ts && tsx src/app/__tests__/keyboard-shortcuts.test.ts && tsx src/app/__tests__/right-pane-state.test.ts && tsx src/app/__tests__/workspace-restore-state.test.ts && tsx src/components/__tests__/WorkspaceTabs.test.tsx && tsx src/components/__tests__/RightPaneStack.test.tsx",
     "utils:test": "tsx src/utils/__tests__/session-restore.test.ts",
     "chat:test": "tsx src/components/chat/__tests__/MarkdownView.test.tsx && tsx src/stores/__tests__/chat.test.ts",

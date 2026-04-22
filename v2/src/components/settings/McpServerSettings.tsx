@@ -170,6 +170,7 @@ interface ServerRowProps {
   server: HermesMcpServer
   onRemove: (name: string) => void
   onToggle: (name: string, enabled: boolean) => void
+  onThemeToggle: (name: string, sendTheme: boolean) => void
   onTest: (name: string) => void
   testResult: TestState | null
 }
@@ -183,6 +184,7 @@ function ServerRow({
   server,
   onRemove,
   onToggle,
+  onThemeToggle,
   onTest,
   testResult,
 }: ServerRowProps) {
@@ -291,6 +293,44 @@ function ServerRow({
           {server.envKeys.length > 0 && (
             <DetailLine label="env keys" value={server.envKeys.join(', ')} />
           )}
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              padding: '8px 0',
+              borderTop: '1px solid var(--color-border)',
+              borderBottom: '1px solid var(--color-border)',
+              marginTop: 4,
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: 'var(--color-text)',
+                  fontFamily: 'var(--font-sans, sans-serif)',
+                }}
+              >
+                send theme to this server
+              </span>
+              <span
+                style={{
+                  fontSize: 10,
+                  color: 'var(--color-muted)',
+                  fontFamily: 'var(--font-mono, monospace)',
+                }}
+              >
+                Off = omit MCP App style variables so the app uses its own fallback palette.
+              </span>
+            </div>
+            <ToggleSwitch
+              checked={server.sendTheme}
+              onChange={(value) => onThemeToggle(server.name, value)}
+            />
+          </div>
 
           {/* Test result */}
           {testResult && (
@@ -679,8 +719,16 @@ function ghostBtnStyle(color: string): React.CSSProperties {
 // ---------------------------------------------------------------------------
 
 export default function McpServerSettings() {
-  const { servers, loading, error, refresh, removeServer, toggleServer, testServer } =
-    useHermesMcpServers()
+  const {
+    servers,
+    loading,
+    error,
+    refresh,
+    removeServer,
+    toggleServer,
+    testServer,
+    setServerThemeEnabled,
+  } = useHermesMcpServers()
 
   const [testStates, setTestStates] = useState<Record<string, TestState>>({})
   const [showAdd, setShowAdd] = useState(false)
@@ -695,6 +743,10 @@ export default function McpServerSettings() {
 
   const handleRemove = (name: string) => {
     void removeServer(name)
+  }
+
+  const handleThemeToggle = (name: string, sendTheme: boolean) => {
+    setServerThemeEnabled(name, sendTheme)
   }
 
   const handleTest = async (name: string) => {
@@ -797,6 +849,7 @@ export default function McpServerSettings() {
           server={server}
           onRemove={handleRemove}
           onToggle={handleToggle}
+          onThemeToggle={handleThemeToggle}
           onTest={handleTest}
           testResult={testStates[server.name] ?? null}
         />

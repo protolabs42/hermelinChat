@@ -5,6 +5,7 @@
 
 import { create } from 'zustand'
 import { invoke } from '@tauri-apps/api/core'
+import { getMcpServerThemePreference, setMcpServerThemePreference } from '../a2ui/mcp-app/server-theme-prefs'
 
 export type TransportType = 'stdio' | 'http'
 
@@ -17,6 +18,7 @@ export interface HermesMcpServer {
   envKeys: string[]
   hasInlineSecrets: boolean
   enabled: boolean
+  sendTheme: boolean
   timeout?: number
   connectTimeout?: number
 }
@@ -58,6 +60,7 @@ interface HermesMcpServerStore {
   removeServer: (name: string) => Promise<string[]>
   toggleServer: (name: string, enabled: boolean) => Promise<void>
   testServer: (name: string) => Promise<TestResult>
+  setServerThemeEnabled: (name: string, sendTheme: boolean) => void
 }
 
 function buildTransportPayload(config: McpTransportConfig): Record<string, unknown> {
@@ -109,6 +112,7 @@ export const useHermesMcpServers = create<HermesMcpServerStore>((set, get) => ({
           envKeys: s.env_keys,
           hasInlineSecrets: s.has_inline_values,
           enabled: s.enabled,
+          sendTheme: getMcpServerThemePreference(s.name),
           timeout: s.timeout ?? undefined,
           connectTimeout: s.connect_timeout ?? undefined,
         }
@@ -165,5 +169,22 @@ export const useHermesMcpServers = create<HermesMcpServerStore>((set, get) => ({
 
   testServer: async (name) => {
     return await invoke<TestResult>('test_mcp_server', { name })
+  },
+
+  setServerThemeEnabled: (name, sendTheme) => {
+    setMcpServerThemePreference(name, sendTheme)
+    set((state) => {
+      const server = state.servers[name]
+      if (!server) return state
+      return {
+        servers: {
+          ...state.servers,
+          [name]: {
+            ...server,
+            sendTheme,
+          },
+        },
+      }
+    })
   },
 }))

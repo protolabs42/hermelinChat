@@ -122,6 +122,10 @@ export default function AppHost({
     if (!entry) return 'missing'
     return entry.enabled ? 'ready' : 'disabled'
   })
+  const shouldSendTheme = useHermesMcpServers((s) => {
+    if (server === BUNDLED_SERVER_NAME) return true
+    return s.servers[server]?.sendTheme ?? true
+  })
 
   // 1 + 2 + 3: resolve HTML and inject CSP
   useEffect(() => {
@@ -159,7 +163,10 @@ export default function AppHost({
     const iframe = iframeRef.current
     if (!iframe || !iframe.contentWindow) return
 
-    const hostContext = getThemeContext({ maxHeight: height })
+    const hostContext = getThemeContext({
+      maxHeight: height,
+      includeStyleVariables: shouldSendTheme,
+    })
 
     // Always use null-client pattern — all MCP calls proxy through Tauri.
     // Capabilities always include serverTools + serverResources so the bridge

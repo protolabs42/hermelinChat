@@ -133,12 +133,14 @@ function detectTheme(bg: string): 'light' | 'dark' {
 export function getThemeContext(opts?: {
   width?: number
   maxHeight?: number
+  includeStyleVariables?: boolean
 }): McpUiHostContext {
   // McpUiHostContext.styles.variables is typed as Record<McpUiStyleVariableKey, string | undefined>
   // but the outer object has an index signature that allows arbitrary extra keys.
   // We build a plain record first and hand it off via cast — the type system
   // gets one contract, the runtime gets both key sets.
   const variables: Record<string, string> = {}
+  const includeStyleVariables = opts?.includeStyleVariables ?? true
   let auroraBgForDetect = ''
 
   if (typeof window !== 'undefined' && typeof document !== 'undefined') {
@@ -146,11 +148,10 @@ export function getThemeContext(opts?: {
     for (const auroraName of AURORA_VAR_NAMES) {
       const value = computed.getPropertyValue(auroraName).trim()
       if (!value) continue
-      // Emit ONLY the canonical spec keys mapped from this Aurora var.
-      // The theme bridge's contract is spec-only — Aurora's internal
-      // variable names never leak to MCP Apps.
-      for (const specKey of SPEC_KEY_MAPPING[auroraName]) {
-        variables[specKey] = value
+      if (includeStyleVariables) {
+        for (const specKey of SPEC_KEY_MAPPING[auroraName]) {
+          variables[specKey] = value
+        }
       }
       if (auroraName === '--color-bg') {
         auroraBgForDetect = value
