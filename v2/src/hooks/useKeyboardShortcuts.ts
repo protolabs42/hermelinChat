@@ -2,12 +2,11 @@ import { useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useSettingsStore } from '../stores/settings'
 import { useSidebarStore } from '../stores/sidebar'
-import { useArtifactStore } from '../stores/artifacts'
-import { usePaneStore } from '../stores/panes'
 import { useChatStore } from '../stores/chat'
 import { useProjectStore, SCRATCHPAD_ID } from '../stores/projects'
 import { useFontSizeStore } from '../stores/font-size'
 import { isWorkspaceSwitcherShortcut } from '../app/keyboard-shortcuts'
+import { closeRightRail, toggleRightRailPane } from '../app/right-rail'
 import { startFreshSession } from '../app/session-start'
 
 export function useKeyboardShortcuts() {
@@ -46,8 +45,7 @@ export function useKeyboardShortcuts() {
       // Ctrl+Shift+A or Cmd+Shift+A -- toggle artifact panel
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'A') {
         e.preventDefault()
-        usePaneStore.getState().setLayout({ mode: 'hidden' })
-        useArtifactStore.getState().togglePanel()
+        toggleRightRailPane('artifacts')
       }
       // Ctrl+= or Ctrl++ -- increase font size
       if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
@@ -68,8 +66,7 @@ export function useKeyboardShortcuts() {
       if (e.key === 'Escape') {
         useSettingsStore.getState().close()
         useSidebarStore.getState().close()
-        useArtifactStore.getState().closePanel()
-        usePaneStore.getState().setLayout({ mode: 'hidden' })
+        closeRightRail()
       }
     }
     window.addEventListener('keydown', handler)

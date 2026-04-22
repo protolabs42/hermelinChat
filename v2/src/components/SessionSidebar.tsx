@@ -191,12 +191,7 @@ function GroupLabel({ label }: { label: string }) {
 // ── Session row ─────────────────────────────────────────────────────────────────
 
 function refreshSessions() {
-  const activeId = useProjectStore.getState().activeProjectId
-  if (activeId && activeId !== SCRATCHPAD_ID) {
-    useSidebarStore.getState().loadSessionsForProject(activeId)
-  } else {
-    useSidebarStore.getState().loadSessions()
-  }
+  void useSidebarStore.getState().refreshSessionsForActiveProject()
 }
 
 function SessionRow({ session, isActive }: { session: SessionSummary; isActive: boolean }) {
@@ -418,7 +413,6 @@ function actionBtnStyle(color: string): React.CSSProperties {
 // ── New session bar ─────────────────────────────────────────────────────────────
 
 function NewSessionBar() {
-  const activeProjectId = useProjectStore((s) => s.activeProjectId)
   const getActiveProject = useProjectStore((s) => s.getActiveProject)
 
   const handleNewSession = async () => {
@@ -429,18 +423,6 @@ function NewSessionBar() {
         projectPath: activeProject?.path || null,
         resetChat: true,
       })
-
-      // Assign the new session to the active project once we get the session ID
-      // (SessionInfo event in chat store will fire — assignment happens there or here)
-      if (activeProjectId) {
-        // Give the session a moment to initialize, then assign from the chat store
-        setTimeout(() => {
-          const sessionId = useChatStore.getState().sessionId
-          if (sessionId && activeProjectId) {
-            useProjectStore.getState().assignSession(sessionId, activeProjectId).catch(() => {})
-          }
-        }, 500)
-      }
 
       useSidebarStore.getState().close()
     } catch (e) {
@@ -491,12 +473,18 @@ export default function SessionSidebar() {
   const setWidth = useSidebarStore((s) => s.setWidth)
   const sessions = useSidebarStore((s) => s.sessions)
   const close = useSidebarStore((s) => s.close)
+  const activeProjectId = useProjectStore((s) => s.activeProjectId)
   const currentSessionId = useChatStore((s) => s.sessionId)
   const resizeCleanupRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     return () => { resizeCleanupRef.current?.() }
   }, [])
+
+  useEffect(() => {
+    if (!isOpen) return
+    refreshSessions()
+  }, [isOpen, activeProjectId, currentSessionId])
 
   const handleResizePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return

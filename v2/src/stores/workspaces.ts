@@ -34,7 +34,12 @@ function applyWorkspaceChrome(workspace: WorkspaceState | null) {
     activeId: workspace.chrome.activeArtifactId,
     pinnedSurfaceId: workspace.chrome.pinnedSurfaceId,
   })
-  hydrateRightRail(workspace.workspaceId, workspace.chrome.rightRail)
+  hydrateRightRail({
+    workspaceId: workspace.workspaceId,
+    layout: workspace.chrome.rightRail,
+    panelOpen: workspace.chrome.artifactPanelOpen,
+    pinnedSurfaceId: workspace.chrome.pinnedSurfaceId,
+  })
   useSurfaceStore.getState().hydrateWorkspaceRuntime(workspace)
   import('./chat').then(({ useChatStore }) => {
     useChatStore.getState().restoreSurfaceAnchors(workspace.continuity.localAnchorIds)

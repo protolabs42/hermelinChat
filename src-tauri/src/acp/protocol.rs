@@ -12,6 +12,25 @@ pub fn is_valid_jsonrpc_line(line: &str) -> bool {
     json.get("jsonrpc").and_then(|v| v.as_str()) == Some("2.0")
 }
 
+pub fn is_initialize_response(line: &str) -> bool {
+    let line = line.trim();
+    if line.is_empty() {
+        return false;
+    }
+    let Ok(json) = serde_json::from_str::<Value>(line) else {
+        return false;
+    };
+    if json.get("jsonrpc").and_then(|v| v.as_str()) != Some("2.0") {
+        return false;
+    }
+    if parse_request_id(&json) != Some(0) {
+        return false;
+    }
+    json.get("result")
+        .and_then(|result| result.get("protocolVersion").or_else(|| result.get("capabilities")).or_else(|| result.get("serverInfo")))
+        .is_some()
+}
+
 fn parse_request_id(json: &Value) -> Option<u64> {
     json.get("id").and_then(|id| {
         id.as_u64().or_else(|| id.as_str().and_then(|raw| raw.parse::<u64>().ok()))
@@ -40,16 +59,19 @@ pub fn parse_acp_line(line: &str) -> Option<AcpEvent> {
                 source_op: None,
             });
         }
-        let session_id = json
-            .get("params")
-            .and_then(|params| params.get("sessionId"))
-            .and_then(|s| s.as_str())
-            .map(|s| s.to_string());
-        return Some(AcpEvent::StreamEnd {
-            session_id,
-            request_id,
-            source_op: None,
-        });
+        if result.get("stopReason").is_some() {
+            let session_id = json
+                .get("params")
+                .and_then(|params| params.get("sessionId"))
+                .and_then(|s| s.as_str())
+                .map(|s| s.to_string());
+            return Some(AcpEvent::StreamEnd {
+                session_id,
+                request_id,
+                source_op: None,
+            });
+        }
+        return None;
     }
     if let Some(err) = json.get("error") {
         let message = err.get("message").and_then(|m| m.as_str()).unwrap_or("Unknown error").to_string();

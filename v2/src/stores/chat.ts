@@ -312,7 +312,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       case 'SessionInfo': {
         const pending = get().pendingPrompt
-        set({ sessionId: event.session_id, model: event.model ?? null, pendingPrompt: null })
+        const previousSessionId = get().sessionId
+        set({
+          sessionId: event.session_id,
+          model: event.model ?? null,
+          pendingPrompt: pending && (event.source_op == null || event.source_op === 'session/new')
+            ? pending
+            : null,
+        })
         // Update window title with session ID
         import('@tauri-apps/api/core').then(({ invoke: inv }) => {
           inv('set_window_title', { title: `Aurora Chat — ${event.session_id.slice(0, 12)}` })
@@ -321,17 +328,35 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         if (pending && (event.source_op == null || event.source_op === 'session/new')) {
           import('@tauri-apps/api/core').then(({ invoke }) => {
             invoke('acp_send_prompt', { sessionId: event.session_id, text: pending })
-              .catch((e: unknown) => console.error('Failed to send queued prompt:', e))
+              .then(() => {
+                get().addUserMessage(pending)
+                set({ pendingPrompt: null })
+              })
+              .catch((e: unknown) => {
+                console.error('Failed to send queued prompt:', e)
+                set((state) => ({
+                  pendingPrompt: null,
+                  isStreaming: false,
+                  messages: [...state.messages, {
+                    id: genId(),
+                    role: 'system' as const,
+                    content: `Queued prompt failed to send: ${e instanceof Error ? e.message : String(e)}`,
+                    timestamp: Date.now(),
+                  }],
+                }))
+              })
           })
         }
 
-        import('../stores/projects').then(({ useProjectStore }) => {
-          const ps = useProjectStore.getState()
-          if (ps.activeProjectId) {
-            ps.assignSession(event.session_id, ps.activeProjectId)
-              .catch((e: unknown) => console.error('[chat] assignSession failed:', e))
-          }
-        })
+        if (event.session_id !== previousSessionId) {
+          import('../stores/projects').then(({ useProjectStore }) => {
+            const ps = useProjectStore.getState()
+            if (ps.activeProjectId) {
+              ps.assignSession(event.session_id, ps.activeProjectId)
+                .catch((e: unknown) => console.error('[chat] assignSession failed:', e))
+            }
+          })
+        }
         break
       }
 

@@ -32,7 +32,6 @@ export default function MessageInput() {
     const text = input.trim()
     if (!text) return
     setInput('')
-    addUserMessage(text)
     try {
       if (!sessionId) {
         useChatStore.getState().setPendingPrompt(text)
@@ -40,9 +39,20 @@ export default function MessageInput() {
         await startFreshSession({ projectPath: activeProject?.path || null })
       } else {
         await invoke('acp_send_prompt', { sessionId, text })
+        addUserMessage(text)
       }
     } catch (e) {
       console.error('Failed to send prompt:', e)
+      useChatStore.setState((state) => ({
+        pendingPrompt: null,
+        isStreaming: false,
+        messages: [...state.messages, {
+          id: `system-${Date.now()}`,
+          role: 'system',
+          content: `Prompt failed to send: ${e instanceof Error ? e.message : String(e)}`,
+          timestamp: Date.now(),
+        }],
+      }))
     }
   }
 

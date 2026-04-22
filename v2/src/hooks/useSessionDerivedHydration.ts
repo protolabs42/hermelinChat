@@ -4,20 +4,17 @@ import { listen } from '@tauri-apps/api/event'
 import { useArtifactStore, type Artifact } from '../stores/artifacts'
 import { useChatStore } from '../stores/chat'
 import { useProjectStore } from '../stores/projects'
-import { useSurfaceStore, type A2UIEvent } from '../stores/surfaces'
+import { useSurfaceStore, type A2UIEvent, extractCreatedSurfaceIds, scopeA2UIEventToSession } from '../stores/surfaces'
 
 export function useSessionDerivedHydration() {
   useEffect(() => {
     const unlistenA2ui = listen<A2UIEvent>('a2ui:event', (event) => {
-      const payload = event.payload
+      const activeSessionId = useChatStore.getState().sessionId
+      const payload = scopeA2UIEventToSession(event.payload, activeSessionId)
+      if (!payload) return
       useSurfaceStore.getState().handleEvent(payload)
-      if (payload.kind === 'Batch') {
-        for (const msg of payload.batch.messages) {
-          if (msg && typeof msg === 'object' && 'createSurface' in msg) {
-            const cs = (msg as { createSurface: { surfaceId: string } }).createSurface
-            useChatStore.getState().addSurfaceAnchor(cs.surfaceId)
-          }
-        }
+      for (const surfaceId of extractCreatedSurfaceIds(payload)) {
+        useChatStore.getState().addSurfaceAnchor(surfaceId)
       }
     })
 

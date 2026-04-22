@@ -8,47 +8,76 @@ import { useSidebarStore } from '../stores/sidebar'
 import { useSurfaceStore } from '../stores/surfaces'
 import { useWorkspaceStore } from '../stores/workspaces'
 
+let workspaceMutationDepth = 0
+let pendingPersistFlush: (() => void) | null = null
+
+export function beginWorkspaceMutation() {
+  workspaceMutationDepth += 1
+}
+
+export function endWorkspaceMutation() {
+  workspaceMutationDepth = Math.max(0, workspaceMutationDepth - 1)
+  if (workspaceMutationDepth === 0 && pendingPersistFlush) {
+    const flush = pendingPersistFlush
+    pendingPersistFlush = null
+    flush()
+  }
+}
+
+export function workspaceMutationInFlight() {
+  return workspaceMutationDepth > 0
+}
+
 export function useWorkspacePersistence() {
   useEffect(() => {
     let persistTimer: ReturnType<typeof setTimeout> | null = null
 
+    const persistWorkspaceSnapshot = () => {
+      const projectId = useProjectStore.getState().activeProjectId
+      if (projectId === null) return
+      const sessionId = useChatStore.getState().sessionId
+      const orderedSurfaceIds = useSurfaceStore.getState().orderedIds
+      const liveSurfaces = useSurfaceStore.getState().surfaces
+      const anchorSurfaceIds = useChatStore.getState().messages
+        .filter((message) => message.role === 'surface' && typeof message.surfaceId === 'string')
+        .map((message) => message.surfaceId as string)
+      const isStreaming = useChatStore.getState().isStreaming
+      const existing = useWorkspaceStore.getState().activeWorkspace
+      const artifactState = useArtifactStore.getState()
+      const sidebarState = useSidebarStore.getState()
+      const paneState = usePaneStore.getState()
+      const snapshot = buildWorkspaceSnapshot({
+        chrome: {
+          sidebarOpen: sidebarState.isOpen,
+          sidebarWidth: sidebarState.width,
+          artifactPanelOpen: artifactState.panelOpen,
+          artifactPanelWidth: artifactState.panelWidth,
+          activeArtifactId: artifactState.activeId,
+          pinnedSurfaceId: artifactState.pinnedSurfaceId,
+          rightRail: paneState.snapshotWorkspacePanes(),
+        },
+        existing,
+        liveSurfaces,
+        anchorSurfaceIds,
+        isStreaming,
+        orderedSurfaceIds,
+        projectId,
+        sessionId,
+      })
+      useWorkspaceStore.getState().upsertWorkspace(snapshot, true).catch((e) => {
+        console.error('Failed to persist workspace snapshot:', e)
+      })
+    }
+
     const scheduleWorkspacePersist = () => {
+      if (workspaceMutationInFlight()) {
+        pendingPersistFlush = persistWorkspaceSnapshot
+        return
+      }
       if (persistTimer) clearTimeout(persistTimer)
       persistTimer = setTimeout(() => {
-        const projectId = useProjectStore.getState().activeProjectId
-        if (projectId === null) return
-        const sessionId = useChatStore.getState().sessionId
-        const orderedSurfaceIds = useSurfaceStore.getState().orderedIds
-        const liveSurfaces = useSurfaceStore.getState().surfaces
-        const anchorSurfaceIds = useChatStore.getState().messages
-          .filter((message) => message.role === 'surface' && typeof message.surfaceId === 'string')
-          .map((message) => message.surfaceId as string)
-        const isStreaming = useChatStore.getState().isStreaming
-        const existing = useWorkspaceStore.getState().activeWorkspace
-        const artifactState = useArtifactStore.getState()
-        const sidebarState = useSidebarStore.getState()
-        const paneState = usePaneStore.getState()
-        const snapshot = buildWorkspaceSnapshot({
-          chrome: {
-            sidebarOpen: sidebarState.isOpen,
-            sidebarWidth: sidebarState.width,
-            artifactPanelOpen: artifactState.panelOpen,
-            artifactPanelWidth: artifactState.panelWidth,
-            activeArtifactId: artifactState.activeId,
-            pinnedSurfaceId: artifactState.pinnedSurfaceId,
-            rightRail: paneState.snapshotWorkspacePanes(),
-          },
-          existing,
-          liveSurfaces,
-          anchorSurfaceIds,
-          isStreaming,
-          orderedSurfaceIds,
-          projectId,
-          sessionId,
-        })
-        useWorkspaceStore.getState().upsertWorkspace(snapshot, true).catch((e) => {
-          console.error('Failed to persist workspace snapshot:', e)
-        })
+        pendingPersistFlush = null
+        persistWorkspaceSnapshot()
       }, 100)
     }
 

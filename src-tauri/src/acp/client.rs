@@ -8,7 +8,7 @@ use std::thread;
 use tauri::{AppHandle, Emitter};
 
 use crate::acp::events::AcpEvent;
-use crate::acp::protocol::{is_valid_jsonrpc_line, parse_acp_line};
+use crate::acp::protocol::{is_initialize_response, parse_acp_line};
 use crate::commands::AcpHealth;
 
 pub struct AcpClient {
@@ -140,7 +140,7 @@ impl AcpClient {
             for line in reader.lines() {
                 match line {
                     Ok(line) => {
-                        if !protocol_ready && is_valid_jsonrpc_line(&line) {
+                        if !protocol_ready && is_initialize_response(&line) {
                             protocol_ready = true;
                             update_health(&health_thread, "ready", None);
                             let _ = app_handle.emit(
@@ -232,7 +232,6 @@ impl AcpClient {
                 "mcpServers": []
             }
         });
-        self.send(&msg.to_string())?;
         self.pending_requests
             .lock()
             .map_err(|e| e.to_string())?
@@ -240,6 +239,12 @@ impl AcpClient {
                 source_op: "session/new",
                 session_id: None,
             });
+        if let Err(error) = self.send(&msg.to_string()) {
+            if let Ok(mut pending) = self.pending_requests.lock() {
+                pending.remove(&id);
+            }
+            return Err(error);
+        }
         Ok(id)
     }
 
@@ -257,7 +262,6 @@ impl AcpClient {
                 ]
             }
         });
-        self.send(&msg.to_string())?;
         self.pending_requests
             .lock()
             .map_err(|e| e.to_string())?
@@ -265,6 +269,12 @@ impl AcpClient {
                 source_op: "session/prompt",
                 session_id: Some(session_id.to_string()),
             });
+        if let Err(error) = self.send(&msg.to_string()) {
+            if let Ok(mut pending) = self.pending_requests.lock() {
+                pending.remove(&id);
+            }
+            return Err(error);
+        }
         Ok(id)
     }
 
@@ -286,7 +296,6 @@ impl AcpClient {
                 "mcpServers": []
             }
         });
-        self.send(&msg.to_string())?;
         self.pending_requests
             .lock()
             .map_err(|e| e.to_string())?
@@ -294,6 +303,12 @@ impl AcpClient {
                 source_op: "session/load",
                 session_id: Some(session_id.to_string()),
             });
+        if let Err(error) = self.send(&msg.to_string()) {
+            if let Ok(mut pending) = self.pending_requests.lock() {
+                pending.remove(&id);
+            }
+            return Err(error);
+        }
         Ok(id)
     }
 

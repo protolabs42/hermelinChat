@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { extractProjectIdFromWorkspace } from '../lane2/persistence'
 import { activateWorkspace } from '../app/workspace-lifecycle'
 import { useChatStore } from '../stores/chat'
 import { useProjectStore } from '../stores/projects'
@@ -20,9 +19,8 @@ export function useProjectBootstrap() {
         await useProjectStore.getState().refresh()
 
         const restoredWorkspace = await useWorkspaceStore.getState().loadActiveWorkspace()
-        const restoredProjectId = extractProjectIdFromWorkspace(restoredWorkspace)
 
-        if (restoredWorkspace && restoredProjectId) {
+        if (restoredWorkspace) {
           await activateWorkspace(restoredWorkspace)
           return
         }

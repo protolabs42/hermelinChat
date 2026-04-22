@@ -44,6 +44,42 @@ export type A2UIEvent =
   | { kind: 'List'; batches: A2UIBatch[] }
   | { kind: 'Remove'; surfaceId: string }
 
+export function scopeA2UIEventToSession(
+  event: A2UIEvent,
+  activeSessionId: string | null
+): A2UIEvent | null {
+  if (!activeSessionId) {
+    return event.kind === 'Remove' ? event : null
+  }
+
+  switch (event.kind) {
+    case 'Batch':
+      return event.batch.sessionId === activeSessionId ? event : null
+    case 'List': {
+      const batches = event.batches.filter((batch) => batch.sessionId === activeSessionId)
+      return batches.length > 0 ? { kind: 'List', batches } : null
+    }
+    case 'Remove':
+      return event
+    default:
+      return null
+  }
+}
+
+export function extractCreatedSurfaceIds(event: A2UIEvent): string[] {
+  const batches = event.kind === 'Batch'
+    ? [event.batch]
+    : event.kind === 'List'
+      ? event.batches
+      : []
+
+  return batches.flatMap((batch) => batch.messages)
+    .filter((msg): msg is Extract<A2UIServerMessage, { createSurface: { surfaceId: string } }> => (
+      !!msg && typeof msg === 'object' && 'createSurface' in msg
+    ))
+    .map((msg) => msg.createSurface.surfaceId)
+}
+
 export function snapshotSurfaceRuntime(surface: SurfaceState): SurfaceRuntimeState {
   return {
     revision: surface.revision ?? 0,

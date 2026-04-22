@@ -83,6 +83,49 @@ pub fn extract_env_ref(value: &str) -> Option<String> {
     None
 }
 
+fn is_sensitive_header_name(name: &str) -> bool {
+    matches!(
+        name.to_ascii_lowercase().as_str(),
+        "authorization" | "proxy-authorization" | "x-api-key" | "api-key" | "x-auth-token"
+    )
+}
+
+fn redact_header_value(name: &str, value: &str) -> String {
+    if extract_env_ref(value).is_some() {
+        value.to_string()
+    } else if is_sensitive_header_name(name) {
+        "[REDACTED_INLINE_SECRET]".to_string()
+    } else {
+        value.to_string()
+    }
+}
+
+pub fn env_file_map() -> Result<HashMap<String, String>, String> {
+    let path = env_path();
+    if !path.exists() {
+        return Ok(HashMap::new());
+    }
+    let content = std::fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read .env: {e}"))?;
+    Ok(content
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            if trimmed.is_empty() || trimmed.starts_with('#') {
+                return None;
+            }
+            let (key, value) = trimmed.split_once('=')?;
+            Some((key.trim().to_string(), value.to_string()))
+        })
+        .collect())
+}
+
+pub fn resolve_env_reference(value: &str, env_map: &HashMap<String, String>) -> String {
+    extract_env_ref(value)
+        .and_then(|key| env_map.get(&key).cloned().or_else(|| std::env::var(&key).ok()))
+        .unwrap_or_else(|| value.to_string())
+}
+
 // ── Data Model ────────────────────────────────────────────────────────
 
 /// Transport discriminated by presence of `url` (HTTP) or `command` (stdio).
@@ -143,16 +186,25 @@ impl McpServerInfo {
     pub fn from_entry(name: String, entry: &McpServerEntry) -> Self {
         let (transport_type, url, command, args, headers) = match &entry.transport {
             McpTransport::Http { url, headers } => (
-                "http".into(), Some(url.clone()), None, None,
-                if headers.is_empty() { None } else { Some(headers.clone()) },
+                "http".into(),
+                Some(url.clone()),
+                None,
+                None,
+                if headers.is_empty() {
+                    None
+                } else {
+                    Some(headers
+                        .iter()
+                        .map(|(key, value)| (key.clone(), redact_header_value(key, value)))
+                        .collect())
+                },
             ),
             McpTransport::Stdio { command, args } => {
                 ("stdio".into(), None, Some(command.clone()), Some(args.clone()), None)
             }
         };
-        // Detect inline values (NOT ${VAR} refs)
-        let has_inline_values = entry.env.values().any(|v| !v.starts_with("${"));
-        // Collect all env var refs from both env: and headers:
+        let has_inline_values = entry.env.values().any(|v| !v.starts_with("${"))
+            || matches!(&entry.transport, McpTransport::Http { headers, .. } if headers.iter().any(|(key, value)| extract_env_ref(value).is_none() && is_sensitive_header_name(key)));
         let mut env_keys: Vec<String> = entry.env.keys().cloned().collect();
         if let McpTransport::Http { headers, .. } = &entry.transport {
             for v in headers.values() {
@@ -344,6 +396,9 @@ fn parse_env_keys(content: &str) -> Vec<String> {
 /// Save a secret to .env (upsert). Write-only — value never returned.
 pub fn save_env_var(key: &str, value: &str) -> Result<(), String> {
     validate_env_key(key)?;
+    if value.contains('\n') || value.contains('\r') {
+        return Err("Env var values cannot contain newlines".to_string());
+    }
     let path = env_path();
     let mut lines: Vec<String> = if path.exists() {
         std::fs::read_to_string(&path)

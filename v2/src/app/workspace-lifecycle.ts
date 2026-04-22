@@ -10,6 +10,7 @@ import { useSidebarStore, type SessionSummary } from '../stores/sidebar'
 import { useWorkspaceStore } from '../stores/workspaces'
 import { focusRightRailTarget } from './right-rail'
 import { startFreshSession } from './session-start'
+import { beginWorkspaceMutation, endWorkspaceMutation } from '../hooks/useWorkspacePersistence'
 
 function systemFailureMessage(message: string) {
   useChatStore.setState((state) => ({
@@ -61,52 +62,62 @@ export function createWorkspaceActivationDeps() {
 }
 
 export async function activateWorkspace(workspace: WorkspaceState) {
-  await activateWorkspaceSnapshot(workspace, createWorkspaceActivationDeps())
+  beginWorkspaceMutation()
+  try {
+    await activateWorkspaceSnapshot(workspace, createWorkspaceActivationDeps())
+  } finally {
+    endWorkspaceMutation()
+  }
 }
 
 export async function restoreSessionIntoActiveWorkspace(session: Pick<SessionSummary, 'id' | 'title' | 'cwd'>) {
-  const rows = await invoke<SessionRow[]>('get_session_messages', { sessionId: session.id })
-  const anchors = loadAnchors(session.id)
-  const chatMessages = sessionRowsToMessages(rows, anchors)
+  beginWorkspaceMutation()
+  try {
+    const rows = await invoke<SessionRow[]>('get_session_messages', { sessionId: session.id })
+    const anchors = loadAnchors(session.id)
+    const chatMessages = sessionRowsToMessages(rows, anchors)
 
-  useChatStore.setState({
-    messages: chatMessages,
-    sessionId: session.id,
-    isStreaming: false,
-    pendingPrompt: null,
-    connectionStatus: 'connecting',
-  })
+    useChatStore.setState({
+      messages: chatMessages,
+      sessionId: session.id,
+      isStreaming: false,
+      pendingPrompt: null,
+      connectionStatus: 'connecting',
+    })
 
-  await invoke('acp_load_session', { sessionId: session.id, cwd: session.cwd || null })
+    await invoke('acp_load_session', { sessionId: session.id, cwd: session.cwd || null })
 
-  const activeWorkspace = useWorkspaceStore.getState().activeWorkspace
-  if (activeWorkspace) {
-    const now = Date.now()
-    await useWorkspaceStore.getState().upsertWorkspace({
-      ...activeWorkspace,
-      resident: {
-        ...activeWorkspace.resident,
-        sessionId: session.id,
-        activeThreadId: session.id,
+    const activeWorkspace = useWorkspaceStore.getState().activeWorkspace
+    if (activeWorkspace) {
+      const now = Date.now()
+      await useWorkspaceStore.getState().upsertWorkspace({
+        ...activeWorkspace,
+        resident: {
+          ...activeWorkspace.resident,
+          sessionId: session.id,
+          activeThreadId: session.id,
+          updatedAt: now,
+        },
+        attention: {
+          ...activeWorkspace.attention,
+          primaryFocus: { kind: 'thread', id: session.id },
+          updatedAt: now,
+        },
+        continuity: {
+          ...activeWorkspace.continuity,
+          activeThreadId: session.id,
+        },
         updatedAt: now,
-      },
-      attention: {
-        ...activeWorkspace.attention,
-        primaryFocus: { kind: 'thread', id: session.id },
-        updatedAt: now,
-      },
-      continuity: {
-        ...activeWorkspace.continuity,
-        activeThreadId: session.id,
-      },
-      updatedAt: now,
-    }, true)
+      }, true)
+    }
+
+    invoke('set_window_title', {
+      title: `Aurora Chat — ${session.title}`,
+    }).catch(() => {})
+
+    useArtifactStore.getState().replaceArtifacts([])
+    useSidebarStore.getState().close()
+  } finally {
+    endWorkspaceMutation()
   }
-
-  invoke('set_window_title', {
-    title: `Aurora Chat — ${session.title}`,
-  }).catch(() => {})
-
-  useArtifactStore.getState().replaceArtifacts([])
-  useSidebarStore.getState().close()
 }

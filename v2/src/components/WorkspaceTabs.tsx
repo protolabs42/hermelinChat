@@ -127,6 +127,7 @@ export default function WorkspaceTabs({
       )}
 
       <button
+        data-testid="workspace-switcher-trigger"
         aria-label="Create or switch workspace"
         onClick={onCreateWorkspace}
         style={{

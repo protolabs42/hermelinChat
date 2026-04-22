@@ -1,6 +1,7 @@
 import type { FocusTarget, WorkspacePaneId, WorkspacePaneLayout } from '../lane2/schema'
 import { closePaneInLayout, normalizePaneLayout, openPaneInLayout, usePaneStore } from '../stores/panes'
 import { useArtifactStore } from '../stores/artifacts'
+import { resolveRightPaneLayout } from './right-pane-state'
 
 export function layoutIncludesPane(layout: WorkspacePaneLayout, paneId: WorkspacePaneId): boolean {
   const normalized = normalizePaneLayout(layout)
@@ -23,10 +24,24 @@ export function setRightRailLayout(layout: WorkspacePaneLayout) {
   syncArtifactRailState(normalized)
 }
 
-export function hydrateRightRail(workspaceId: string, layout: WorkspacePaneLayout | null | undefined) {
-  const normalized = normalizePaneLayout(layout)
-  usePaneStore.getState().hydrateWorkspacePanes(workspaceId, normalized)
+export function hydrateRightRail(args: {
+  workspaceId: string
+  layout: WorkspacePaneLayout | null | undefined
+  panelOpen?: boolean
+  pinnedSurfaceId?: string | null
+}) {
+  const resolved = resolveRightPaneLayout({
+    storedLayout: normalizePaneLayout(args.layout),
+    panelOpen: args.panelOpen ?? false,
+    pinnedSurfaceId: args.pinnedSurfaceId ?? null,
+  })
+  const normalized = normalizePaneLayout(resolved)
+  usePaneStore.getState().hydrateWorkspacePanes(args.workspaceId, normalized)
   syncArtifactRailState(normalized)
+}
+
+export function closeRightRail() {
+  setRightRailLayout({ mode: 'hidden' })
 }
 
 export function toggleRightRailPane(paneId: WorkspacePaneId) {

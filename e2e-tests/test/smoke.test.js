@@ -31,12 +31,6 @@ function resolveNativeDriverPath() {
   return result.status === 0 ? result.stdout.trim() : null
 }
 
-function copyIfExists(source, destination) {
-  if (!source || !fs.existsSync(source)) return
-  fs.mkdirSync(path.dirname(destination), { recursive: true })
-  fs.copyFileSync(source, destination)
-}
-
 function buildIsolatedRuntime(binaryPath) {
   const runtimeRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'aurora-chat-e2e-'))
   const homeDir = path.join(runtimeRoot, 'home')
@@ -50,24 +44,30 @@ function buildIsolatedRuntime(binaryPath) {
     fs.mkdirSync(dir, { recursive: true })
   }
 
-  fs.mkdirSync(path.join(homeDir, '.hermes'), { recursive: true })
-  copyIfExists(path.join(os.homedir(), '.hermes', '.env'), path.join(homeDir, '.hermes', '.env'))
-  copyIfExists(path.join(os.homedir(), '.claude.json'), path.join(homeDir, '.claude.json'))
+  const hermesHome = path.join(homeDir, '.hermes')
+  fs.mkdirSync(hermesHome, { recursive: true })
+
+  const fakeHermesSource = path.join(repoRoot, 'e2e-tests', 'fixtures', 'fake-hermes-acp.mjs')
+  const fakeHermesPath = path.join(runtimeRoot, 'fake-hermes-acp.mjs')
+  fs.copyFileSync(fakeHermesSource, fakeHermesPath)
+  fs.chmodSync(fakeHermesPath, 0o755)
 
   const wrapperPath = path.join(runtimeRoot, 'launch-app.sh')
   fs.writeFileSync(wrapperPath, `#!/usr/bin/env bash
 set -euo pipefail
 export HOME=${JSON.stringify(homeDir)}
+export HERMES_HOME=${JSON.stringify(hermesHome)}
 export XDG_CONFIG_HOME=${JSON.stringify(xdgConfigHome)}
 export XDG_DATA_HOME=${JSON.stringify(xdgDataHome)}
 export XDG_STATE_HOME=${JSON.stringify(xdgStateHome)}
 export XDG_CACHE_HOME=${JSON.stringify(xdgCacheHome)}
 export XDG_RUNTIME_DIR=${JSON.stringify(xdgRuntimeDir)}
+export HERMES_BIN=${JSON.stringify(fakeHermesPath)}
 exec ${JSON.stringify(binaryPath)} "$@"
 `)
   fs.chmodSync(wrapperPath, 0o755)
 
-  return { runtimeRoot, wrapperPath }
+  return { runtimeRoot, wrapperPath, fakeHermesPath }
 }
 
 async function elementExists(driver, css) {
@@ -91,9 +91,13 @@ async function waitForStartupUi(driver) {
 async function waitForShell(driver) {
   await waitForStartupUi(driver)
   if (await elementExists(driver, '[data-testid="connection-interstitial"]')) {
-    const interstitial = await driver.findElement(By.css('[data-testid="connection-interstitial"]'))
-    const text = await interstitial.getText()
-    expect(text).to.match(/Connecting to Hermes|Restoring workspace|Loading remembered thread|Starting a fresh session/i)
+    try {
+      const interstitial = await driver.findElement(By.css('[data-testid="connection-interstitial"]'))
+      const text = await interstitial.getText()
+      expect(text).to.match(/Connecting to Hermes|Restoring workspace|Loading remembered thread|Starting a fresh session/i)
+    } catch (error) {
+      if (!String(error).includes('StaleElementReferenceError')) throw error
+    }
   }
   await driver.wait(until.elementLocated(By.css('[data-testid="app-shell"]')), 90000)
   const shell = await driver.findElement(By.css('[data-testid="app-shell"]'))
@@ -101,7 +105,8 @@ async function waitForShell(driver) {
 }
 
 async function openWorkspaceSwitcher(driver) {
-  await driver.executeScript('window.dispatchEvent(new CustomEvent("aurora:open-workspace-switcher"))')
+  await driver.wait(until.elementLocated(By.css('[data-testid="app-shell"]')), 10000)
+  await clickCss(driver, '[data-testid="workspace-switcher-trigger"]')
   await driver.wait(until.elementLocated(By.css('[data-testid="workspace-switcher"]')), 10000)
 }
 
@@ -214,12 +219,21 @@ describe('Aurora Chat desktop shell', function () {
     expect(await tasksPane.getText()).to.match(/Tasks/)
   })
 
-  it('creates a blank workspace and can explicitly recover when switching back to the default workspace', async function () {
+  it('creates a blank workspace through an honest fresh-session startup', async function () {
     await waitForShell(driver)
     await openWorkspaceSwitcher(driver)
     await clickCss(driver, '[data-testid="workspace-create-blank"]')
     await submitPrompt(driver, 'e2e-blank')
     await driver.wait(async () => !(await elementExists(driver, '[data-testid="workspace-switcher"]')), 15000)
+
+    await waitForStartupUi(driver)
+    if (await elementExists(driver, '[data-testid="connection-interstitial"]')) {
+      const interstitial = await driver.findElement(By.css('[data-testid="connection-interstitial"]'))
+      const text = await interstitial.getText()
+      expect(text).to.match(/Starting a fresh session|Restoring workspace/i)
+      expect(text).to.not.match(/Loading remembered thread/i)
+    }
+    await waitForShell(driver)
 
     await openWorkspaceSwitcher(driver)
     await driver.wait(until.elementLocated(By.css('[data-testid="workspace-row-e2e-blank"]')), 10000)
@@ -227,17 +241,15 @@ describe('Aurora Chat desktop shell', function () {
     await driver.wait(async () => !(await elementExists(driver, '[data-testid="workspace-switcher"]')), 15000)
 
     await waitForStartupUi(driver)
-    if (!(await elementExists(driver, '[data-testid="app-shell"]'))) {
-      await driver.wait(async () => {
-        return (await elementExists(driver, '[data-testid="app-shell"]')) ||
-          (await elementExists(driver, '[data-testid="start-fresh"]'))
-      }, 30000, 'expected either the shell or explicit fresh-session recovery after workspace switch')
-
-      if (await elementExists(driver, '[data-testid="start-fresh"]')) {
-        await clickCss(driver, '[data-testid="start-fresh"]')
-      }
+    if (await elementExists(driver, '[data-testid="connection-interstitial"]')) {
+      const interstitial = await driver.findElement(By.css('[data-testid="connection-interstitial"]'))
+      const text = await interstitial.getText()
+      expect(text).to.match(/Loading remembered thread|Restoring workspace/i)
+      expect(text).to.not.match(/Starting a fresh session/i)
+      expect(await elementExists(driver, '[data-testid="start-fresh"]')).to.equal(false)
     }
 
     await waitForShell(driver)
+    expect(await elementExists(driver, '[data-testid="start-fresh"]')).to.equal(false)
   })
 })

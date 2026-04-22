@@ -13,11 +13,16 @@ use rmcp::{
     model::{CallToolRequestParams, PaginatedRequestParams, ReadResourceRequestParams, ResourceContents},
     serve_client,
     service::RunningService,
-    transport::StreamableHttpClientTransport,
+    transport::{
+        StreamableHttpClientTransport,
+        streamable_http_client::StreamableHttpClientTransportConfig,
+    },
 };
 use tokio::sync::RwLock;
 
-use crate::hermes_config::{McpTransport, read_mcp_servers};
+use crate::hermes_config::{
+    self, McpTransport, env_file_map, extract_env_ref, read_mcp_servers, resolve_env_reference,
+};
 
 // ── Constants ─────────────────────────────────────────────────────────
 
@@ -120,8 +125,12 @@ async fn build_client(server_name: &str) -> Result<PoolEntry, String> {
         .get(server_name)
         .ok_or_else(|| format!("MCP server '{server_name}' not found in config"))?;
 
-    let url = match &entry.transport {
-        McpTransport::Http { url, .. } => url.clone(),
+    if !entry.enabled {
+        return Err(format!("MCP server '{server_name}' is disabled"));
+    }
+
+    let (url, headers) = match &entry.transport {
+        McpTransport::Http { url, headers } => (url.clone(), headers.clone()),
         McpTransport::Stdio { .. } => {
             return Err(format!(
                 "MCP App proxy requires HTTP transport, but server '{server_name}' is stdio"
@@ -129,7 +138,43 @@ async fn build_client(server_name: &str) -> Result<PoolEntry, String> {
         }
     };
 
-    let transport = StreamableHttpClientTransport::from_uri(url.as_str());
+    let env_map = env_file_map().map_err(|e| format!("Failed to resolve MCP env refs: {e}"))?;
+    let custom_headers = headers
+        .into_iter()
+        .map(|(key, value)| {
+            let header_name = http::HeaderName::from_bytes(key.as_bytes())
+                .map_err(|e| format!("Invalid MCP header name '{key}': {e}"))?;
+            let resolved = resolve_env_reference(&value, &env_map);
+            let header_value = http::HeaderValue::from_str(&resolved)
+                .map_err(|e| format!("Invalid MCP header value for '{key}': {e}"))?;
+            Ok((header_name, header_value))
+        })
+        .collect::<Result<std::collections::HashMap<http::HeaderName, http::HeaderValue>, String>>()?;
+
+    let mut config = StreamableHttpClientTransportConfig::with_uri(url.clone())
+        .custom_headers(custom_headers);
+
+    if let Some(auth_value) = config.custom_headers.get(&http::header::AUTHORIZATION).cloned() {
+        config.auth_header = Some(
+            auth_value
+                .to_str()
+                .map_err(|e| format!("Invalid authorization header for '{server_name}': {e}"))?
+                .to_string(),
+        );
+    }
+
+    let mut client_builder = reqwest::Client::builder();
+    if let Some(timeout_ms) = entry.timeout {
+        client_builder = client_builder.timeout(std::time::Duration::from_millis(timeout_ms));
+    }
+    if let Some(connect_timeout_ms) = entry.connect_timeout {
+        client_builder = client_builder.connect_timeout(std::time::Duration::from_millis(connect_timeout_ms));
+    }
+    let http_client = client_builder
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client for '{server_name}': {e}"))?;
+
+    let transport = StreamableHttpClientTransport::with_client(http_client, config);
 
     let client: McpClient = serve_client((), transport)
         .await
