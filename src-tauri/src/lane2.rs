@@ -2,8 +2,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 use tauri::AppHandle;
 use tauri::Manager as _;
+use tauri::State;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -69,6 +71,27 @@ pub enum InvocationStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum WorkspacePaneId {
+    Plan,
+    Tasks,
+    Surfaces,
+    Artifacts,
+    Context,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "mode", rename_all = "camelCase")]
+pub enum WorkspacePaneLayout {
+    Hidden,
+    Single { primary_pane: WorkspacePaneId },
+    Stacked {
+        primary_pane: WorkspacePaneId,
+        secondary_pane: WorkspacePaneId,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct InvocationContextRef {
     pub kind: String,
@@ -81,6 +104,8 @@ pub struct InvocationEnvelope {
     pub invocation_id: String,
     pub kind: InvocationKind,
     pub target: String,
+    pub summary: Option<String>,
+    pub recovery_action_label: Option<String>,
     pub initiated_by: String,
     pub workspace_id: String,
     pub session_id: Option<String>,
@@ -175,6 +200,7 @@ pub struct WorkspaceChromeState {
     pub artifact_panel_width: u64,
     pub active_artifact_id: Option<String>,
     pub pinned_surface_id: Option<String>,
+    pub right_rail: Option<WorkspacePaneLayout>,
 }
 
 impl Default for WorkspaceChromeState {
@@ -186,6 +212,7 @@ impl Default for WorkspaceChromeState {
             artifact_panel_width: 420,
             active_artifact_id: None,
             pinned_surface_id: None,
+            right_rail: Some(WorkspacePaneLayout::Hidden),
         }
     }
 }
@@ -246,6 +273,7 @@ pub fn create_empty_workspace_state(
             artifact_panel_width: 420,
             active_artifact_id: None,
             pinned_surface_id: None,
+            right_rail: Some(WorkspacePaneLayout::Hidden),
         },
         updated_at: now,
     }
@@ -257,6 +285,8 @@ pub struct WorkspaceStoreData {
     pub active_workspace_id: Option<String>,
     pub workspaces: HashMap<String, WorkspaceState>,
 }
+
+pub struct Lane2StoreLock(pub Mutex<()>);
 
 fn lane2_store_dir(app: &AppHandle) -> PathBuf {
     let dir = app
@@ -320,7 +350,11 @@ pub fn write_workspace_store(app: &AppHandle, data: &WorkspaceStoreData) -> Resu
 }
 
 #[tauri::command]
-pub fn lane2_get_active_workspace(app: AppHandle) -> Result<Option<WorkspaceState>, String> {
+pub fn lane2_get_active_workspace(
+    app: AppHandle,
+    lock: State<'_, Lane2StoreLock>,
+) -> Result<Option<WorkspaceState>, String> {
+    let _guard = lock.0.lock().map_err(|e| e.to_string())?;
     let data = read_workspace_store(&app);
     Ok(data
         .active_workspace_id
@@ -329,7 +363,11 @@ pub fn lane2_get_active_workspace(app: AppHandle) -> Result<Option<WorkspaceStat
 }
 
 #[tauri::command]
-pub fn lane2_list_workspaces(app: AppHandle) -> Result<Vec<WorkspaceState>, String> {
+pub fn lane2_list_workspaces(
+    app: AppHandle,
+    lock: State<'_, Lane2StoreLock>,
+) -> Result<Vec<WorkspaceState>, String> {
+    let _guard = lock.0.lock().map_err(|e| e.to_string())?;
     let data = read_workspace_store(&app);
     Ok(data.workspaces.into_values().collect())
 }
@@ -337,9 +375,11 @@ pub fn lane2_list_workspaces(app: AppHandle) -> Result<Vec<WorkspaceState>, Stri
 #[tauri::command]
 pub fn lane2_upsert_workspace(
     app: AppHandle,
+    lock: State<'_, Lane2StoreLock>,
     workspace: WorkspaceState,
     make_active: Option<bool>,
 ) -> Result<WorkspaceState, String> {
+    let _guard = lock.0.lock().map_err(|e| e.to_string())?;
     let mut data = read_workspace_store(&app);
     let workspace_id = workspace.workspace_id.clone();
     data.workspaces
@@ -352,7 +392,12 @@ pub fn lane2_upsert_workspace(
 }
 
 #[tauri::command]
-pub fn lane2_set_active_workspace(app: AppHandle, workspace_id: String) -> Result<(), String> {
+pub fn lane2_set_active_workspace(
+    app: AppHandle,
+    lock: State<'_, Lane2StoreLock>,
+    workspace_id: String,
+) -> Result<(), String> {
+    let _guard = lock.0.lock().map_err(|e| e.to_string())?;
     let mut data = read_workspace_store(&app);
     if !data.workspaces.contains_key(&workspace_id) {
         return Err(format!("Workspace '{workspace_id}' not found"));
@@ -387,6 +432,8 @@ mod tests {
             invocation_id: "inv-1".to_string(),
             kind: InvocationKind::Subagent,
             target: "delegate_task".to_string(),
+            summary: Some("Working in surface surface-a".to_string()),
+            recovery_action_label: Some("Resume thread sess-1".to_string()),
             initiated_by: "aurora".to_string(),
             workspace_id: "ws-1".to_string(),
             session_id: None,

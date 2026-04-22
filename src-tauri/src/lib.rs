@@ -9,7 +9,7 @@ mod mcp_proxy;
 mod projects;
 mod sessions;
 
-use commands::AcpState;
+use commands::{AcpHealthState, AcpState};
 use hermes_config::ConfigLock;
 use mcp_proxy::McpPoolState;
 use std::sync::Mutex;
@@ -20,11 +20,14 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(AcpState(Mutex::new(None)))
+        .manage(AcpHealthState(std::sync::Arc::new(Mutex::new(commands::AcpHealth::default()))))
         .manage(ConfigLock(TokioMutex::new(())))
         .manage(McpPoolState::new())
         .manage(projects::ProjectLock(TokioMutex::new(())))
+        .manage(lane2::Lane2StoreLock(Mutex::new(())))
         .setup(|app| {
-            match acp::client::AcpClient::spawn(&app.handle()) {
+            let acp_health = app.state::<AcpHealthState>().0.clone();
+            match acp::client::AcpClient::spawn(&app.handle(), acp_health) {
                 Ok(client) => {
                     let state = app.state::<AcpState>();
                     *state.0.lock().unwrap() = Some(client);

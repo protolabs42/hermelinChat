@@ -230,12 +230,18 @@ pub async fn mcp_list_resources(
 pub async fn reload_hermes(
     app: tauri::AppHandle,
     state: State<'_, crate::commands::AcpState>,
+    health: State<'_, crate::commands::AcpHealthState>,
 ) -> Result<String, String> {
+    {
+        let mut status = health.0.lock().map_err(|e| e.to_string())?;
+        status.status = "connecting".to_string();
+        status.message = None;
+    }
     let mut guard = state.0.lock().map_err(|e| e.to_string())?;
     if let Some(client) = guard.take() {
         client.shutdown();
     }
-    let client = crate::acp::client::AcpClient::spawn(&app)
+    let client = crate::acp::client::AcpClient::spawn(&app, health.0.clone())
         .map_err(|e| format!("Failed to respawn hermes: {e}"))?;
     *guard = Some(client);
     Ok("reconnected".to_string())

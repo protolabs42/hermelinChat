@@ -5,8 +5,10 @@ import { useSidebarStore } from '../stores/sidebar'
 import { useArtifactStore } from '../stores/artifacts'
 import { usePaneStore } from '../stores/panes'
 import { useChatStore } from '../stores/chat'
+import { useProjectStore, SCRATCHPAD_ID } from '../stores/projects'
 import { useFontSizeStore } from '../stores/font-size'
 import { isWorkspaceSwitcherShortcut } from '../app/keyboard-shortcuts'
+import { startFreshSession } from '../app/session-start'
 
 export function useKeyboardShortcuts() {
   useEffect(() => {
@@ -16,6 +18,10 @@ export function useKeyboardShortcuts() {
         e.preventDefault()
         useChatStore.getState().reset()
         invoke('set_window_title', { title: 'Aurora Chat' }).catch(() => {})
+        const activeProjectId = useProjectStore.getState().activeProjectId
+        const activeProject = useProjectStore.getState().getActiveProject()
+        startFreshSession({ projectPath: activeProjectId === SCRATCHPAD_ID ? null : activeProject?.path || null })
+          .catch((error) => console.error('Failed to start new session from keyboard shortcut:', error))
       }
       // Ctrl+, or Cmd+, -- open settings
       if ((e.ctrlKey || e.metaKey) && e.key === ',') {

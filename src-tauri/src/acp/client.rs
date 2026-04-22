@@ -8,6 +8,7 @@ use tauri::{AppHandle, Emitter};
 
 use crate::acp::events::AcpEvent;
 use crate::acp::protocol::parse_acp_line;
+use crate::commands::AcpHealth;
 
 pub struct AcpClient {
     child: Arc<Mutex<Option<Child>>>,
@@ -18,7 +19,7 @@ pub struct AcpClient {
 impl AcpClient {
     /// Spawn `hermes acp` and start reading stdout in a background thread.
     /// Parsed ACP events are emitted to the webview via `acp:event`.
-    pub fn spawn(app: &AppHandle) -> Result<Self, String> {
+    pub fn spawn(app: &AppHandle, health: Arc<Mutex<AcpHealth>>) -> Result<Self, String> {
         let hermes_bin = std::env::var("HERMES_BIN").unwrap_or_else(|_| "hermes".to_string());
 
         let mut child = Command::new(&hermes_bin)
@@ -31,22 +32,33 @@ impl AcpClient {
             .map_err(|e| format!("failed to spawn hermes acp: {}", e))?;
 
         let stdin = child.stdin.take();
-        let stdout = child.stdout.take()
+        let stdout = child
+            .stdout
+            .take()
             .ok_or("failed to capture hermes acp stdout")?;
 
         let app_handle = app.clone();
         let child_arc = Arc::new(Mutex::new(Some(child)));
         let child_arc_thread = child_arc.clone();
+        let stdin_arc = Arc::new(Mutex::new(stdin));
+        let stdin_arc_thread = stdin_arc.clone();
+        let health_thread = health.clone();
 
         // Background thread: read NDJSON lines from stdout, parse, emit
         thread::spawn(move || {
             let reader = std::io::BufReader::new(stdout);
 
-            // Emit connected status
-            let _ = app_handle.emit("acp:event", AcpEvent::ConnectionStatus {
-                status: "connected".to_string(),
-                message: None,
-            });
+            if let Ok(mut status) = health_thread.lock() {
+                status.status = "connected".to_string();
+                status.message = None;
+            }
+            let _ = app_handle.emit(
+                "acp:event",
+                AcpEvent::ConnectionStatus {
+                    status: "connected".to_string(),
+                    message: None,
+                },
+            );
 
             for line in reader.lines() {
                 match line {
@@ -62,13 +74,22 @@ impl AcpClient {
                 }
             }
 
-            // Process exited or stdout closed
-            let _ = app_handle.emit("acp:event", AcpEvent::ConnectionStatus {
-                status: "disconnected".to_string(),
-                message: Some("hermes acp process exited".to_string()),
-            });
+            if let Ok(mut status) = health_thread.lock() {
+                status.status = "disconnected".to_string();
+                status.message = Some("hermes acp process exited".to_string());
+            }
+            let _ = app_handle.emit(
+                "acp:event",
+                AcpEvent::ConnectionStatus {
+                    status: "disconnected".to_string(),
+                    message: Some("hermes acp process exited".to_string()),
+                },
+            );
 
             // Clean up
+            if let Ok(mut stdin_guard) = stdin_arc_thread.lock() {
+                let _ = stdin_guard.take();
+            }
             if let Ok(mut guard) = child_arc_thread.lock() {
                 if let Some(mut child) = guard.take() {
                     let _ = child.wait();
@@ -78,7 +99,7 @@ impl AcpClient {
 
         Ok(Self {
             child: child_arc,
-            stdin_tx: Arc::new(Mutex::new(stdin)),
+            stdin_tx: stdin_arc,
             next_id: AtomicU64::new(1),
         })
     }
@@ -91,7 +112,9 @@ impl AcpClient {
         let stdin = guard.as_mut().ok_or("stdin not available")?;
 
         writeln!(stdin, "{}", message).map_err(|e| format!("stdin write error: {}", e))?;
-        stdin.flush().map_err(|e| format!("stdin flush error: {}", e))?;
+        stdin
+            .flush()
+            .map_err(|e| format!("stdin flush error: {}", e))?;
 
         Ok(())
     }

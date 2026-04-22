@@ -54,3 +54,15 @@ test('restoreSurfaceAnchors appends missing workspace anchors in order', () => {
   const surfaceMessages = useChatStore.getState().messages.filter((m) => m.role === 'surface')
   assert.deepEqual(surfaceMessages.map((m) => m.surfaceId), ['surface-b', 'surface-a'])
 })
+
+test('session-scoped ACP events from a different session are ignored', () => {
+  useChatStore.setState({ sessionId: 'sess-current', messages: [] })
+
+  useChatStore.getState().handleAcpEvent({
+    kind: 'AgentMessage',
+    session_id: 'sess-other',
+    text: 'should not land',
+  })
+
+  assert.equal(useChatStore.getState().messages.length, 0)
+})

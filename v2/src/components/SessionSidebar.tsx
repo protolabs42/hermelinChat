@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { startFreshSession } from '../app/session-start'
 import {
   clampSidebarWidth,
   useSidebarStore,
@@ -442,11 +443,11 @@ function NewSessionBar() {
   const handleNewSession = async () => {
     try {
       const activeProject = getActiveProject()
-      const cwd = activeProject?.path || null
 
-      useChatStore.getState().reset()
-
-      await invoke('acp_new_session', { cwd })
+      await startFreshSession({
+        projectPath: activeProject?.path || null,
+        resetChat: true,
+      })
 
       // Assign the new session to the active project once we get the session ID
       // (SessionInfo event in chat store will fire — assignment happens there or here)

@@ -6,13 +6,14 @@ use serde::{Deserialize, Serialize};
 #[serde(tag = "kind")]
 pub enum AcpEvent {
     /// Streaming thinking text
-    AgentThinking { text: String },
+    AgentThinking { session_id: Option<String>, text: String },
 
     /// Streaming message text
-    AgentMessage { text: String },
+    AgentMessage { session_id: Option<String>, text: String },
 
     /// Tool call started
     ToolCallStarted {
+        session_id: Option<String>,
         id: String,
         title: String,
         tool_kind: String,
@@ -20,6 +21,7 @@ pub enum AcpEvent {
 
     /// Tool call updated (progress, completion)
     ToolCallUpdate {
+        session_id: Option<String>,
         id: String,
         status: String,
         content: Vec<ToolContent>,
@@ -27,6 +29,7 @@ pub enum AcpEvent {
 
     /// File diff proposed (from tool call content)
     DiffProposed {
+        session_id: Option<String>,
         tool_call_id: String,
         path: String,
         old_text: Option<String>,
@@ -35,6 +38,7 @@ pub enum AcpEvent {
 
     /// Terminal output (from tool call content)
     TerminalOutput {
+        session_id: Option<String>,
         tool_call_id: String,
         command: String,
         output: String,
@@ -42,6 +46,7 @@ pub enum AcpEvent {
 
     /// Approval requested
     ApprovalRequested {
+        session_id: Option<String>,
         id: String,
         description: String,
         command: String,
@@ -50,6 +55,7 @@ pub enum AcpEvent {
 
     /// Token usage update
     UsageUpdate {
+        session_id: Option<String>,
         used: u64,
         size: u64,
         cost_usd: Option<f64>,
@@ -62,7 +68,7 @@ pub enum AcpEvent {
     },
 
     /// Stream completed
-    StreamEnd,
+    StreamEnd { session_id: Option<String> },
 
     /// Connection status change
     ConnectionStatus { status: String, message: Option<String> },

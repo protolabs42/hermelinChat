@@ -1,5 +1,5 @@
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter, State};
 
 use crate::acp::client::AcpClient;
@@ -67,8 +67,42 @@ fn run_bd_json(repo_path: &str, args: &[&str]) -> Result<Vec<ProjectWorkIssue>, 
 
 pub struct AcpState(pub Mutex<Option<AcpClient>>);
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AcpHealth {
+    pub status: String,
+    pub message: Option<String>,
+}
+
+impl Default for AcpHealth {
+    fn default() -> Self {
+        Self {
+            status: "connecting".to_string(),
+            message: None,
+        }
+    }
+}
+
+pub struct AcpHealthState(pub Arc<Mutex<AcpHealth>>);
+
+fn require_acp_connected(health: &AcpHealthState) -> Result<(), String> {
+    let guard = health.0.lock().map_err(|e| e.to_string())?;
+    if guard.status == "connected" {
+        Ok(())
+    } else {
+        Err(guard
+            .message
+            .clone()
+            .unwrap_or_else(|| format!("ACP is not connected (status: {})", guard.status)))
+    }
+}
+
 #[tauri::command]
-pub fn acp_new_session(state: State<'_, AcpState>, cwd: Option<String>) -> Result<String, String> {
+pub fn acp_new_session(
+    state: State<'_, AcpState>,
+    health: State<'_, AcpHealthState>,
+    cwd: Option<String>,
+) -> Result<String, String> {
+    require_acp_connected(&health)?;
     let guard = state.0.lock().map_err(|e| e.to_string())?;
     let client = guard.as_ref().ok_or("ACP client not initialized")?;
     client.new_session(cwd.as_deref())?;
@@ -78,9 +112,11 @@ pub fn acp_new_session(state: State<'_, AcpState>, cwd: Option<String>) -> Resul
 #[tauri::command]
 pub fn acp_load_session(
     state: State<'_, AcpState>,
+    health: State<'_, AcpHealthState>,
     session_id: String,
     cwd: Option<String>,
 ) -> Result<String, String> {
+    require_acp_connected(&health)?;
     let guard = state.0.lock().map_err(|e| e.to_string())?;
     let client = guard.as_ref().ok_or("ACP client not initialized")?;
     client.load_session(&session_id, cwd.as_deref())?;
@@ -90,9 +126,11 @@ pub fn acp_load_session(
 #[tauri::command]
 pub fn acp_send_prompt(
     state: State<'_, AcpState>,
+    health: State<'_, AcpHealthState>,
     session_id: String,
     text: String,
 ) -> Result<String, String> {
+    require_acp_connected(&health)?;
     let guard = state.0.lock().map_err(|e| e.to_string())?;
     let client = guard.as_ref().ok_or("ACP client not initialized")?;
     client.send_prompt(&session_id, &text)?;
@@ -100,7 +138,12 @@ pub fn acp_send_prompt(
 }
 
 #[tauri::command]
-pub fn acp_cancel(state: State<'_, AcpState>, session_id: String) -> Result<String, String> {
+pub fn acp_cancel(
+    state: State<'_, AcpState>,
+    health: State<'_, AcpHealthState>,
+    session_id: String,
+) -> Result<String, String> {
+    require_acp_connected(&health)?;
     let guard = state.0.lock().map_err(|e| e.to_string())?;
     let client = guard.as_ref().ok_or("ACP client not initialized")?;
     client.cancel(&session_id)?;
@@ -108,27 +151,33 @@ pub fn acp_cancel(state: State<'_, AcpState>, session_id: String) -> Result<Stri
 }
 
 #[tauri::command]
-pub fn acp_reconnect(app: tauri::AppHandle, state: State<'_, AcpState>) -> Result<String, String> {
+pub fn acp_reconnect(
+    app: tauri::AppHandle,
+    state: State<'_, AcpState>,
+    health: State<'_, AcpHealthState>,
+) -> Result<String, String> {
+    {
+        let mut status = health.0.lock().map_err(|e| e.to_string())?;
+        status.status = "connecting".to_string();
+        status.message = None;
+    }
+
     let mut guard = state.0.lock().map_err(|e| e.to_string())?;
 
     if let Some(client) = guard.take() {
         client.shutdown();
     }
 
-    let client = crate::acp::client::AcpClient::spawn(&app)?;
+    let client = crate::acp::client::AcpClient::spawn(&app, health.0.clone())?;
     *guard = Some(client);
 
     Ok("reconnected".to_string())
 }
 
 #[tauri::command]
-pub fn acp_status(state: State<'_, AcpState>) -> String {
+pub fn acp_status(state: State<'_, AcpHealthState>) -> String {
     let guard = state.0.lock().unwrap_or_else(|e| e.into_inner());
-    if guard.is_some() {
-        "connected".to_string()
-    } else {
-        "disconnected".to_string()
-    }
+    guard.status.clone()
 }
 
 #[tauri::command]

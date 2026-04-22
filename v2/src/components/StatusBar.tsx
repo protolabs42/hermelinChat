@@ -17,6 +17,7 @@ import HermesUpdateModal from './HermesUpdateModal'
 import { getTopActionIntents } from '../app/top-action-intents'
 import { buildWorkspaceStripModel } from '../app/workspace-strip'
 import { buildWorkspaceRestoreState } from '../app/workspace-restore-state'
+import { startFreshSession } from '../app/session-start'
 import { activateWorkspaceSnapshot } from '../lane2/workspace-activation'
 import { buildWorkspaceContinuityCard } from '../lane2/workspace-summary'
 import coeditProofRaw from '../a2ui/examples/mcp-app-coedit-proof.json?raw'
@@ -173,11 +174,30 @@ export default function StatusBar() {
           await invoke('acp_load_session', { sessionId, cwd })
         },
         newSession: async (cwd) => {
-          await invoke('acp_new_session', { cwd })
+          await startFreshSession({ projectPath: cwd, resetChat: false, markConnecting: false })
         },
         getHomeDir: async () => await invoke<string>('get_home_dir').catch(() => null),
         getProjectPath: (projectId) => useProjectStore.getState().projects[projectId]?.path ?? null,
         getCurrentProjectPath: () => useProjectStore.getState().getActiveProject()?.path ?? null,
+        getCurrentWorkspaceId: () => useWorkspaceStore.getState().activeWorkspace?.workspaceId ?? null,
+        getCurrentProjectId: () => useProjectStore.getState().activeProjectId,
+        restoreActiveWorkspace: async (workspaceId) => {
+          await useWorkspaceStore.getState().setActiveWorkspace(workspaceId)
+        },
+        restoreActiveProject: async (projectId) => {
+          await useProjectStore.getState().hydrateActiveProject(projectId)
+        },
+        reportFailure: (message) => {
+          useChatStore.setState((state) => ({
+            connectionStatus: 'disconnected',
+            messages: [...state.messages, {
+              id: `system-${Date.now()}`,
+              role: 'system',
+              content: message,
+              timestamp: Date.now(),
+            }],
+          }))
+        },
       })
     } catch (e) {
       console.error('Failed to resume current workspace continuity:', e)
@@ -227,11 +247,30 @@ export default function StatusBar() {
           await invoke('acp_load_session', { sessionId, cwd })
         },
         newSession: async (cwd) => {
-          await invoke('acp_new_session', { cwd })
+          await startFreshSession({ projectPath: cwd, resetChat: false, markConnecting: false })
         },
         getHomeDir: async () => await invoke<string>('get_home_dir').catch(() => null),
         getProjectPath: (projectId) => useProjectStore.getState().projects[projectId]?.path ?? null,
         getCurrentProjectPath: () => useProjectStore.getState().getActiveProject()?.path ?? null,
+        getCurrentWorkspaceId: () => useWorkspaceStore.getState().activeWorkspace?.workspaceId ?? null,
+        getCurrentProjectId: () => useProjectStore.getState().activeProjectId,
+        restoreActiveWorkspace: async (workspaceId) => {
+          await useWorkspaceStore.getState().setActiveWorkspace(workspaceId)
+        },
+        restoreActiveProject: async (projectId) => {
+          await useProjectStore.getState().hydrateActiveProject(projectId)
+        },
+        reportFailure: (message) => {
+          useChatStore.setState((state) => ({
+            connectionStatus: 'disconnected',
+            messages: [...state.messages, {
+              id: `system-${Date.now()}`,
+              role: 'system',
+              content: message,
+              timestamp: Date.now(),
+            }],
+          }))
+        },
       })
     } catch (e) {
       console.error(`Failed to activate workspace ${workspaceId}:`, e)
@@ -292,8 +331,7 @@ export default function StatusBar() {
             useChatStore.getState().reset()
             invoke('set_window_title', { title: 'Aurora Chat' }).catch(() => {})
             const activeProject = useProjectStore.getState().getActiveProject()
-            const cwd = activeProject?.path || null
-            invoke('acp_new_session', { cwd }).catch((e: unknown) =>
+            startFreshSession({ projectPath: activeProject?.path || null, resetChat: false, markConnecting: false }).catch((e: unknown) =>
               console.error('Failed to start new session:', e)
             )
           }}

@@ -9,6 +9,15 @@ let _textRole: 'assistant' | 'thinking' = 'assistant'
 let _flushTimer: ReturnType<typeof setTimeout> | null = null
 const FLUSH_INTERVAL = 50 // ms
 
+function clearStreamBuffer() {
+  _textBuffer = ''
+  _textRole = 'assistant'
+  if (_flushTimer) {
+    clearTimeout(_flushTimer)
+    _flushTimer = null
+  }
+}
+
 function flushTextBuffer(set: (fn: (s: ChatStore) => Partial<ChatStore>) => void, _get?: () => ChatStore) {
   if (!_textBuffer) return
   const text = _textBuffer
@@ -66,6 +75,13 @@ function bufferText(text: string, role: 'assistant' | 'thinking', set: (fn: (s: 
   if (!_flushTimer) {
     _flushTimer = setTimeout(() => flushTextBuffer(set), FLUSH_INTERVAL)
   }
+}
+
+function eventSessionId(event: AcpEvent): string | null {
+  if ('session_id' in event) {
+    return event.session_id ?? null
+  }
+  return null
 }
 
 export interface ChatMessage {
@@ -190,6 +206,18 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   handleAcpEvent: (event: AcpEvent) => {
+    const currentSessionId = get().sessionId
+    const incomingSessionId = eventSessionId(event)
+    if (
+      incomingSessionId
+      && currentSessionId
+      && incomingSessionId !== currentSessionId
+      && event.kind !== 'ConnectionStatus'
+      && event.kind !== 'SessionInfo'
+    ) {
+      return
+    }
+
     switch (event.kind) {
       case 'AgentMessage': {
         bufferText(event.text, 'assistant', set)
@@ -323,6 +351,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   reset: () => {
     _nextId = 0
+    clearStreamBuffer()
     set({ messages: [], sessionId: null, model: null, isStreaming: false, pendingPrompt: null, usage: null })
   },
 }))

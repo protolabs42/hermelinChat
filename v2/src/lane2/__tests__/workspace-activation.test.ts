@@ -179,3 +179,37 @@ test('activateWorkspaceSnapshot still reports thread focus explicitly even when 
 
   assert.deepEqual(focusedTargets, [{ kind: 'thread', id: 'sess-9' }])
 })
+
+test('activateWorkspaceSnapshot rolls project/workspace state back when session restore fails', async () => {
+  const workspace = createEmptyWorkspaceState({ workspaceId: 'forge', sessionId: 'sess-bad', now: 100 })
+  workspace.resident.heldContextIds = ['project:proj-1']
+  workspace.continuity.activeThreadId = 'sess-bad'
+
+  const calls: string[] = []
+  await assert.rejects(() => activateWorkspaceSnapshot(workspace, {
+    setActiveWorkspace: async (workspaceId) => { calls.push(`set:${workspaceId}`) },
+    hydrateActiveProject: async (projectId) => { calls.push(`hydrate:${projectId}`) },
+    resetChat: () => { calls.push('reset') },
+    restoreSurfaceAnchors: () => { calls.push('anchors') },
+    foregroundFocusTarget: () => { calls.push('focus') },
+    loadSession: async () => { throw new Error('load failed') },
+    newSession: async () => { calls.push('new') },
+    getHomeDir: async () => '/tmp/home',
+    getProjectPath: () => '/work/proj-1',
+    getCurrentProjectPath: () => '/work/current',
+    getCurrentWorkspaceId: () => 'prev-ws',
+    getCurrentProjectId: () => 'prev-proj',
+    restoreActiveWorkspace: async (workspaceId) => { calls.push(`restore-ws:${workspaceId}`) },
+    restoreActiveProject: async (projectId) => { calls.push(`restore-proj:${projectId}`) },
+    reportFailure: (message) => { calls.push(`report:${message}`) },
+  }))
+
+  assert.deepEqual(calls, [
+    'set:forge',
+    'hydrate:proj-1',
+    'reset',
+    'restore-proj:prev-proj',
+    'restore-ws:prev-ws',
+    'report:Failed to activate workspace forge: load failed',
+  ])
+})

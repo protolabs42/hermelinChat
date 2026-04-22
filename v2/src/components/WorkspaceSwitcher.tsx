@@ -7,6 +7,7 @@ import {
   DEFAULT_WORKSPACE_ID,
 } from '../lane2/persistence'
 import type { WorkspaceState } from '../lane2/schema'
+import { startFreshSession } from '../app/session-start'
 import { activateWorkspaceSnapshot } from '../lane2/workspace-activation'
 import { buildWorkspaceRowSummary } from '../lane2/workspace-summary'
 import { useSurfaceStore } from '../stores/surfaces'
@@ -223,38 +224,61 @@ export default function WorkspaceSwitcher({ anchor, onClose }: WorkspaceSwitcher
   }
 
   const handleSelect = async (workspace: WorkspaceState) => {
-    await activateWorkspaceSnapshot(workspace, {
-      setActiveWorkspace: useWorkspaceStore.getState().setActiveWorkspace,
-      hydrateActiveProject: useProjectStore.getState().hydrateActiveProject,
-      resetChat: () => {
-        useChatStore.getState().reset()
-      },
-      restoreSurfaceAnchors: (surfaceIds) => {
-        useChatStore.getState().restoreSurfaceAnchors(surfaceIds)
-      },
-      foregroundFocusTarget: (target) => {
-        if (!target) return
-        const artifactStore = useArtifactStore.getState()
-        if (target.kind === 'surface') {
-          artifactStore.pinSurface(target.id)
-          return
-        }
-        if (target.kind === 'artifact') {
-          artifactStore.openPanel()
-          artifactStore.setActiveId(target.id)
-        }
-      },
-      loadSession: async (sessionId, cwd) => {
-        await invoke('acp_load_session', { sessionId, cwd })
-      },
-      newSession: async (cwd) => {
-        await invoke('acp_new_session', { cwd })
-      },
-      getHomeDir: async () => await invoke<string>('get_home_dir').catch(() => null),
-      getProjectPath: (projectId) => useProjectStore.getState().projects[projectId]?.path ?? null,
-      getCurrentProjectPath: () => useProjectStore.getState().getActiveProject()?.path ?? null,
-    })
-    onClose()
+    try {
+      await activateWorkspaceSnapshot(workspace, {
+        setActiveWorkspace: useWorkspaceStore.getState().setActiveWorkspace,
+        hydrateActiveProject: useProjectStore.getState().hydrateActiveProject,
+        resetChat: () => {
+          useChatStore.getState().reset()
+        },
+        restoreSurfaceAnchors: (surfaceIds) => {
+          useChatStore.getState().restoreSurfaceAnchors(surfaceIds)
+        },
+        foregroundFocusTarget: (target) => {
+          if (!target) return
+          const artifactStore = useArtifactStore.getState()
+          if (target.kind === 'surface') {
+            artifactStore.pinSurface(target.id)
+            return
+          }
+          if (target.kind === 'artifact') {
+            artifactStore.openPanel()
+            artifactStore.setActiveId(target.id)
+          }
+        },
+        loadSession: async (sessionId, cwd) => {
+          await invoke('acp_load_session', { sessionId, cwd })
+        },
+        newSession: async (cwd) => {
+          await startFreshSession({ projectPath: cwd, resetChat: false, markConnecting: false })
+        },
+        getHomeDir: async () => await invoke<string>('get_home_dir').catch(() => null),
+        getProjectPath: (projectId) => useProjectStore.getState().projects[projectId]?.path ?? null,
+        getCurrentProjectPath: () => useProjectStore.getState().getActiveProject()?.path ?? null,
+        getCurrentWorkspaceId: () => useWorkspaceStore.getState().activeWorkspace?.workspaceId ?? null,
+        getCurrentProjectId: () => useProjectStore.getState().activeProjectId,
+        restoreActiveWorkspace: async (workspaceId) => {
+          await useWorkspaceStore.getState().setActiveWorkspace(workspaceId)
+        },
+        restoreActiveProject: async (projectId) => {
+          await useProjectStore.getState().hydrateActiveProject(projectId)
+        },
+        reportFailure: (message) => {
+          useChatStore.setState((state) => ({
+            connectionStatus: 'disconnected',
+            messages: [...state.messages, {
+              id: `system-${Date.now()}`,
+              role: 'system',
+              content: message,
+              timestamp: Date.now(),
+            }],
+          }))
+        },
+      })
+      onClose()
+    } catch (error) {
+      console.error(`Failed to activate workspace ${workspace.workspaceId}:`, error)
+    }
   }
 
   const dropdownStyle = getDropdownStyle(anchor)

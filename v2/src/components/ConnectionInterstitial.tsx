@@ -5,6 +5,7 @@ import {
   buildConnectionInterstitialModel,
   type ConnectionInterstitialModel,
 } from '../app/connection-interstitial'
+import { startFreshSession } from '../app/session-start'
 import { useChatStore } from '../stores/chat'
 import { useProjectStore, SCRATCHPAD_ID } from '../stores/projects'
 import { useWorkspaceStore } from '../stores/workspaces'
@@ -98,13 +99,11 @@ export default function ConnectionInterstitial({ model, startupStartedAt }: Prop
       setRecoveryIntent('fresh')
       setAttemptStartedAt(Date.now())
       setElapsedMs(0)
-      useChatStore.getState().reset()
-      useChatStore.setState({ connectionStatus: 'connecting' })
-      let cwd: string | null = activeProject?.path || null
-      if (!cwd) {
-        cwd = await invoke<string>('get_home_dir').catch(() => null)
-      }
-      await invoke('acp_new_session', { cwd })
+      await startFreshSession({
+        projectPath: activeProject?.path || null,
+        resetChat: true,
+        markConnecting: true,
+      })
     } catch (error) {
       console.error('Fresh session start failed:', error)
     } finally {

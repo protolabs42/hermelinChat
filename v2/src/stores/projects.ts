@@ -6,6 +6,7 @@
 
 import { create } from 'zustand'
 import { invoke } from '@tauri-apps/api/core'
+import { startFreshSession } from '../app/session-start'
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -124,14 +125,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 
     // 5. Start a new hermes session with the project CWD
     const project = get().getActiveProject()
-    let cwd: string | null = null
-    if (id === SCRATCHPAD_ID || !project || !project.path) {
-      // Scratchpad uses $HOME to feel context-free, not the launch folder
-      cwd = await invoke<string>('get_home_dir')
-    } else {
-      cwd = project.path
-    }
-    await invoke('acp_new_session', { cwd })
+    await startFreshSession({
+      projectPath: id === SCRATCHPAD_ID || !project?.path ? null : project.path,
+      resetChat: false,
+      markConnecting: false,
+    })
   },
 
   hydrateActiveProject: async (id: string) => {

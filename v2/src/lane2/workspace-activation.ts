@@ -19,6 +19,11 @@ export interface WorkspaceActivationDeps {
   getHomeDir: () => Promise<string | null>
   getProjectPath: (projectId: string) => string | null
   getCurrentProjectPath: () => string | null
+  getCurrentWorkspaceId?: () => string | null
+  getCurrentProjectId?: () => string | null
+  restoreActiveWorkspace?: (workspaceId: string) => Promise<void>
+  restoreActiveProject?: (projectId: string) => Promise<void>
+  reportFailure?: (message: string) => void
 }
 
 export function buildWorkspaceActivationPlan(workspace: WorkspaceState): WorkspaceActivationPlan {
@@ -35,29 +40,53 @@ export async function activateWorkspaceSnapshot(
   deps: WorkspaceActivationDeps
 ): Promise<void> {
   const plan = buildWorkspaceActivationPlan(workspace)
-  await deps.setActiveWorkspace(plan.workspaceId)
+  const previousWorkspaceId = deps.getCurrentWorkspaceId?.() ?? null
+  const previousProjectId = deps.getCurrentProjectId?.() ?? null
 
-  if (plan.projectId) {
-    await deps.hydrateActiveProject(plan.projectId)
+  try {
+    await deps.setActiveWorkspace(plan.workspaceId)
+
+    if (plan.projectId) {
+      await deps.hydrateActiveProject(plan.projectId)
+    }
+
+    deps.resetChat()
+
+    let cwd: string | null
+    if (plan.projectId === 'scratchpad') {
+      cwd = await deps.getHomeDir()
+    } else if (plan.projectId) {
+      cwd = deps.getProjectPath(plan.projectId)
+    } else {
+      cwd = deps.getCurrentProjectPath()
+    }
+
+    if (plan.sessionId) {
+      await deps.loadSession(plan.sessionId, cwd)
+    } else {
+      await deps.newSession(cwd)
+    }
+
+    deps.restoreSurfaceAnchors(plan.anchorSurfaceIds)
+    deps.foregroundFocusTarget(workspace.attention.primaryFocus)
+  } catch (error) {
+    if (
+      previousProjectId
+      && deps.restoreActiveProject
+      && previousProjectId !== plan.projectId
+    ) {
+      await deps.restoreActiveProject(previousProjectId)
+    }
+    if (
+      previousWorkspaceId
+      && deps.restoreActiveWorkspace
+      && previousWorkspaceId !== plan.workspaceId
+    ) {
+      await deps.restoreActiveWorkspace(previousWorkspaceId)
+    }
+    deps.reportFailure?.(
+      `Failed to activate workspace ${plan.workspaceId}: ${error instanceof Error ? error.message : String(error)}`
+    )
+    throw error
   }
-
-  deps.resetChat()
-
-  let cwd: string | null
-  if (plan.projectId === 'scratchpad') {
-    cwd = await deps.getHomeDir()
-  } else if (plan.projectId) {
-    cwd = deps.getProjectPath(plan.projectId)
-  } else {
-    cwd = deps.getCurrentProjectPath()
-  }
-
-  if (plan.sessionId) {
-    await deps.loadSession(plan.sessionId, cwd)
-  } else {
-    await deps.newSession(cwd)
-  }
-
-  deps.restoreSurfaceAnchors(plan.anchorSurfaceIds)
-  deps.foregroundFocusTarget(workspace.attention.primaryFocus)
 }

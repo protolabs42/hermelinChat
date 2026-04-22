@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { useChatStore } from '../stores/chat'
+import { useProjectStore } from '../stores/projects'
+import { startFreshSession } from '../app/session-start'
 
 const MAX_ROWS = 4
 const LINE_HEIGHT = 22
@@ -34,10 +36,8 @@ export default function MessageInput() {
     try {
       if (!sessionId) {
         useChatStore.getState().setPendingPrompt(text)
-        const { useProjectStore } = await import('../stores/projects')
         const activeProject = useProjectStore.getState().getActiveProject()
-        const cwd = activeProject?.path || null
-        await invoke('acp_new_session', { cwd })
+        await startFreshSession({ projectPath: activeProject?.path || null })
       } else {
         await invoke('acp_send_prompt', { sessionId, text })
       }

@@ -14,15 +14,18 @@ pub fn parse_acp_line(line: &str) -> Option<AcpEvent> {
 
     // JSON-RPC responses have "result" or "error" but no "method".
     if let Some(result) = json.get("result") {
-        // session/new response: { "result": { "sessionId": "..." } }
         if let Some(sid) = result.get("sessionId").and_then(|s| s.as_str()) {
             return Some(AcpEvent::SessionInfo {
                 session_id: sid.to_string(),
                 model: None,
             });
         }
-        // Other responses (e.g., session/prompt completion) signal end-of-stream
-        return Some(AcpEvent::StreamEnd);
+        let session_id = json
+            .get("params")
+            .and_then(|params| params.get("sessionId"))
+            .and_then(|s| s.as_str())
+            .map(|s| s.to_string());
+        return Some(AcpEvent::StreamEnd { session_id });
     }
     if let Some(err) = json.get("error") {
         let message = err.get("message").and_then(|m| m.as_str()).unwrap_or("Unknown error").to_string();
@@ -39,10 +42,15 @@ pub fn parse_acp_line(line: &str) -> Option<AcpEvent> {
     match method {
         "session/update" => {
             let params = json.get("params")?;
-            // ACP nests the update inside params.update:
-            // { "params": { "sessionId": "...", "update": { "sessionUpdate": "...", ... } } }
-            let update = params.get("update").unwrap_or(params);
-            parse_session_update(update)
+            let mut update = params.get("update").cloned().unwrap_or_else(|| params.clone());
+            if update.get("sessionId").is_none() {
+                if let Some(session_id) = params.get("sessionId") {
+                    if let Some(obj) = update.as_object_mut() {
+                        obj.insert("sessionId".to_string(), session_id.clone());
+                    }
+                }
+            }
+            parse_session_update(&update)
         }
         "session/request_permission" => parse_permission_request(&json),
         _ => None,
@@ -51,6 +59,10 @@ pub fn parse_acp_line(line: &str) -> Option<AcpEvent> {
 
 fn parse_session_update(params: &Value) -> Option<AcpEvent> {
     let update_type = params.get("sessionUpdate")?.as_str()?;
+    let session_id = params
+        .get("sessionId")
+        .and_then(|s| s.as_str())
+        .map(|s| s.to_string());
 
     match update_type {
         "agent_thought_chunk" => {
@@ -60,7 +72,7 @@ fn parse_session_update(params: &Value) -> Option<AcpEvent> {
                 .and_then(|t| t.as_str())
                 .unwrap_or("")
                 .to_string();
-            Some(AcpEvent::AgentThinking { text })
+            Some(AcpEvent::AgentThinking { session_id, text })
         }
 
         "agent_message_chunk" => {
@@ -70,7 +82,7 @@ fn parse_session_update(params: &Value) -> Option<AcpEvent> {
                 .and_then(|t| t.as_str())
                 .unwrap_or("")
                 .to_string();
-            Some(AcpEvent::AgentMessage { text })
+            Some(AcpEvent::AgentMessage { session_id, text })
         }
 
         "tool_call" => {
@@ -86,15 +98,26 @@ fn parse_session_update(params: &Value) -> Option<AcpEvent> {
                 .unwrap_or("execute")
                 .to_string();
 
-            // Check for diff content in tool call
             if let Some(content_arr) = params.get("content").and_then(|c| c.as_array()) {
                 for item in content_arr {
                     if item.get("type").and_then(|t| t.as_str()) == Some("diff") {
-                        let path = item.get("path").and_then(|p| p.as_str()).unwrap_or("").to_string();
-                        let old_text = item.get("oldText").and_then(|t| t.as_str()).map(|s| s.to_string());
-                        let new_text = item.get("newText").and_then(|t| t.as_str()).unwrap_or("").to_string();
+                        let path = item
+                            .get("path")
+                            .and_then(|p| p.as_str())
+                            .unwrap_or("")
+                            .to_string();
+                        let old_text = item
+                            .get("oldText")
+                            .and_then(|t| t.as_str())
+                            .map(|s| s.to_string());
+                        let new_text = item
+                            .get("newText")
+                            .and_then(|t| t.as_str())
+                            .unwrap_or("")
+                            .to_string();
 
                         return Some(AcpEvent::DiffProposed {
+                            session_id,
                             tool_call_id: id,
                             path,
                             old_text,
@@ -104,7 +127,12 @@ fn parse_session_update(params: &Value) -> Option<AcpEvent> {
                 }
             }
 
-            Some(AcpEvent::ToolCallStarted { id, title, tool_kind })
+            Some(AcpEvent::ToolCallStarted {
+                session_id,
+                id,
+                title,
+                tool_kind,
+            })
         }
 
         "tool_call_update" => {
@@ -115,7 +143,12 @@ fn parse_session_update(params: &Value) -> Option<AcpEvent> {
                 .unwrap_or("pending")
                 .to_string();
             let content = parse_tool_content(params.get("content"));
-            Some(AcpEvent::ToolCallUpdate { id, status, content })
+            Some(AcpEvent::ToolCallUpdate {
+                session_id,
+                id,
+                status,
+                content,
+            })
         }
 
         "usage_update" => {
@@ -125,7 +158,12 @@ fn parse_session_update(params: &Value) -> Option<AcpEvent> {
                 .get("cost")
                 .and_then(|c| c.get("amount"))
                 .and_then(|a| a.as_f64());
-            Some(AcpEvent::UsageUpdate { used, size, cost_usd })
+            Some(AcpEvent::UsageUpdate {
+                session_id,
+                used,
+                size,
+                cost_usd,
+            })
         }
 
         "session_info_update" => {
@@ -165,6 +203,10 @@ fn parse_permission_request(json: &Value) -> Option<AcpEvent> {
         .unwrap_or_default();
 
     Some(AcpEvent::ApprovalRequested {
+        session_id: params
+            .get("sessionId")
+            .and_then(|s| s.as_str())
+            .map(|s| s.to_string()),
         id,
         description,
         command,
@@ -212,7 +254,10 @@ mod tests {
         let line = r#"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s1","update":{"content":{"text":"Hello world","type":"text"},"sessionUpdate":"agent_message_chunk"}}}"#;
         let event = parse_acp_line(line).unwrap();
         match event {
-            AcpEvent::AgentMessage { text } => assert_eq!(text, "Hello world"),
+            AcpEvent::AgentMessage { text, session_id } => {
+                assert_eq!(text, "Hello world");
+                assert_eq!(session_id.as_deref(), Some("s1"));
+            }
             other => panic!("expected AgentMessage, got {:?}", other),
         }
     }
@@ -222,7 +267,10 @@ mod tests {
         let line = r#"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s1","update":{"content":{"text":"pondering...","type":"text"},"sessionUpdate":"agent_thought_chunk"}}}"#;
         let event = parse_acp_line(line).unwrap();
         match event {
-            AcpEvent::AgentThinking { text } => assert_eq!(text, "pondering..."),
+            AcpEvent::AgentThinking { text, session_id } => {
+                assert_eq!(text, "pondering...");
+                assert_eq!(session_id.as_deref(), Some("s1"));
+            }
             other => panic!("expected AgentThinking, got {:?}", other),
         }
     }
@@ -232,10 +280,16 @@ mod tests {
         let line = r#"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s1","update":{"content":[{"content":{"text":"$ ls","type":"text"},"type":"content"}],"kind":"execute","title":"terminal: ls","toolCallId":"tc-123","sessionUpdate":"tool_call"}}}"#;
         let event = parse_acp_line(line).unwrap();
         match event {
-            AcpEvent::ToolCallStarted { id, title, tool_kind } => {
+            AcpEvent::ToolCallStarted {
+                id,
+                title,
+                tool_kind,
+                session_id,
+            } => {
                 assert_eq!(id, "tc-123");
                 assert_eq!(title, "terminal: ls");
                 assert_eq!(tool_kind, "execute");
+                assert_eq!(session_id.as_deref(), Some("s1"));
             }
             other => panic!("expected ToolCallStarted, got {:?}", other),
         }
@@ -246,11 +300,18 @@ mod tests {
         let line = r#"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s1","update":{"content":[{"type":"diff","path":"/src/main.py","newText":"def hello():\n    pass","oldText":"def old():\n    pass"}],"kind":"edit","title":"write: main.py","toolCallId":"tc-456","sessionUpdate":"tool_call"}}}"#;
         let event = parse_acp_line(line).unwrap();
         match event {
-            AcpEvent::DiffProposed { tool_call_id, path, old_text, new_text } => {
+            AcpEvent::DiffProposed {
+                tool_call_id,
+                path,
+                old_text,
+                new_text,
+                session_id,
+            } => {
                 assert_eq!(tool_call_id, "tc-456");
                 assert_eq!(path, "/src/main.py");
                 assert_eq!(old_text.unwrap(), "def old():\n    pass");
                 assert_eq!(new_text, "def hello():\n    pass");
+                assert_eq!(session_id.as_deref(), Some("s1"));
             }
             other => panic!("expected DiffProposed, got {:?}", other),
         }
@@ -261,10 +322,16 @@ mod tests {
         let line = r#"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s1","update":{"sessionUpdate":"usage_update","used":1250,"size":8192,"cost":{"amount":0.0015,"currency":"USD"}}}}"#;
         let event = parse_acp_line(line).unwrap();
         match event {
-            AcpEvent::UsageUpdate { used, size, cost_usd } => {
+            AcpEvent::UsageUpdate {
+                used,
+                size,
+                cost_usd,
+                session_id,
+            } => {
                 assert_eq!(used, 1250);
                 assert_eq!(size, 8192);
                 assert_eq!(cost_usd, Some(0.0015));
+                assert_eq!(session_id.as_deref(), Some("s1"));
             }
             other => panic!("expected UsageUpdate, got {:?}", other),
         }
@@ -302,7 +369,9 @@ mod tests {
         let line = r#"{"jsonrpc":"2.0","id":2,"result":{"stopReason":"end_turn"}}"#;
         let event = parse_acp_line(line).unwrap();
         match event {
-            AcpEvent::StreamEnd => {} // correct
+            AcpEvent::StreamEnd { session_id } => {
+                assert_eq!(session_id, None);
+            }
             other => panic!("expected StreamEnd, got {:?}", other),
         }
     }
