@@ -1,6 +1,17 @@
 use serde_json::Value;
 use crate::acp::events::{AcpEvent, ApprovalOption, ToolContent};
 
+pub fn is_valid_jsonrpc_line(line: &str) -> bool {
+    let line = line.trim();
+    if line.is_empty() {
+        return false;
+    }
+    let Ok(json) = serde_json::from_str::<Value>(line) else {
+        return false;
+    };
+    json.get("jsonrpc").and_then(|v| v.as_str()) == Some("2.0")
+}
+
 fn parse_request_id(json: &Value) -> Option<u64> {
     json.get("id").and_then(|id| {
         id.as_u64().or_else(|| id.as_str().and_then(|raw| raw.parse::<u64>().ok()))

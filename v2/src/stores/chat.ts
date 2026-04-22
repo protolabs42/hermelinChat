@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { applyHostPatchEnvelope, parseCoeditPatchMarkers } from '../a2ui/mcp-app/coedit-bridge'
-import type { AcpEvent } from '../types/acp'
+import type { AcpEvent, ApprovalOption } from '../types/acp'
 import { persistSurfaceAnchor } from '../a2ui/surface-anchors'
 
 // Streaming text buffer — batches rapid chunks into fewer React updates
@@ -93,6 +93,9 @@ export interface ChatMessage {
   toolTitle?: string
   toolKind?: string
   toolStatus?: string
+  approvalRequestId?: string
+  approvalCommand?: string
+  approvalOptions?: ApprovalOption[]
   diffPath?: string
   diffOld?: string | null
   diffNew?: string
@@ -278,6 +281,25 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             diffPath: event.path,
             diffOld: event.old_text,
             diffNew: event.new_text,
+          }],
+        }))
+        break
+      }
+
+      case 'ApprovalRequested': {
+        set((s) => ({
+          messages: [...s.messages, {
+            id: genId(),
+            role: 'tool' as const,
+            content: event.description,
+            timestamp: Date.now(),
+            toolId: event.id,
+            toolTitle: 'permission requested',
+            toolKind: 'approval',
+            toolStatus: 'pending',
+            approvalRequestId: event.id,
+            approvalCommand: event.command,
+            approvalOptions: event.options,
           }],
         }))
         break

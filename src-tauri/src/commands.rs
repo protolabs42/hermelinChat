@@ -86,7 +86,7 @@ pub struct AcpHealthState(pub Arc<Mutex<AcpHealth>>);
 
 fn require_acp_connected(health: &AcpHealthState) -> Result<(), String> {
     let guard = health.0.lock().map_err(|e| e.to_string())?;
-    if guard.status == "connected" {
+    if guard.status == "connected" || guard.status == "ready" {
         Ok(())
     } else {
         Err(guard
@@ -177,7 +177,47 @@ pub fn acp_reconnect(
 #[tauri::command]
 pub fn acp_status(state: State<'_, AcpHealthState>) -> String {
     let guard = state.0.lock().unwrap_or_else(|e| e.into_inner());
-    guard.status.clone()
+    if guard.status == "ready" {
+        "connected".to_string()
+    } else {
+        guard.status.clone()
+    }
+}
+
+#[tauri::command]
+pub fn acp_respond_permission(
+    state: State<'_, AcpState>,
+    health: State<'_, AcpHealthState>,
+    request_id: String,
+    option_id: Option<String>,
+) -> Result<String, String> {
+    require_acp_connected(&health)?;
+    let guard = state.0.lock().map_err(|e| e.to_string())?;
+    let client = guard.as_ref().ok_or("ACP client not initialized")?;
+    let response = if let Some(option_id) = option_id {
+        serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": serde_json::Value::String(request_id),
+            "result": {
+                "outcome": {
+                    "outcome": "selected",
+                    "optionId": option_id,
+                }
+            }
+        })
+    } else {
+        serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": serde_json::Value::String(request_id),
+            "result": {
+                "outcome": {
+                    "outcome": "cancelled"
+                }
+            }
+        })
+    };
+    client.send(&response.to_string())?;
+    Ok("permission response sent".to_string())
 }
 
 #[tauri::command]

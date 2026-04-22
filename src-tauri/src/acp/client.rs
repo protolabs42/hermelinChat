@@ -8,7 +8,7 @@ use std::thread;
 use tauri::{AppHandle, Emitter};
 
 use crate::acp::events::AcpEvent;
-use crate::acp::protocol::parse_acp_line;
+use crate::acp::protocol::{is_valid_jsonrpc_line, parse_acp_line};
 use crate::commands::AcpHealth;
 
 pub struct AcpClient {
@@ -22,6 +22,13 @@ pub struct AcpClient {
 struct PendingRequest {
     source_op: &'static str,
     session_id: Option<String>,
+}
+
+fn update_health(health: &Arc<Mutex<AcpHealth>>, status: &str, message: Option<String>) {
+    if let Ok(mut guard) = health.lock() {
+        guard.status = status.to_string();
+        guard.message = message;
+    }
 }
 
 fn enrich_response_event(event: &mut AcpEvent, pending_requests: &Arc<Mutex<HashMap<u64, PendingRequest>>>) {
@@ -95,25 +102,55 @@ impl AcpClient {
         let pending_requests = Arc::new(Mutex::new(HashMap::<u64, PendingRequest>::new()));
         let pending_requests_thread = pending_requests.clone();
 
+        if let Ok(mut pending) = pending_requests.lock() {
+            pending.insert(
+                0,
+                PendingRequest {
+                    source_op: "initialize",
+                    session_id: None,
+                },
+            );
+        }
+
+        if let Ok(mut guard) = stdin_arc.lock() {
+            if let Some(stdin) = guard.as_mut() {
+                use std::io::Write;
+                let initialize = serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "id": 0,
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": 1,
+                        "clientCapabilities": {},
+                        "clientInfo": { "name": "aurora-chat", "version": "0.1.0" }
+                    }
+                });
+                writeln!(stdin, "{}", initialize).map_err(|e| format!("stdin write error: {}", e))?;
+                stdin.flush().map_err(|e| format!("stdin flush error: {}", e))?;
+            }
+        }
+
         // Background thread: read NDJSON lines from stdout, parse, emit
         thread::spawn(move || {
             let reader = std::io::BufReader::new(stdout);
+            let mut protocol_ready = false;
 
-            if let Ok(mut status) = health_thread.lock() {
-                status.status = "connected".to_string();
-                status.message = None;
-            }
-            let _ = app_handle.emit(
-                "acp:event",
-                AcpEvent::ConnectionStatus {
-                    status: "connected".to_string(),
-                    message: None,
-                },
-            );
+            update_health(&health_thread, "connecting", None);
 
             for line in reader.lines() {
                 match line {
                     Ok(line) => {
+                        if !protocol_ready && is_valid_jsonrpc_line(&line) {
+                            protocol_ready = true;
+                            update_health(&health_thread, "ready", None);
+                            let _ = app_handle.emit(
+                                "acp:event",
+                                AcpEvent::ConnectionStatus {
+                                    status: "connected".to_string(),
+                                    message: None,
+                                },
+                            );
+                        }
                         if let Some(mut event) = parse_acp_line(&line) {
                             enrich_response_event(&mut event, &pending_requests_thread);
                             let _ = app_handle.emit("acp:event", &event);

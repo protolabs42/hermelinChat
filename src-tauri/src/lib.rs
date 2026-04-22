@@ -34,6 +34,10 @@ pub fn run() {
                     println!("hermes acp spawned successfully");
                 }
                 Err(e) => {
+                    if let Ok(mut health) = app.state::<AcpHealthState>().0.lock() {
+                        health.status = "failed".to_string();
+                        health.message = Some(e.clone());
+                    }
                     eprintln!("failed to spawn hermes acp: {}", e);
                 }
             }
@@ -51,6 +55,7 @@ pub fn run() {
             commands::acp_cancel,
             commands::acp_reconnect,
             commands::acp_status,
+            commands::acp_respond_permission,
             commands::list_sessions,
             commands::get_session_messages,
             commands::list_artifacts,
