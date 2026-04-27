@@ -55,5 +55,8 @@ jobs:
       - name: Install tauri-driver
         run: cargo install tauri-driver --locked
 
+      - name: Install tauri-cli (cargo tauri build)
+        run: cargo install tauri-cli --locked
+
       - name: Desktop smoke E2E
         run: xvfb-run -a npm --prefix e2e-tests test
