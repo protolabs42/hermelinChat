@@ -11,6 +11,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { createElement } from 'react'
 import Markdown from 'react-markdown'
 import { buildComponents, REMARK_PLUGINS } from '../markdown-components'
+import { buildShadowMarkdownCss } from '../shadow-styles'
 
 function render(src: string, isDark = true): string {
   return renderToStaticMarkup(
@@ -34,34 +35,64 @@ function test(name: string, fn: () => void) {
 
 console.log('MarkdownView')
 
+test('shadow stylesheet owns markdown typography and color variables', () => {
+  const css = buildShadowMarkdownCss({
+    bg: '#000000',
+    surface: '#111111',
+    elevated: '#222222',
+    border: '#333333',
+    muted: '#444444',
+    text: '#555555',
+    textBright: '#666666',
+    accent: '#777777',
+    danger: '#880000',
+    success: '#008800',
+    info: '#000088',
+    purple: '#550088',
+    cyan: '#008888',
+    accent300: '#aaaaaa',
+    accent400: '#bbbbbb',
+    accent500: '#cccccc',
+    accent600: '#dddddd',
+    accent700: '#eeeeee',
+    accent800: '#ffffff',
+    accent900: '#121212',
+  })
+  assert.match(css, /:host/)
+  assert.match(css, /--color-accent: #777777;/)
+  assert.match(css, /\.markdown-body > \*:first-child/)
+  assert.match(css, /\.markdown-body h1/)
+  assert.match(css, /\.markdown-body table/)
+  assert.match(css, /\.markdown-body blockquote/)
+  assert.match(css, /\.markdown-body code:not\(\[class\*="language-"\]\)/)
+  assert.match(css, /\.katex/)
+})
+
 // ── Heading hierarchy ──────────────────────────────────────────────────
 
-test('h1 renders with 1.5em and accent color', () => {
+test('h1 renders as semantic heading for shadow typography', () => {
   const html = render('# Hello')
-  assert.match(html, /font-size:1\.5em/)
-  assert.match(html, /color:var\(--color-accent\)/)
-  assert.match(html, />Hello</)
+  assert.match(html, /<h1>Hello<\/h1>/)
 })
 
-test('h2 renders with 1.25em', () => {
+test('h2 renders as semantic heading for shadow typography', () => {
   const html = render('## Hello')
-  assert.match(html, /font-size:1\.25em/)
+  assert.match(html, /<h2>Hello<\/h2>/)
 })
 
-test('h3 renders with 1.1em', () => {
+test('h3 renders as semantic heading for shadow typography', () => {
   const html = render('### Hello')
-  assert.match(html, /font-size:1\.1em/)
+  assert.match(html, /<h3>Hello<\/h3>/)
 })
 
 // ── GFM features (the tables/tasklists gap we had before) ──────────────
 
-test('tables render with our bordered cell style', () => {
+test('tables render with a scroll wrapper for shadow stylesheet targeting', () => {
   const html = render('| a | b |\n|---|---|\n| 1 | 2 |')
-  assert.match(html, /<table/)
-  assert.match(html, /<th[^>]*border:1px solid/)
-  assert.match(html, /<td[^>]*border:1px solid/)
-  assert.match(html, />a</)
-  assert.match(html, />1</)
+  assert.match(html, /class="markdown-table-scroll"/)
+  assert.match(html, /<table>/)
+  assert.match(html, /<th>a<\/th>/)
+  assert.match(html, /<td>1<\/td>/)
 })
 
 test('task lists render checkboxes', () => {
@@ -84,9 +115,9 @@ test('autolinks become anchors', () => {
 
 // ── Inline code vs fenced code ─────────────────────────────────────────
 
-test('inline code gets elevated background', () => {
+test('inline code renders as plain code for shadow stylesheet targeting', () => {
   const html = render('Call `foo()` to start.')
-  assert.match(html, /<code[^>]*background:var\(--color-elevated\)[^>]*>foo\(\)<\/code>/)
+  assert.match(html, /<code>foo\(\)<\/code>/)
 })
 
 test('fenced code block renders via syntax highlighter', () => {
@@ -98,19 +129,19 @@ test('fenced code block renders via syntax highlighter', () => {
 
 // ── Lists + paragraphs ─────────────────────────────────────────────────
 
-test('paragraph gets 0.6em vertical margin', () => {
+test('paragraph renders as plain p for shadow stylesheet targeting', () => {
   const html = render('Hello world.')
-  assert.match(html, /<p[^>]*style="margin:0\.6em 0"/)
+  assert.match(html, /<p>Hello world\.<\/p>/)
 })
 
-test('unordered list uses 1.25em left padding', () => {
+test('unordered list renders as semantic ul', () => {
   const html = render('- a\n- b')
-  assert.match(html, /<ul[^>]*padding-left:1\.25em/)
+  assert.match(html, /<ul>/)
 })
 
-test('list item 0.2em vertical margin', () => {
+test('list item renders as semantic li', () => {
   const html = render('- item')
-  assert.match(html, /<li[^>]*margin:0\.2em 0/)
+  assert.match(html, /<li>item<\/li>/)
 })
 
 // ── Edge cases from the old regex renderer ────────────────────────────
@@ -129,10 +160,9 @@ test('bold and italic inline', () => {
   assert.match(html, /<em>italic<\/em>/)
 })
 
-test('blockquote rendered with left-border accent', () => {
+test('blockquote renders as semantic blockquote for shadow stylesheet targeting', () => {
   const html = render('> quoted text')
-  assert.match(html, /<blockquote[^>]*border-left:4px solid var\(--color-accent\)/)
-  assert.match(html, />quoted text</)
+  assert.match(html, /<blockquote>\s*<p>quoted text<\/p>\s*<\/blockquote>/)
 })
 
 console.log('✓ all MarkdownView tests passed')

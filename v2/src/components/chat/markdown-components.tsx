@@ -19,161 +19,40 @@ export const REMARK_PLUGINS = [remarkGfm, remarkBreaks]
 export function buildComponents(isDark: boolean): Components {
   const codeTheme = isDark ? vscDarkPlus : vs
   return {
-    h1: ({ children }) => (
-      <div
-        style={{
-          fontSize: '1.5em',
-          fontWeight: 700,
-          color: 'var(--color-accent)',
-          margin: '1em 0 0.45em',
-        }}
-      >
-        {children}
-      </div>
-    ),
-    h2: ({ children }) => (
-      <div
-        style={{
-          fontSize: '1.25em',
-          fontWeight: 700,
-          color: 'var(--color-text-bright)',
-          margin: '1em 0 0.4em',
-        }}
-      >
-        {children}
-      </div>
-    ),
-    h3: ({ children }) => (
-      <div
-        style={{
-          fontSize: '1.1em',
-          fontWeight: 600,
-          color: 'var(--color-text-bright)',
-          margin: '0.9em 0 0.35em',
-        }}
-      >
-        {children}
-      </div>
-    ),
-    h4: ({ children }) => (
-      <div
-        style={{
-          fontSize: '1.05em',
-          fontWeight: 600,
-          color: 'var(--color-text-bright)',
-          margin: '0.8em 0 0.3em',
-        }}
-      >
-        {children}
-      </div>
-    ),
-    p: ({ children }) => (
-      <p style={{ margin: '0.6em 0' }}>{children}</p>
-    ),
-    ul: ({ children }) => (
-      <ul style={{ margin: '0.5em 0', paddingLeft: '1.25em' }}>{children}</ul>
-    ),
-    ol: ({ children }) => (
-      <ol style={{ margin: '0.5em 0', paddingLeft: '1.25em' }}>{children}</ol>
-    ),
-    li: ({ children }) => (
-      <li style={{ margin: '0.2em 0' }}>{children}</li>
-    ),
+    h1: ({ children }) => <h1>{children}</h1>,
+    h2: ({ children }) => <h2>{children}</h2>,
+    h3: ({ children }) => <h3>{children}</h3>,
+    h4: ({ children }) => <h4>{children}</h4>,
+    h5: ({ children }) => <h5>{children}</h5>,
+    h6: ({ children }) => <h6>{children}</h6>,
+    p: ({ children }) => <p>{children}</p>,
+    ul: ({ children }) => <ul>{children}</ul>,
+    ol: ({ children }) => <ol>{children}</ol>,
+    li: ({ children }) => <li>{children}</li>,
     a: ({ children, href }) => (
-      <a
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        style={{ color: 'var(--color-accent)', textDecoration: 'underline' }}
-      >
+      <a href={href} target="_blank" rel="noopener noreferrer">
         {children}
       </a>
     ),
-    strong: ({ children }) => (
-      <strong style={{ color: 'var(--color-text-bright)', fontWeight: 600 }}>
-        {children}
-      </strong>
-    ),
+    strong: ({ children }) => <strong>{children}</strong>,
     em: ({ children }) => <em>{children}</em>,
-    blockquote: ({ children }) => (
-      <blockquote
-        style={{
-          margin: '0.6em 0',
-          padding: '0.3em 0 0.3em 1em',
-          borderLeft: '4px solid var(--color-accent)',
-          color: 'var(--color-muted)',
-          fontStyle: 'italic',
-        }}
-      >
-        {children}
-      </blockquote>
-    ),
-    hr: () => (
-      <hr
-        style={{
-          border: 'none',
-          borderTop: '1px solid var(--color-border)',
-          margin: '1em 0',
-        }}
-      />
-    ),
+    blockquote: ({ children }) => <blockquote>{children}</blockquote>,
+    hr: () => <hr />,
     table: ({ children }) => (
-      <div style={{ overflowX: 'auto', margin: '0.6em 0' }}>
-        <table
-          style={{
-            borderCollapse: 'collapse',
-            width: '100%',
-            fontSize: '0.95em',
-          }}
-        >
-          {children}
-        </table>
+      <div className="markdown-table-scroll">
+        <table>{children}</table>
       </div>
     ),
     thead: ({ children }) => <thead>{children}</thead>,
     tbody: ({ children }) => <tbody>{children}</tbody>,
     tr: ({ children }) => <tr>{children}</tr>,
-    th: ({ children }) => (
-      <th
-        style={{
-          padding: '0.5em 0.75em',
-          border: '1px solid var(--color-border)',
-          background: 'var(--color-elevated)',
-          textAlign: 'left',
-          fontWeight: 600,
-          color: 'var(--color-text-bright)',
-        }}
-      >
-        {children}
-      </th>
-    ),
-    td: ({ children }) => (
-      <td
-        style={{
-          padding: '0.5em 0.75em',
-          border: '1px solid var(--color-border)',
-        }}
-      >
-        {children}
-      </td>
-    ),
+    th: ({ children }) => <th>{children}</th>,
+    td: ({ children }) => <td>{children}</td>,
     code: (props) => {
       const { children, className } = props
       const isFenced = typeof className === 'string' && /language-/.test(className)
       if (!isFenced) {
-        return (
-          <code
-            style={{
-              background: 'var(--color-elevated)',
-              padding: '0.15em 0.5em',
-              borderRadius: 4,
-              fontSize: '0.85em',
-              fontFamily: "'Fira Code', monospace",
-            }}
-          >
-            {children}
-          </code>
-        )
+        return <code>{children}</code>
       }
       const language = className!.replace('language-', '')
       const value = String(children).replace(/\n$/, '')
@@ -181,17 +60,9 @@ export function buildComponents(isDark: boolean): Components {
         <SyntaxHighlighter
           language={language || 'text'}
           style={codeTheme}
-          customStyle={{
-            margin: '0.8em 0',
-            padding: '1em',
-            borderRadius: 8,
-            border: '1px solid var(--color-border)',
-            fontSize: '0.85em',
-            lineHeight: 1.6,
-            background: 'var(--color-elevated)',
-          }}
+          useInlineStyles
           codeTagProps={{
-            style: { fontFamily: "'Fira Code', monospace" },
+            style: { fontFamily: "var(--font-mono, 'Fira Code', monospace)" },
           }}
         >
           {value}

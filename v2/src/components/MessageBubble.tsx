@@ -1,4 +1,5 @@
 import type { ChatMessage } from '../stores/chat'
+import ShadowContainer from './chat/ShadowContainer'
 import MarkdownView from './chat/MarkdownView'
 import ThinkingBlock from './chat/ThinkingBlock'
 import ToolCallBlock from './chat/ToolCallBlock'
@@ -74,7 +75,9 @@ export default function MessageBubble({ message }: Props) {
             color: 'var(--color-text-bright)',
           }}
         >
-          <MarkdownView>{message.content}</MarkdownView>
+          <ShadowContainer>
+            <MarkdownView>{message.content}</MarkdownView>
+          </ShadowContainer>
         </div>
       )}
     </div>
