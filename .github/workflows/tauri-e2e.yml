@@ -59,4 +59,6 @@ jobs:
         run: cargo install tauri-cli --locked
 
       - name: Desktop smoke E2E
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
         run: xvfb-run -a npm --prefix e2e-tests test
