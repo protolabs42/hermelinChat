@@ -214,7 +214,7 @@ pub fn list_current_artifacts_for_session(session_id: Option<&str>) -> Vec<Artif
     list
 }
 
-fn artifacts_dir() -> PathBuf {
+pub(crate) fn artifacts_dir() -> PathBuf {
     if let Ok(dir) = std::env::var("HERMELIN_ARTIFACT_DIR") {
         return PathBuf::from(dir);
     }

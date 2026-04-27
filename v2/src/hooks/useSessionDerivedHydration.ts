@@ -5,6 +5,7 @@ import { useArtifactStore, type Artifact } from '../stores/artifacts'
 import { useChatStore } from '../stores/chat'
 import { useProjectStore } from '../stores/projects'
 import { useSurfaceStore, type A2UIEvent, extractCreatedSurfaceIds, scopeA2UIEventToSession } from '../stores/surfaces'
+import { applyWorkspaceBridgeEvent, type WorkspaceBridgeEvent } from '../app/workspace-bridge'
 
 export function useSessionDerivedHydration() {
   useEffect(() => {
@@ -20,6 +21,11 @@ export function useSessionDerivedHydration() {
 
     const unlistenArtifact = listen('artifact:event', (event) => {
       useArtifactStore.getState().handleEvent(event.payload as never)
+    })
+
+    const unlistenWorkspaceBridge = listen<WorkspaceBridgeEvent>('workspace-bridge:event', (event) => {
+      applyWorkspaceBridgeEvent(event.payload)
+        .catch((e: unknown) => console.error('Failed to apply workspace bridge event:', e))
     })
 
     const unsubSession = useChatStore.subscribe((state, prev) => {
@@ -48,6 +54,7 @@ export function useSessionDerivedHydration() {
     return () => {
       unlistenA2ui.then((fn) => fn())
       unlistenArtifact.then((fn) => fn())
+      unlistenWorkspaceBridge.then((fn) => fn())
       unsubSession()
       document.removeEventListener('visibilitychange', onVisibility)
     }

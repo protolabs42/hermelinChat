@@ -8,6 +8,7 @@ mod mcp_commands;
 mod mcp_proxy;
 mod projects;
 mod sessions;
+mod workspace_bridge;
 
 use commands::{AcpHealthState, AcpState};
 use hermes_config::ConfigLock;
@@ -44,6 +45,7 @@ pub fn run() {
 
             artifacts::start_watcher(&app.handle());
             artifacts::start_a2ui_watcher(&app.handle());
+            workspace_bridge::start_watcher(&app.handle());
 
             Ok(())
         })
