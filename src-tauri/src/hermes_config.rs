@@ -90,14 +90,19 @@ fn is_sensitive_header_name(name: &str) -> bool {
     )
 }
 
-fn redact_header_value(name: &str, value: &str) -> String {
+fn redact_header_value(_name: &str, value: &str) -> String {
     if extract_env_ref(value).is_some() {
         value.to_string()
-    } else if is_sensitive_header_name(name) {
-        "[REDACTED_INLINE_SECRET]".to_string()
     } else {
-        value.to_string()
+        "[REDACTED_INLINE_SECRET]".to_string()
     }
+}
+
+fn validate_env_value(value: &str) -> Result<(), String> {
+    if value.chars().any(|ch| matches!(ch, '\n' | '\r' | '\u{2028}' | '\u{2029}' | '\0')) {
+        return Err("Env var values cannot contain line breaks or NUL bytes".to_string());
+    }
+    Ok(())
 }
 
 pub fn env_file_map() -> Result<HashMap<String, String>, String> {
@@ -204,7 +209,7 @@ impl McpServerInfo {
             }
         };
         let has_inline_values = entry.env.values().any(|v| !v.starts_with("${"))
-            || matches!(&entry.transport, McpTransport::Http { headers, .. } if headers.iter().any(|(key, value)| extract_env_ref(value).is_none() && is_sensitive_header_name(key)));
+            || matches!(&entry.transport, McpTransport::Http { headers, .. } if headers.values().any(|value| extract_env_ref(value).is_none()));
         let mut env_keys: Vec<String> = entry.env.keys().cloned().collect();
         if let McpTransport::Http { headers, .. } = &entry.transport {
             for v in headers.values() {

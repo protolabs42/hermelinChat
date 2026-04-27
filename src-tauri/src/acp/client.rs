@@ -31,6 +31,39 @@ fn update_health(health: &Arc<Mutex<AcpHealth>>, status: &str, message: Option<S
     }
 }
 
+fn initialized_notification() -> String {
+    serde_json::json!({
+        "jsonrpc": "2.0",
+        "method": "initialized",
+        "params": {}
+    })
+    .to_string()
+}
+
+fn register_pending_then_send<F>(
+    pending_requests: &Arc<Mutex<HashMap<u64, PendingRequest>>>,
+    id: u64,
+    pending_request: PendingRequest,
+    send: F,
+) -> Result<(), String>
+where
+    F: FnOnce() -> Result<(), String>,
+{
+    pending_requests
+        .lock()
+        .map_err(|e| e.to_string())?
+        .insert(id, pending_request);
+
+    if let Err(error) = send() {
+        if let Ok(mut pending) = pending_requests.lock() {
+            pending.remove(&id);
+        }
+        return Err(error);
+    }
+
+    Ok(())
+}
+
 fn enrich_response_event(event: &mut AcpEvent, pending_requests: &Arc<Mutex<HashMap<u64, PendingRequest>>>) {
     let request_id = match event {
         AcpEvent::SessionInfo { request_id, .. } => *request_id,
@@ -141,15 +174,29 @@ impl AcpClient {
                 match line {
                     Ok(line) => {
                         if !protocol_ready && is_initialize_response(&line) {
-                            protocol_ready = true;
-                            update_health(&health_thread, "ready", None);
-                            let _ = app_handle.emit(
-                                "acp:event",
-                                AcpEvent::ConnectionStatus {
-                                    status: "connected".to_string(),
-                                    message: None,
-                                },
-                            );
+                            if let Ok(mut stdin_guard) = stdin_arc_thread.lock() {
+                                if let Some(stdin) = stdin_guard.as_mut() {
+                                    use std::io::Write;
+                                    let initialized = initialized_notification();
+                                    if writeln!(stdin, "{}", initialized).is_ok() && stdin.flush().is_ok() {
+                                        protocol_ready = true;
+                                        update_health(&health_thread, "connected", None);
+                                        let _ = app_handle.emit(
+                                            "acp:event",
+                                            AcpEvent::ConnectionStatus {
+                                                status: "connected".to_string(),
+                                                message: None,
+                                            },
+                                        );
+                                    } else {
+                                        update_health(
+                                            &health_thread,
+                                            "error",
+                                            Some("failed to acknowledge ACP initialize handshake".to_string()),
+                                        );
+                                    }
+                                }
+                            }
                         }
                         if let Some(mut event) = parse_acp_line(&line) {
                             enrich_response_event(&mut event, &pending_requests_thread);
@@ -232,19 +279,15 @@ impl AcpClient {
                 "mcpServers": []
             }
         });
-        self.pending_requests
-            .lock()
-            .map_err(|e| e.to_string())?
-            .insert(id, PendingRequest {
+        register_pending_then_send(
+            &self.pending_requests,
+            id,
+            PendingRequest {
                 source_op: "session/new",
                 session_id: None,
-            });
-        if let Err(error) = self.send(&msg.to_string()) {
-            if let Ok(mut pending) = self.pending_requests.lock() {
-                pending.remove(&id);
-            }
-            return Err(error);
-        }
+            },
+            || self.send(&msg.to_string()),
+        )?;
         Ok(id)
     }
 
@@ -262,19 +305,15 @@ impl AcpClient {
                 ]
             }
         });
-        self.pending_requests
-            .lock()
-            .map_err(|e| e.to_string())?
-            .insert(id, PendingRequest {
+        register_pending_then_send(
+            &self.pending_requests,
+            id,
+            PendingRequest {
                 source_op: "session/prompt",
                 session_id: Some(session_id.to_string()),
-            });
-        if let Err(error) = self.send(&msg.to_string()) {
-            if let Ok(mut pending) = self.pending_requests.lock() {
-                pending.remove(&id);
-            }
-            return Err(error);
-        }
+            },
+            || self.send(&msg.to_string()),
+        )?;
         Ok(id)
     }
 
@@ -296,19 +335,15 @@ impl AcpClient {
                 "mcpServers": []
             }
         });
-        self.pending_requests
-            .lock()
-            .map_err(|e| e.to_string())?
-            .insert(id, PendingRequest {
+        register_pending_then_send(
+            &self.pending_requests,
+            id,
+            PendingRequest {
                 source_op: "session/load",
                 session_id: Some(session_id.to_string()),
-            });
-        if let Err(error) = self.send(&msg.to_string()) {
-            if let Ok(mut pending) = self.pending_requests.lock() {
-                pending.remove(&id);
-            }
-            return Err(error);
-        }
+            },
+            || self.send(&msg.to_string()),
+        )?;
         Ok(id)
     }
 
@@ -345,5 +380,51 @@ impl AcpClient {
 impl Drop for AcpClient {
     fn drop(&mut self) {
         self.shutdown();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn initialized_notification_matches_protocol_shape() {
+        let payload: serde_json::Value =
+            serde_json::from_str(&initialized_notification()).expect("valid initialized json");
+        assert_eq!(payload["jsonrpc"], "2.0");
+        assert_eq!(payload["method"], "initialized");
+        assert_eq!(payload["params"], serde_json::json!({}));
+    }
+
+    #[test]
+    fn register_pending_then_send_registers_before_send_and_cleans_up_on_error() {
+        let pending_requests = Arc::new(Mutex::new(HashMap::<u64, PendingRequest>::new()));
+
+        let observed_pending = Arc::new(Mutex::new(false));
+        let observed_pending_clone = observed_pending.clone();
+        let err = register_pending_then_send(
+            &pending_requests,
+            7,
+            PendingRequest {
+                source_op: "session/prompt",
+                session_id: Some("sess-1".to_string()),
+            },
+            || {
+                let is_registered = pending_requests
+                    .lock()
+                    .expect("pending lock")
+                    .contains_key(&7);
+                *observed_pending_clone.lock().expect("observed lock") = is_registered;
+                Err("boom".to_string())
+            },
+        )
+        .expect_err("send should fail");
+
+        assert_eq!(err, "boom");
+        assert!(*observed_pending.lock().expect("observed lock"));
+        assert!(pending_requests
+            .lock()
+            .expect("pending lock")
+            .is_empty());
     }
 }

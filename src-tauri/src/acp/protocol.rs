@@ -26,9 +26,20 @@ pub fn is_initialize_response(line: &str) -> bool {
     if parse_request_id(&json) != Some(0) {
         return false;
     }
-    json.get("result")
-        .and_then(|result| result.get("protocolVersion").or_else(|| result.get("capabilities")).or_else(|| result.get("serverInfo")))
-        .is_some()
+    let Some(result) = json.get("result").and_then(|value| value.as_object()) else {
+        return false;
+    };
+
+    let has_protocol_version = result
+        .get("protocolVersion")
+        .map(|value| value.is_u64() || value.as_str().is_some())
+        .unwrap_or(false);
+    let has_server_info = result
+        .get("serverInfo")
+        .and_then(|value| value.as_object())
+        .is_some();
+
+    has_protocol_version && has_server_info
 }
 
 fn parse_request_id(json: &Value) -> Option<u64> {
@@ -440,5 +451,20 @@ mod tests {
             }
             other => panic!("expected ConnectionStatus error, got {:?}", other),
         }
+    }
+
+    #[test]
+    fn test_initialize_response_requires_protocol_fields() {
+        let line = r#"{"jsonrpc":"2.0","id":0,"result":{"capabilities":{}}}"#;
+        assert!(!is_initialize_response(line));
+
+        let line = r#"{"jsonrpc":"2.0","id":0,"result":{"protocolVersion":1}}"#;
+        assert!(!is_initialize_response(line));
+    }
+
+    #[test]
+    fn test_initialize_response_accepts_protocol_truthful_payload() {
+        let line = r#"{"jsonrpc":"2.0","id":0,"result":{"protocolVersion":1,"serverInfo":{"name":"hermes","version":"1.0.0"},"capabilities":{}}}"#;
+        assert!(is_initialize_response(line));
     }
 }

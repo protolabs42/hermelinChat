@@ -44,6 +44,9 @@ function buildIsolatedRuntime(binaryPath) {
     fs.mkdirSync(dir, { recursive: true })
   }
 
+  const hermeticHomeFixture = path.join(repoRoot, 'e2e-tests', 'fixtures', 'hermetic-home')
+  fs.cpSync(hermeticHomeFixture, homeDir, { recursive: true })
+
   const hermesHome = path.join(homeDir, '.hermes')
   fs.mkdirSync(hermesHome, { recursive: true })
 
@@ -55,15 +58,24 @@ function buildIsolatedRuntime(binaryPath) {
   const wrapperPath = path.join(runtimeRoot, 'launch-app.sh')
   fs.writeFileSync(wrapperPath, `#!/usr/bin/env bash
 set -euo pipefail
-export HOME=${JSON.stringify(homeDir)}
-export HERMES_HOME=${JSON.stringify(hermesHome)}
-export XDG_CONFIG_HOME=${JSON.stringify(xdgConfigHome)}
-export XDG_DATA_HOME=${JSON.stringify(xdgDataHome)}
-export XDG_STATE_HOME=${JSON.stringify(xdgStateHome)}
-export XDG_CACHE_HOME=${JSON.stringify(xdgCacheHome)}
-export XDG_RUNTIME_DIR=${JSON.stringify(xdgRuntimeDir)}
-export HERMES_BIN=${JSON.stringify(fakeHermesPath)}
-exec ${JSON.stringify(binaryPath)} "$@"
+exec env -i \
+  HOME=${JSON.stringify(homeDir)} \
+  HERMES_HOME=${JSON.stringify(hermesHome)} \
+  XDG_CONFIG_HOME=${JSON.stringify(xdgConfigHome)} \
+  XDG_DATA_HOME=${JSON.stringify(xdgDataHome)} \
+  XDG_STATE_HOME=${JSON.stringify(xdgStateHome)} \
+  XDG_CACHE_HOME=${JSON.stringify(xdgCacheHome)} \
+  XDG_RUNTIME_DIR=${JSON.stringify(xdgRuntimeDir)} \
+  HERMES_BIN=${JSON.stringify(fakeHermesPath)} \
+  PATH=${JSON.stringify(process.env.PATH || '')} \
+  DISPLAY=${JSON.stringify(process.env.DISPLAY || '')} \
+  XAUTHORITY=${JSON.stringify(process.env.XAUTHORITY || '')} \
+  WAYLAND_DISPLAY=${JSON.stringify(process.env.WAYLAND_DISPLAY || '')} \
+  XDG_SESSION_TYPE=${JSON.stringify(process.env.XDG_SESSION_TYPE || '')} \
+  DBUS_SESSION_BUS_ADDRESS=${JSON.stringify(process.env.DBUS_SESSION_BUS_ADDRESS || '')} \
+  LD_LIBRARY_PATH=${JSON.stringify(process.env.LD_LIBRARY_PATH || '')} \
+  WEBKIT_DISABLE_DMABUF_RENDERER=1 \
+  ${JSON.stringify(binaryPath)} "$@"
 `)
   fs.chmodSync(wrapperPath, 0o755)
 
@@ -88,18 +100,69 @@ async function waitForStartupUi(driver) {
   }, 15000, 'expected startup UI to appear')
 }
 
-async function waitForShell(driver) {
-  await waitForStartupUi(driver)
-  if (await elementExists(driver, '[data-testid="connection-interstitial"]')) {
+async function sampleStartupState(driver) {
+  const shellVisible = await elementExists(driver, '[data-testid="app-shell"]')
+  const interstitialVisible = await elementExists(driver, '[data-testid="connection-interstitial"]')
+  const startFreshVisible = await elementExists(driver, '[data-testid="start-fresh"]')
+
+  let interstitialText = ''
+  if (interstitialVisible) {
     try {
-      const interstitial = await driver.findElement(By.css('[data-testid="connection-interstitial"]'))
-      const text = await interstitial.getText()
-      expect(text).to.match(/Connecting to Hermes|Restoring workspace|Loading remembered thread|Starting a fresh session/i)
+      interstitialText = await driver.findElement(By.css('[data-testid="connection-interstitial"]')).getText()
     } catch (error) {
       if (!String(error).includes('StaleElementReferenceError')) throw error
     }
   }
-  await driver.wait(until.elementLocated(By.css('[data-testid="app-shell"]')), 90000)
+
+  return { interstitialText, interstitialVisible, shellVisible, startFreshVisible }
+}
+
+async function watchStartupUntilShell(driver, options = {}) {
+  const {
+    allowedInterstitial = /Connecting to Hermes|Restoring workspace|Loading remembered thread|Starting a fresh session/i,
+    forbiddenInterstitial = null,
+    requireObservedInterstitial = null,
+    forbidStartFresh = false,
+    timeoutMs = 90000,
+  } = options
+
+  const seenInterstitial = new Set()
+  let sawStartFresh = false
+
+  await driver.wait(async () => {
+    const snapshot = await sampleStartupState(driver)
+
+    if (snapshot.interstitialText) {
+      seenInterstitial.add(snapshot.interstitialText)
+      expect(snapshot.interstitialText).to.match(allowedInterstitial)
+      if (forbiddenInterstitial) {
+        expect(snapshot.interstitialText).to.not.match(forbiddenInterstitial)
+      }
+    }
+
+    if (snapshot.startFreshVisible) {
+      sawStartFresh = true
+    }
+
+    return snapshot.shellVisible
+  }, timeoutMs, 'expected app shell to appear')
+
+  if (requireObservedInterstitial) {
+    expect(Array.from(seenInterstitial).join('\n')).to.match(requireObservedInterstitial)
+  }
+  if (forbidStartFresh) {
+    expect(sawStartFresh).to.equal(false)
+  }
+
+  return {
+    sawStartFresh,
+    seenInterstitial: Array.from(seenInterstitial),
+  }
+}
+
+async function waitForShell(driver) {
+  await waitForStartupUi(driver)
+  await watchStartupUntilShell(driver)
   const shell = await driver.findElement(By.css('[data-testid="app-shell"]'))
   expect(await shell.isDisplayed()).to.equal(true)
 }
@@ -192,7 +255,8 @@ describe('Aurora Chat desktop shell', function () {
   })
 
   it('reaches a visible startup state and then the app shell without auto-healing through recovery actions', async function () {
-    await waitForShell(driver)
+    await waitForStartupUi(driver)
+    await watchStartupUntilShell(driver, { forbidStartFresh: true })
     expect(await elementExists(driver, '[data-testid="start-fresh"]')).to.equal(false)
   })
 
@@ -227,12 +291,10 @@ describe('Aurora Chat desktop shell', function () {
     await driver.wait(async () => !(await elementExists(driver, '[data-testid="workspace-switcher"]')), 15000)
 
     await waitForStartupUi(driver)
-    if (await elementExists(driver, '[data-testid="connection-interstitial"]')) {
-      const interstitial = await driver.findElement(By.css('[data-testid="connection-interstitial"]'))
-      const text = await interstitial.getText()
-      expect(text).to.match(/Starting a fresh session|Restoring workspace/i)
-      expect(text).to.not.match(/Loading remembered thread/i)
-    }
+    await watchStartupUntilShell(driver, {
+      requireObservedInterstitial: /Starting a fresh session|Restoring workspace/i,
+      forbiddenInterstitial: /Loading remembered thread/i,
+    })
     await waitForShell(driver)
 
     await openWorkspaceSwitcher(driver)
@@ -241,13 +303,11 @@ describe('Aurora Chat desktop shell', function () {
     await driver.wait(async () => !(await elementExists(driver, '[data-testid="workspace-switcher"]')), 15000)
 
     await waitForStartupUi(driver)
-    if (await elementExists(driver, '[data-testid="connection-interstitial"]')) {
-      const interstitial = await driver.findElement(By.css('[data-testid="connection-interstitial"]'))
-      const text = await interstitial.getText()
-      expect(text).to.match(/Loading remembered thread|Restoring workspace/i)
-      expect(text).to.not.match(/Starting a fresh session/i)
-      expect(await elementExists(driver, '[data-testid="start-fresh"]')).to.equal(false)
-    }
+    await watchStartupUntilShell(driver, {
+      requireObservedInterstitial: /Loading remembered thread|Restoring workspace/i,
+      forbiddenInterstitial: /Starting a fresh session/i,
+      forbidStartFresh: true,
+    })
 
     await waitForShell(driver)
     expect(await elementExists(driver, '[data-testid="start-fresh"]')).to.equal(false)

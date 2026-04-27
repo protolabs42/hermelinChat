@@ -4,6 +4,10 @@ import { constants } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import os from 'node:os'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url))
+const repoRoot = path.resolve(__dirname, '../..')
 
 function commandExists(command) {
   const result = spawnSync('bash', ['-lc', `command -v ${command}`], { encoding: 'utf8' })
@@ -13,6 +17,15 @@ function commandExists(command) {
 async function fileExists(filePath) {
   try {
     await access(filePath, constants.X_OK)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function pathExists(filePath) {
+  try {
+    await access(filePath, constants.F_OK)
     return true
   } catch {
     return false
@@ -34,6 +47,19 @@ async function main() {
     problems.push('WebKitWebDriver not found on PATH. On Debian/Ubuntu install package: webkit2gtk-driver')
   }
 
+  const requiredFixtures = [
+    path.join(repoRoot, 'e2e-tests', 'fixtures', 'fake-hermes-acp.mjs'),
+    path.join(repoRoot, 'e2e-tests', 'fixtures', 'hermetic-home', '.hermes', 'config.yaml'),
+    path.join(repoRoot, 'e2e-tests', 'fixtures', 'hermetic-home', '.hermes', '.env'),
+    path.join(repoRoot, 'e2e-tests', 'fixtures', 'hermetic-home', '.claude.json'),
+  ]
+
+  for (const fixturePath of requiredFixtures) {
+    if (!await pathExists(fixturePath)) {
+      problems.push(`missing hermetic E2E fixture: ${fixturePath}`)
+    }
+  }
+
   if (problems.length > 0) {
     console.error('Tauri E2E doctor failed:')
     for (const problem of problems) console.error(`- ${problem}`)
@@ -43,6 +69,7 @@ async function main() {
   console.log('Tauri E2E doctor OK')
   console.log(`- tauri-driver: ${tauriDriver}`)
   console.log(`- native driver: ${nativeDriver}`)
+  console.log(`- hermetic home fixture: ${path.join(repoRoot, 'e2e-tests', 'fixtures', 'hermetic-home')}`)
 }
 
 main().catch((error) => {

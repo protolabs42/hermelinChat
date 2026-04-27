@@ -26,6 +26,9 @@ import type {
   A2UIServerMessage,
 } from '../a2ui/types'
 import type { SurfaceRuntimeState, WorkspaceState } from '../lane2/schema'
+import { useChatStore } from './chat'
+
+type ScopedSurfaceState = SurfaceState & { __sessionId: string | null }
 
 /**
  * Envelope for one ordered batch of A2UI messages, as written to disk by
@@ -49,7 +52,7 @@ export function scopeA2UIEventToSession(
   activeSessionId: string | null
 ): A2UIEvent | null {
   if (!activeSessionId) {
-    return event.kind === 'Remove' ? event : null
+    return null
   }
 
   switch (event.kind) {
@@ -126,7 +129,7 @@ export function hydrateSurfaceState(
 
 interface SurfaceStore {
   /** Live surfaces keyed by surfaceId. */
-  surfaces: Record<string, SurfaceState>
+  surfaces: Record<string, ScopedSurfaceState>
   /** Last applied seq per session, used to drop stale/duplicate batches. */
   appliedSeq: Record<string, number>
   /** Chronological list of surface ids — order they first appeared. */
@@ -141,10 +144,11 @@ interface SurfaceStore {
  * ============================================================================= */
 
 function applyMessage(
-  surfaces: Record<string, SurfaceState>,
+  surfaces: Record<string, ScopedSurfaceState>,
   orderedIds: string[],
-  msg: A2UIServerMessage
-): { surfaces: Record<string, SurfaceState>; orderedIds: string[] } {
+  msg: A2UIServerMessage,
+  sessionId: string
+): { surfaces: Record<string, ScopedSurfaceState>; orderedIds: string[] } {
   // createSurface — fresh surface, empty components, empty data model
   if ('createSurface' in msg) {
     const s = msg.createSurface
@@ -162,7 +166,8 @@ function applyMessage(
             components: {},
             dataModel: {},
             revision: (prev.revision ?? 0) + 1,
-          },
+            __sessionId: sessionId,
+          }
         },
         orderedIds,
       }
@@ -178,7 +183,8 @@ function applyMessage(
           components: {},
           dataModel: {},
           revision: 1,
-        },
+          __sessionId: sessionId,
+        }
       },
       orderedIds: [...orderedIds, s.surfaceId],
     }
@@ -281,7 +287,7 @@ function applyBatch(
   let surfaces = state.surfaces
   let orderedIds = state.orderedIds
   for (const msg of batch.messages) {
-    const next = applyMessage(surfaces, orderedIds, msg)
+    const next = applyMessage(surfaces, orderedIds, msg, batch.sessionId)
     surfaces = next.surfaces
     orderedIds = next.orderedIds
   }
@@ -330,7 +336,9 @@ export const useSurfaceStore = create<SurfaceStore>((set, get) => ({
       }
       case 'Remove': {
         const s = get()
-        if (!s.surfaces[event.surfaceId]) break
+        const target = s.surfaces[event.surfaceId] as ScopedSurfaceState | undefined
+        const activeSessionId = useChatStore.getState().sessionId
+        if (!target || !activeSessionId || target.__sessionId !== activeSessionId) break
         const { [event.surfaceId]: _removed, ...rest } = s.surfaces
         void _removed
         set({
@@ -348,8 +356,15 @@ export const useSurfaceStore = create<SurfaceStore>((set, get) => ({
       return
     }
     const hydratedEntries = Object.entries(workspace.runtime)
-      .map(([surfaceId, runtime]) => [surfaceId, hydrateSurfaceState(surfaceId, runtime)])
-      .filter((entry): entry is [string, SurfaceState] => entry[1] !== null)
+      .map(([surfaceId, runtime]) => {
+        const hydrated = hydrateSurfaceState(surfaceId, runtime)
+        if (!hydrated) return [surfaceId, null] as const
+        return [surfaceId, {
+          ...hydrated,
+          __sessionId: workspace.continuity.activeThreadId ?? workspace.resident.sessionId ?? null,
+        }] as const
+      })
+      .filter((entry): entry is [string, ScopedSurfaceState] => entry[1] !== null)
     set({
       surfaces: Object.fromEntries(hydratedEntries),
       orderedIds: workspace.resident.activeSurfaceIds.filter((surfaceId) =>
